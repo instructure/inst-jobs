@@ -191,7 +191,13 @@ class Job
   end
 
   def self.reconnect!
-    self.redis.reconnect
+    self.redis ||= Redis.current
+
+    # redis cluster responds to reconnect directly,
+    # but individual redis needs it to be called on client
+    redis.respond_to?(:reconnect) ?
+      redis.reconnect :
+      redis.client.reconnect
   end
 
   def self.functions
