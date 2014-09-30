@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    canvas-jobs (0.9.1)
+    canvas-jobs (0.9.2)
       after_transaction_commit (= 1.0.1)
       rails (>= 3.2)
       redis (> 3.0)
