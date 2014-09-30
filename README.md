@@ -21,6 +21,14 @@ Add this line to your Rails application's Gemfile:
 gem 'canvas-jobs'
 ```
 
+If you are using Ruby >= 2.0, you'll also need to install the syck gem.
+We can't have this gem do it automatically without breaking support for
+ruby 1.9.
+
+```ruby
+gem 'syck'
+```
+
 And then execute:
 
     $ bundle

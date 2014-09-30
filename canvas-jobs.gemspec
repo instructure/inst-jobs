@@ -20,9 +20,6 @@ Gem::Specification.new do |s|
   s.add_dependency 'rufus-scheduler', '2.0.6'
   s.add_dependency 'redis',           '> 3.0'
   s.add_dependency 'redis-scripting', '1.0.1'
-  if RUBY_VERSION >= '2.0.0'
-    s.add_dependency 'syck'
-  end
 
   s.add_development_dependency 'bump'
   s.add_development_dependency 'database_cleaner'
