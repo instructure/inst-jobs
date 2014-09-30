@@ -4,8 +4,6 @@ class AddDelayedJobsNextInStrand < ActiveRecord::Migration
   end
 
   def self.up
-    raise("#{connection.adapter_name} is not supported for delayed jobs queue") unless connection.adapter_name == 'PostgreSQL'
-
     remove_index :delayed_jobs, :name => 'index_delayed_jobs_for_get_next'
 
     add_column :delayed_jobs, :next_in_strand, :boolean, :default => true, :null => false

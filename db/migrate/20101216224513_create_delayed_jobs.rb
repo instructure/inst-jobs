@@ -4,6 +4,8 @@ class CreateDelayedJobs < ActiveRecord::Migration
   end
 
   def self.up
+    raise("#{connection.adapter_name} is not supported for delayed jobs queue") unless connection.adapter_name == 'PostgreSQL'
+
     create_table :delayed_jobs do |table|
       # Allows some jobs to jump to the front of the queue
       table.integer  :priority, :default => 0

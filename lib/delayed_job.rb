@@ -15,7 +15,6 @@ end
 require 'rails'
 require 'active_support/core_ext/module/attribute_accessors'
 require 'active_record'
-
 require 'after_transaction_commit'
 
 require 'delayed/settings'
@@ -32,6 +31,8 @@ require 'delayed/performable_method'
 require 'delayed/periodic'
 require 'delayed/pool'
 require 'delayed/worker'
+
+require 'delayed/engine'
 
 Delayed.select_backend(Delayed::Backend::ActiveRecord::Job)
 
