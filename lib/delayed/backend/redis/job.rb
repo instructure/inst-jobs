@@ -108,19 +108,29 @@ class Job
 
   # We store time attributes in redis as floats so we don't have to do
   # timestamp parsing in lua.
-  TIMESTAMP_COLUMNS = [:run_at, :locked_at, :failed_at, :created_at, :updated_at]
-  INTEGER_COLUMNS = [:priority, :attempts, :max_attempts]
+  TIMESTAMP_COLUMNS = Set.new([:run_at, :locked_at, :failed_at, :created_at, :updated_at])
+  INTEGER_COLUMNS = Set.new([:priority, :attempts, :max_attempts])
 
-  attr_reader(*COLUMNS)
-  define_attribute_methods(COLUMNS)
-  COLUMNS.each do |c|
+  def self.column(name, type)
+    if type == :timestamp
+      TIMESTAMP_COLUMNS << name
+    elsif type == :integer
+      INTEGER_COLUMNS << name
+    end
+
+    attr_reader(name)
+    define_attribute_methods([name])
     # Custom attr_writer that updates the dirty status.
     class_eval(<<-EOS, __FILE__, __LINE__ + 1)
-      def #{c}=(new_value)
-        #{c}_will_change! unless new_value == self.#{c}
-        @#{c} = new_value
+      def #{name}=(new_value)
+        #{name}_will_change! unless new_value == self.#{name}
+        @#{name} = new_value
       end
     EOS
+  end
+
+  COLUMNS.each do |c|
+    self.column(c, nil)
   end
 
   def initialize(attrs = {})

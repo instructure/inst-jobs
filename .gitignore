@@ -13,4 +13,4 @@
 *.o
 *.a
 mkmf.log
-
+/spec/gemfiles/.bundle
