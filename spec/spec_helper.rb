@@ -45,6 +45,8 @@ ActiveRecord::Base.establish_connection({
 
 ActiveRecord::Migrator.migrate("db/migrate")
 ActiveRecord::Migrator.migrate("spec/migrate")
+Delayed::Backend::ActiveRecord::Job.reset_column_information
+Delayed::Backend::ActiveRecord::Job::Failed.reset_column_information
 
 Time.zone = 'UTC'
 Rails.logger = Logger.new(nil)
