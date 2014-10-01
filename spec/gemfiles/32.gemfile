@@ -4,3 +4,7 @@ gemspec :path=>"../../"
 
 gem "rails", "~> 3.2.19"
 
+if RUBY_VERSION >= "2.0"
+  gem "syck"
+end
+

@@ -4,3 +4,6 @@ gemspec :path=>"../../"
 
 gem "rails", "~> 4.1.6"
 
+if RUBY_VERSION >= "2.0"
+  gem "syck"
+end

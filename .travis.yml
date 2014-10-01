@@ -11,3 +11,15 @@ rvm:
 matrix:
   exclude:
 script: bundle exec rake spec
+
+addons:
+  postgresql: "9.3"
+
+services:
+  - redis-server
+
+before_script:
+  - psql -c 'create database canvas-jobs-test-1;' -U postgres
+
+env:
+  - TEST_DB_USERNAME=postgres
