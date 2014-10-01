@@ -1,3 +1,4 @@
+require 'erb'
 require 'optparse'
 require 'yaml'
 require 'fileutils'
@@ -309,7 +310,7 @@ class Pool
   end
 
   def read_config(config_filename)
-    config = YAML.load_file(config_filename)
+    config = YAML.load(ERB.new(File.read(config_filename)).result)
     env = defined?(RAILS_ENV) ? RAILS_ENV : ENV['RAILS_ENV'] || 'development'
     @config = config[env] || config['default']
     # Backwards compatibility from when the config was just an array of queues
