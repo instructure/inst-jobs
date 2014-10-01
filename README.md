@@ -1,5 +1,8 @@
 # Canvas Delayed Jobs
 
+[![Build
+Status](https://travis-ci.org/instructure/canvas-jobs.svg?branch=master)](https://travis-ci.org/instructure/canvas-jobs)
+
 This gem is a very heavily modified fork of
 [delayed_job](https://github.com/collectiveidea/delayed_job).
 It used to live directly inside
