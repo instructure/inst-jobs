@@ -19,7 +19,7 @@ services:
   - redis-server
 
 before_script:
-  - psql -c 'create database canvas-jobs-test-1;' -U postgres
+  - psql -c 'create database "canvas-jobs-test-1";' -U postgres
 
 env:
   - TEST_DB_USERNAME=postgres
