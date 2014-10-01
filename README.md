@@ -58,9 +58,8 @@ Delayed::Backend::ActiveRecord::Job.establish_connection(my_db_queue_config)
 
 ### Redis Backend
 
-The redis backend doesn't require any migrations. By default it will
-use localhost redis, to change this add an application initializer such
-as `config/initializers/delayed_job.rb`:
+The redis backend doesn't require any migrations. To connect, you'll need to add an
+application initializer such as `config/initializers/delayed_job.rb`:
 
 ```ruby
 Delayed::Backend::Redis::Job.redis = Redis.new(url: 'redis://my-redis-host:6379/')
