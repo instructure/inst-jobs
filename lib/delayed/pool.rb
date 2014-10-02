@@ -22,10 +22,6 @@ class Pool
   end
 
   def run
-    if GC.respond_to?(:copy_on_write_friendly=)
-      GC.copy_on_write_friendly = true
-    end
-
     op = OptionParser.new do |opts|
       opts.banner = "Usage #{$0} <command> <options>"
       opts.separator %{\nWhere <command> is one of:
