@@ -75,7 +75,7 @@ class Periodic
   alias_method :display_name, :tag
 
   def self.now
-    Time.now
+    Time.zone.now
   end
 end
 end

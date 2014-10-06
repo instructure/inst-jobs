@@ -455,7 +455,7 @@ class Job
       v = send(k)
       if v.nil?
         to_delete << k if !new_record? && changed.include?(k.to_s)
-      elsif v.is_a?(ActiveSupport::TimeWithZone)
+      elsif v.is_a?(ActiveSupport::TimeWithZone) || v.is_a?(Time)
         attrs[k] = v.utc.to_f
       else
         attrs[k] = v.as_json
