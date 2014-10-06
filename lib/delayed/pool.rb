@@ -100,14 +100,11 @@ class Pool
     Watcher.join
 
     Watcher.run(PeriodicAuditor.new)
-    #spawn_periodic_auditor
     spawn_all_workers
-    say "Workers spawned"
-    #join
+    trap(:INT) { Watcher.exiting = true }
+    trap(:TERM) { Watcher.exiting = true }
     Watcher.join
     say "Shutting down"
-  rescue Interrupt => e
-    say "Signal received, exiting", :info
   rescue Exception => e
     say "Job master died with error: #{e.inspect}\n#{e.backtrace.join("\n")}", :fatal
     raise
@@ -133,25 +130,33 @@ class Pool
     @config[:workers].each do |worker_config|
       worker_config = worker_config.with_indifferent_access
       next if worker_config[:periodic] # backwards compat
-      (worker_config[:workers] || 1).times { spawn_worker(@config.merge(worker_config)) }
+      worker_config = @config.merge(worker_config)
+      Watcher.run(WorkerGroup.new(worker_config))
     end
-  end
-
-  def spawn_worker(worker_config)
-    Watcher.run(WorkerProcess.new(worker_config))
   end
 
   def tail_rails_log
     return if !@options[:tail_logs]
-    return if !Rails.logger.respond_to?(:log_path)
+    path = rails_log_path
+    return if !path
     Rails.logger.auto_flushing = true if Rails.logger.respond_to?(:auto_flushing=)
     Thread.new do
-      f = File.open(Rails.logger.log_path, 'r')
+      f = File.open(path, 'r')
       f.seek(0, IO::SEEK_END)
       loop do
         content = f.read
         content.present? ? STDOUT.print(content) : sleep(0.5)
       end
+    end
+  end
+
+  def rails_log_path
+    if Rails.logger.respond_to?(:log_path)
+      Rails.logger.log_path
+    elsif (dev = Rails.logger.instance_variable_get(:@logdev)) && dev.dev.respond_to?(:path)
+      dev.dev.path
+    else
+      nil
     end
   end
 
@@ -308,21 +313,66 @@ end
     end
   end
 
-  class WorkerProcess < ChildProcess
+  class WorkerGroup < ChildProcess
     def initialize(config)
-      @config = config
-      @config[:parent_pid] = Process.pid
-      @worker = Delayed::Worker.new(@config)
+      @config = config.dup
     end
 
     def perform
-      @worker.start
+      (@config[:workers] || 1).times { Watcher.run(WorkerProcess.new(@config)) }
+      say "Workers spawned"
+      Watcher.join do
+        Watcher.exiting = true if parent_exited?
+      end
+    end
+
+    def exited
+      say "child exited: #{self.inspect}, restarting", :info
+      Watcher.run(self.class.new(@config))
+    end
+  end
+
+  class WorkerProcess < ChildProcess
+    def initialize(config)
+      @config = config.dup
+      @worker_threads = []
+    end
+
+    def perform
+      trap(:TERM) { Watcher.exiting = true }
+      (@config[:threads_per_process] || 1).times {
+        worker = WorkerThread.new(@config)
+        @worker_threads << worker
+        Watcher.run(worker)
+      }
+      Watcher.join do
+        Watcher.exiting = true if parent_exited?
+      end
+      @worker_threads.each { |wt| wt.exit! }
+      @worker_threads.each { |wt| wt.join }
     end
 
     def exited
       say "child exited: #{self.inspect}, restarting", :info
       Watcher.run(UnlockOrphanedJobs.new(self.pid))
       Watcher.run(self.class.new(@config))
+    end
+  end
+
+  class WorkerThread < ChildThread
+    attr_reader :worker
+
+    def initialize(config)
+      @config = config
+      @worker = Delayed::Worker.new(@config)
+    end
+
+    def exit!
+      @worker.exit = true
+    end
+
+    def perform
+      @worker.start
     end
   end
 end

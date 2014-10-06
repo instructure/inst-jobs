@@ -6,6 +6,7 @@ require 'tmpdir'
 
 class Worker
   attr_reader :config, :queue, :min_priority, :max_priority
+  attr_accessor :exit
 
   # Callback to fire when a delayed job fails max_attempts times. If this
   # callback is defined, then the value of destroy_failed_jobs is ignored, and
@@ -27,7 +28,6 @@ class Worker
   def initialize(options = {})
     @exit = false
     @config = options
-    @parent_pid = options[:parent_pid]
     @queue = options[:queue] || Settings.queue
     @min_priority = options[:min_priority]
     @max_priority = options[:max_priority]
@@ -46,17 +46,11 @@ class Worker
   end
 
   def exit?
-    @exit || parent_exited?
-  end
-
-  def parent_exited?
-    @parent_pid && @parent_pid != Process.ppid
+    @exit
   end
 
   def start
     say "Starting worker", :info
-
-    trap('INT') { say 'Exiting'; @exit = true }
 
     loop do
       run
