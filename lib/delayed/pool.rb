@@ -3,16 +3,17 @@ require 'optparse'
 require 'yaml'
 require 'fileutils'
 
+require 'delayed/daemon/watcher'
+
 module Delayed
 class Pool
   mattr_accessor :on_fork
   self.on_fork = ->{ }
 
-  attr_reader :options, :workers
+  attr_reader :options
 
   def initialize(args = ARGV)
     @args = args
-    @workers = {}
     @config = { :workers => [] }
     @options = {
       :config_file => expand_rails_path("config/delayed_jobs.yml"),
@@ -93,16 +94,17 @@ class Pool
     $0 = procname
     apply_config
 
-    # fork to handle unlocking (to prevent polluting the parent with worker objects)
-    unlock_pid = fork_with_reconnects do
-      unlock_orphaned_jobs
-    end
-    Process.wait unlock_pid
+    Watcher.run(UnlockOrphanedJobs.new)
+    ## We want the unlocker to finish before continuing, or we might unlock our
+    ## own jobs.
+    Watcher.join
 
-    spawn_periodic_auditor
+    Watcher.run(PeriodicAuditor.new)
+    #spawn_periodic_auditor
     spawn_all_workers
     say "Workers spawned"
-    join
+    #join
+    Watcher.join
     say "Shutting down"
   rescue Interrupt => e
     say "Signal received, exiting", :info
@@ -112,8 +114,9 @@ class Pool
   end
 
   def say(msg, level = :debug)
+    msg = "[#{Process.pid}]P #{msg}"
     if defined?(Rails.logger) && Rails.logger
-      Rails.logger.send(level, "[#{Process.pid}]P #{msg}")
+      Rails.logger.send(level, msg)
     else
       puts(msg)
     end
@@ -124,93 +127,18 @@ class Pool
     Dir.chdir(Rails.root)
   end
 
-  def unlock_orphaned_jobs(worker = nil, pid = nil)
-    # don't bother trying to unlock jobs by process name if the name is overridden
-    return if @config.key?(:name)
-    return if @config[:disable_automatic_orphan_unlocking]
-    return if @config[:workers].any? { |worker_config| worker_config.key?(:name) || worker_config.key?('name') }
-
-    unlocked_jobs = Delayed::Job.unlock_orphaned_jobs(pid)
-    say "Unlocked #{unlocked_jobs} orphaned jobs" if unlocked_jobs > 0
-    ActiveRecord::Base.connection_handler.clear_all_connections! unless Rails.env.test?
-  end
-
   def spawn_all_workers
     ActiveRecord::Base.connection_handler.clear_all_connections!
 
     @config[:workers].each do |worker_config|
       worker_config = worker_config.with_indifferent_access
+      next if worker_config[:periodic] # backwards compat
       (worker_config[:workers] || 1).times { spawn_worker(@config.merge(worker_config)) }
     end
   end
 
   def spawn_worker(worker_config)
-    if worker_config[:periodic]
-      return # backwards compat
-    else
-      worker_config[:parent_pid] = Process.pid
-      worker = Delayed::Worker.new(worker_config)
-    end
-
-    pid = fork_with_reconnects do
-      worker.start
-    end
-    workers[pid] = worker
-  end
-
-  # child processes need to reconnect so they don't accidentally share redis or
-  # db connections with the parent
-  def fork_with_reconnects
-    fork do
-      Pool.on_fork.()
-      Delayed::Job.reconnect!
-      yield
-    end
-  end
-
-  def spawn_periodic_auditor
-    return if @config[:disable_periodic_jobs]
-
-    @periodic_thread = Thread.new do
-      # schedule the initial audit immediately on startup
-      schedule_periodic_audit
-      # initial sleep is randomized, for some staggering in the audit calls
-      # since job processors are usually all restarted at the same time
-      sleep(rand(15 * 60))
-      loop do
-        schedule_periodic_audit
-        sleep(15 * 60)
-      end
-    end
-  end
-
-  def schedule_periodic_audit
-    pid = fork_with_reconnects do
-      # we want to avoid db connections in the main pool process
-      $0 = "delayed_periodic_audit_scheduler"
-      Delayed::Periodic.audit_queue
-    end
-    workers[pid] = :periodic_audit
-  end
-
-  def join
-    loop do
-      child = Process.wait
-      if child
-        worker = workers.delete(child)
-        if worker.is_a?(Symbol)
-          say "ran auditor: #{worker}"
-        else
-          say "child exited: #{child}, restarting", :info
-          # fork to handle unlocking (to prevent polluting the parent with worker objects)
-          unlock_pid = fork_with_reconnects do
-            unlock_orphaned_jobs(worker, child)
-          end
-          Process.wait unlock_pid
-          spawn_worker(worker.config)
-        end
-      end
-    end
+    Watcher.run(WorkerProcess.new(worker_config))
   end
 
   def tail_rails_log
@@ -327,6 +255,134 @@ class Pool
   def expand_rails_path(path)
     File.expand_path("../#{path}", ENV['BUNDLE_GEMFILE'])
   end
+end
 
+  class UnlockOrphanedJobs < ChildProcess
+    def initialize(pid = nil)
+      @pid = pid
+    end
+
+    def perform
+      unlocked_jobs = Delayed::Job.unlock_orphaned_jobs(@pid)
+      say "Unlocked #{unlocked_jobs} orphaned jobs" if unlocked_jobs > 0
+    end
+
+    def skip?
+      Settings.disable_automatic_orphan_unlocking
+    end
+  end
+
+  class PeriodicAuditor < ChildThread
+    def perform
+      # schedule the initial audit immediately on startup
+      schedule_periodic_audit
+      # initial sleep is randomized, for some staggering in the audit calls
+      # since job processors are usually all restarted at the same time
+      sleep(rand(Settings.periodic_jobs_audit_frequency))
+      loop do
+        schedule_periodic_audit
+        sleep(Settings.periodic_jobs_audit_frequency)
+      end
+    end
+
+    def skip?
+      Settings.disable_periodic_jobs
+    end
+
+    private
+
+    def schedule_periodic_audit
+      Watcher.run(PeriodicAuditQueuer.new)
+    end
+  end
+
+  # We only run this in a child process to avoid doing real db work in the
+  # daemon process.
+  class PeriodicAuditQueuer < ChildProcess
+    def perform
+      Delayed::Periodic.audit_queue
+    end
+
+    def exited
+      say "ran periodic audit"
+    end
+  end
+
+  class WorkerProcess < ChildProcess
+    def initialize(config)
+      @config = config
+      @config[:parent_pid] = Process.pid
+      @worker = Delayed::Worker.new(@config)
+    end
+
+    def perform
+      @worker.start
+    end
+
+    def exited
+      say "child exited: #{self.inspect}, restarting", :info
+      Watcher.run(UnlockOrphanedJobs.new(self.pid))
+      Watcher.run(self.class.new(@config))
+    end
+  end
 end
-end
+
+# There are two types of Tasks: processes, and threads.
+# Some tasks want to restart when they exit, some want to just end.
+# Processes can be monitored by one global process monitor, which uses Process.wait
+# Threads can be monitored by checking status, then calling value to get the return value (or exception).
+#
+# The tree will look something like:
+# (P) process
+# (T) thread
+# [R] restart if exit
+#
+# Daemon
+# |
+# |- (P) Unlock Orphaned Jobs
+# |
+# |- (T)[R] Audit Scheduler
+# |  |
+# |  |- (P) Audit Queuer
+# |
+# |- (P)[R] Worker Group
+# |  |
+# |  | - (T)[R] Popper
+# |  |
+# |  |  # Pure process model - should each process just spawn a WorkerThread?
+# |  |- (P)[R] WorkerProcess
+# |  |- (P)[R] WorkerProcess
+# |
+# |- (P)[R] Worker Group
+# |  |
+# |  | - (T)[R] Popper
+# |  |
+# |  |  # Pure thread model
+# |  |- (T)[R] WorkerThread
+# |  |- (T)[R] WorkerThread
+# |
+# |- (P)[R] Worker Group
+# |  |
+# |  | - (T)[R] Popper
+# |  |
+# |  |  # Hybrid processes + threads model
+# |  |- (P)[R] WorkerProcess
+# |  |  |- (T)[R] WorkerThread
+# |  |  |- (T)[R] WorkerThread
+# |  |  |- (T)[R] WorkerThread
+# |  |- (P)[R] WorkerProcess
+# |  |  |- (T)[R] WorkerThread
+# |  |  |- (T)[R] WorkerThread
+# |  |  |- (T)[R] WorkerThread
+#
+# The daemon does nothing but spawn and monitor tasks.
+#
+# The worker group has to communicate with the workers, who can come and go.
+# Workers will notify the group's popper with their name when they want a job, and the
+# popper will batch find+lock jobs in the queue, then distribute them to the
+# waiting workers.
+# This means serializing the locked jobs to send to WorkerProcess, probably just use Marshal.
+#
+# The same job daemon can have multiple worker groups, who allow different
+# queues/priorities, and who may even be talking to different jobs queues (w/sharding).
+# This is why we have a popper per group, rather than one popper for the whole daemon.

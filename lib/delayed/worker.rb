@@ -33,15 +33,12 @@ class Worker
     @max_priority = options[:max_priority]
     @max_job_count = options[:worker_max_job_count].to_i
     @max_memory_usage = options[:worker_max_memory_usage].to_i
+    @pool_name = options[:pool_name]
     @job_count = 0
   end
 
-  def name=(name)
-    @name = name
-  end
-
   def name
-    @name ||= "#{Socket.gethostname rescue "X"}:#{self.id}"
+    @name ||= "#{@pool_name}:#{self.id}"
   end
 
   def set_process_name(new_name)
