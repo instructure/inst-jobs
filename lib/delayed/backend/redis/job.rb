@@ -87,31 +87,16 @@ class Job
     raise("Delayed::MAX_PRIORITY must be less than #{WAITING_STRAND_JOB_PRIORITY}")
   end
 
-  COLUMNS = [
-    :id,
-    :priority,
-    :attempts,
-    :handler,
-    :last_error,
-    :queue,
-    :run_at,
-    :locked_at,
-    :failed_at,
-    :locked_by,
-    :created_at,
-    :updated_at,
-    :tag,
-    :max_attempts,
-    :strand,
-    :source,
-  ]
+  COLUMNS = []
 
   # We store time attributes in redis as floats so we don't have to do
   # timestamp parsing in lua.
-  TIMESTAMP_COLUMNS = Set.new([:run_at, :locked_at, :failed_at, :created_at, :updated_at])
-  INTEGER_COLUMNS = Set.new([:priority, :attempts, :max_attempts])
+  TIMESTAMP_COLUMNS = []
+  INTEGER_COLUMNS = []
 
   def self.column(name, type)
+    COLUMNS << name
+
     if type == :timestamp
       TIMESTAMP_COLUMNS << name
     elsif type == :integer
@@ -129,9 +114,22 @@ class Job
     EOS
   end
 
-  COLUMNS.each do |c|
-    self.column(c, nil)
-  end
+  column(:id, :string)
+  column(:priority, :integer)
+  column(:attempts, :integer)
+  column(:handler, :string)
+  column(:last_error, :string)
+  column(:queue, :string)
+  column(:run_at, :timestamp)
+  column(:locked_at, :timestamp)
+  column(:failed_at, :timestamp)
+  column(:locked_by, :string)
+  column(:created_at, :timestamp)
+  column(:updated_at, :timestamp)
+  column(:tag, :string)
+  column(:max_attempts, :integer)
+  column(:strand, :string)
+  column(:source, :string)
 
   def initialize(attrs = {})
     attrs.each { |k, v| self.send("#{k}=", v) }
