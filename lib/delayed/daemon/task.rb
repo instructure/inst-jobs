@@ -113,6 +113,7 @@ class Task
   rescue => e
     say("Failed: #{e.inspect}\n#{e.backtrace.join("\n")}", :error)
   ensure
+    say("Done #{self.inspect}")
     @status = :done
   end
 

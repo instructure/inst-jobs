@@ -1,5 +1,7 @@
 require 'delayed/daemon/task'
 
+require 'delayed/daemon/queue_proxy'
+
 module Delayed
 class WorkerGroup < Task
   def initialize(config)
@@ -40,6 +42,8 @@ class WorkerProcess < Task
     if @config[:threads_per_process] == 1
       new_worker("").run_top_level(self.parent_pid)
     else
+      # start the queue proxy, all workers will delegate queue queries to it
+      Delayed::QueueProxy.instance.run_as_thread
       @config[:threads_per_process].times { |i|
         children << new_worker(":#{i}").run_as_thread
       }

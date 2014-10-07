@@ -5,6 +5,7 @@ class TimeoutError < RuntimeError; end
 require 'tmpdir'
 
 require 'delayed/daemon/task'
+require 'delayed/daemon/queue_proxy'
 
 class Worker < Task
   attr_reader :config, :queue, :min_priority, :max_priority
@@ -65,7 +66,7 @@ class Worker < Task
   def run
     job =
         self.class.lifecycle.run_callbacks(:pop, self) do
-          Delayed::Job.get_and_lock_next_available(
+          Delayed::QueueProxy.instance.get_and_lock_next_available(
             worker_name,
             queue,
             min_priority,
@@ -104,13 +105,13 @@ class Worker < Task
       say("Processing #{log_job(job, :long)}", :info)
       runtime = Benchmark.realtime do
         if job.batch?
-          # each job in the batch will have perform called on it, so we don't
-          # need a timeout around this 
+          # Each job in the batch will have perform called on it, so we don't
+          # need a timeout around this.
           count = perform_batch(job)
         else
           job.invoke_job
         end
-        job.destroy
+        Delayed::QueueProxy.instance.destroy_job(job)
       end
       say("Completed #{log_job(job)} #{"%.0fms" % (runtime * 1000)}", :info)
     end
@@ -125,7 +126,7 @@ class Worker < Task
     if batch.mode == :serial
       batch.jobs.each do |job|
         job.source = parent_job.source
-        job.create_and_lock!(worker_name)
+        Delayed::QueueProxy.instance.create_and_lock!(job, worker_name)
         configure_for_job(job) do
           perform(job)
         end
@@ -137,7 +138,7 @@ class Worker < Task
   def handle_failed_job(job, error)
     job.last_error = "#{error.message}\n#{error.backtrace.join("\n")}"
     say("Failed with #{error.class} [#{error.message}] (#{job.attempts} attempts)", :error)
-    job.reschedule(error)
+    Delayed::QueueProxy.instance.reschedule(job, error)
   end
 
   def say(msg, level = :debug)

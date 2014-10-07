@@ -7,6 +7,12 @@ shared_examples_for 'a backend' do
     SimpleJob.runs = 0
   end
 
+  it "should be marshall-able" do
+    job = create_job
+    round = Marshal.load(Marshal.dump(job))
+    Delayed::Backend::Redis::Job::COLUMNS.each { |c| round.send(c).should == job.send(c) }
+  end
+
   it "should set run_at automatically if not set" do
     Delayed::Job.create(:payload_object => ErrorJob.new).run_at.should_not be_nil
   end
