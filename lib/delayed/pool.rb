@@ -3,7 +3,7 @@ require 'optparse'
 require 'yaml'
 require 'fileutils'
 
-require 'delayed/daemon/watcher'
+require 'delayed/daemon/daemon_task'
 
 module Delayed
 class Pool
@@ -82,29 +82,12 @@ class Pool
 
   protected
 
-  def procname
-    "delayed_jobs_pool#{Settings.pool_procname_suffix}"
-  end
-
   def start
     load_rails
     tail_rails_log unless @daemon
 
-    say "Started job master", :info
-    $0 = procname
     apply_config
-
-    Watcher.run(UnlockOrphanedJobs.new)
-    ## We want the unlocker to finish before continuing, or we might unlock our
-    ## own jobs.
-    Watcher.join
-
-    Watcher.run(PeriodicAuditor.new)
-    spawn_all_workers
-    trap(:INT) { Watcher.exiting = true }
-    trap(:TERM) { Watcher.exiting = true }
-    Watcher.join
-    say "Shutting down"
+    DaemonTask.new(@config).run_top_level(nil)
   rescue Exception => e
     say "Job master died with error: #{e.inspect}\n#{e.backtrace.join("\n")}", :fatal
     raise
@@ -122,17 +105,6 @@ class Pool
   def load_rails
     require(expand_rails_path("config/environment.rb"))
     Dir.chdir(Rails.root)
-  end
-
-  def spawn_all_workers
-    ActiveRecord::Base.connection_handler.clear_all_connections!
-
-    @config[:workers].each do |worker_config|
-      worker_config = worker_config.with_indifferent_access
-      next if worker_config[:periodic] # backwards compat
-      worker_config = @config.merge(worker_config)
-      Watcher.run(WorkerGroup.new(worker_config))
-    end
   end
 
   def tail_rails_log
@@ -248,6 +220,17 @@ class Pool
       raise ArgumentError,
         "Invalid config file #{config_filename}"
     end
+    @config = default_config.merge(@config)
+  end
+
+  def default_config
+    {
+      queue: Settings.queue,
+      min_priority: Delayed::MIN_PRIORITY,
+      max_priority: Delayed::MAX_PRIORITY,
+      workers: 1,
+      threads_per_process: 1,
+    }
   end
 
   def apply_config
@@ -261,178 +244,4 @@ class Pool
     File.expand_path("../#{path}", ENV['BUNDLE_GEMFILE'])
   end
 end
-
-  class UnlockOrphanedJobs < ChildProcess
-    def initialize(pid = nil)
-      @pid = pid
-    end
-
-    def perform
-      unlocked_jobs = Delayed::Job.unlock_orphaned_jobs(@pid)
-      say "Unlocked #{unlocked_jobs} orphaned jobs" if unlocked_jobs > 0
-    end
-
-    def skip?
-      Settings.disable_automatic_orphan_unlocking
-    end
-  end
-
-  class PeriodicAuditor < ChildThread
-    def perform
-      # schedule the initial audit immediately on startup
-      schedule_periodic_audit
-      # initial sleep is randomized, for some staggering in the audit calls
-      # since job processors are usually all restarted at the same time
-      sleep(rand(Settings.periodic_jobs_audit_frequency))
-      loop do
-        schedule_periodic_audit
-        sleep(Settings.periodic_jobs_audit_frequency)
-      end
-    end
-
-    def skip?
-      Settings.disable_periodic_jobs
-    end
-
-    private
-
-    def schedule_periodic_audit
-      Watcher.run(PeriodicAuditQueuer.new)
-    end
-  end
-
-  # We only run this in a child process to avoid doing real db work in the
-  # daemon process.
-  class PeriodicAuditQueuer < ChildProcess
-    def perform
-      Delayed::Periodic.audit_queue
-    end
-
-    def exited
-      say "ran periodic audit"
-    end
-  end
-
-  class WorkerGroup < ChildProcess
-    def initialize(config)
-      @config = config.dup
-    end
-
-    def perform
-      (@config[:workers] || 1).times { Watcher.run(WorkerProcess.new(@config)) }
-      say "Workers spawned"
-      Watcher.join do
-        Watcher.exiting = true if parent_exited?
-      end
-    end
-
-    def exited
-      say "child exited: #{self.inspect}, restarting", :info
-      Watcher.run(self.class.new(@config))
-    end
-  end
-
-  class WorkerProcess < ChildProcess
-    def initialize(config)
-      @config = config.dup
-      @worker_threads = []
-    end
-
-    def perform
-      trap(:TERM) { Watcher.exiting = true }
-      (@config[:threads_per_process] || 1).times {
-        worker = WorkerThread.new(@config)
-        @worker_threads << worker
-        Watcher.run(worker)
-      }
-      Watcher.join do
-        Watcher.exiting = true if parent_exited?
-      end
-      @worker_threads.each { |wt| wt.exit! }
-      @worker_threads.each { |wt| wt.join }
-    end
-
-    def exited
-      say "child exited: #{self.inspect}, restarting", :info
-      Watcher.run(UnlockOrphanedJobs.new(self.pid))
-      Watcher.run(self.class.new(@config))
-    end
-  end
-
-  class WorkerThread < ChildThread
-    attr_reader :worker
-
-    def initialize(config)
-      @config = config
-      @worker = Delayed::Worker.new(@config)
-    end
-
-    def exit!
-      @worker.exit = true
-    end
-
-    def perform
-      @worker.start
-    end
-  end
 end
-
-# There are two types of Tasks: processes, and threads.
-# Some tasks want to restart when they exit, some want to just end.
-# Processes can be monitored by one global process monitor, which uses Process.wait
-# Threads can be monitored by checking status, then calling value to get the return value (or exception).
-#
-# The tree will look something like:
-# (P) process
-# (T) thread
-# [R] restart if exit
-#
-# Daemon
-# |
-# |- (P) Unlock Orphaned Jobs
-# |
-# |- (T)[R] Audit Scheduler
-# |  |
-# |  |- (P) Audit Queuer
-# |
-# |- (P)[R] Worker Group
-# |  |
-# |  | - (T)[R] Popper
-# |  |
-# |  |  # Pure process model - should each process just spawn a WorkerThread?
-# |  |- (P)[R] WorkerProcess
-# |  |- (P)[R] WorkerProcess
-# |
-# |- (P)[R] Worker Group
-# |  |
-# |  | - (T)[R] Popper
-# |  |
-# |  |  # Pure thread model
-# |  |- (T)[R] WorkerThread
-# |  |- (T)[R] WorkerThread
-# |
-# |- (P)[R] Worker Group
-# |  |
-# |  | - (T)[R] Popper
-# |  |
-# |  |  # Hybrid processes + threads model
-# |  |- (P)[R] WorkerProcess
-# |  |  |- (T)[R] WorkerThread
-# |  |  |- (T)[R] WorkerThread
-# |  |  |- (T)[R] WorkerThread
-# |  |- (P)[R] WorkerProcess
-# |  |  |- (T)[R] WorkerThread
-# |  |  |- (T)[R] WorkerThread
-# |  |  |- (T)[R] WorkerThread
-#
-# The daemon does nothing but spawn and monitor tasks.
-#
-# The worker group has to communicate with the workers, who can come and go.
-# Workers will notify the group's popper with their name when they want a job, and the
-# popper will batch find+lock jobs in the queue, then distribute them to the
-# waiting workers.
-# This means serializing the locked jobs to send to WorkerProcess, probably just use Marshal.
-#
-# The same job daemon can have multiple worker groups, who allow different
-# queues/priorities, and who may even be talking to different jobs queues (w/sharding).
-# This is why we have a popper per group, rather than one popper for the whole daemon.

@@ -4,9 +4,11 @@ class TimeoutError < RuntimeError; end
 
 require 'tmpdir'
 
-class Worker
+require 'delayed/daemon/task'
+
+class Worker < Task
   attr_reader :config, :queue, :min_priority, :max_priority
-  attr_accessor :exit
+  attr_reader :worker_name
 
   # Callback to fire when a delayed job fails max_attempts times. If this
   # callback is defined, then the value of destroy_failed_jobs is ignored, and
@@ -27,49 +29,44 @@ class Worker
 
   def initialize(options = {})
     @exit = false
-    @config = options
+    @config = options.dup
     @queue = options[:queue] || Settings.queue
     @min_priority = options[:min_priority]
     @max_priority = options[:max_priority]
     @max_job_count = options[:worker_max_job_count].to_i
     @max_memory_usage = options[:worker_max_memory_usage].to_i
-    @pool_name = options[:pool_name]
+    @worker_name = options[:worker_name]
     @job_count = 0
+    self.description = process_name("init")
+
+    raise(ArgumentError, "must define worker_name") unless worker_name
   end
 
-  def name
-    @name ||= "#{@pool_name}:#{self.id}"
+  def process_name(current_task, queue_config = true)
+    max_priority = @config[:max_priority] == Delayed::MAX_PRIORITY ? 'max' : @config[:max_priority]
+    if queue_config
+      queue_data = ":#{@config[:queue]}:#{@config[:min_priority]}:#{max_priority}:#{@config[:threads_per_process]}"
+    end
+    "delayed#{Settings.pool_procname_suffix}:worker_task:#{Settings.worker_procname_prefix}#{current_task}#{queue_data}"
   end
 
-  def set_process_name(new_name)
-    $0 = "delayed:#{new_name}"
-  end
-
-  def exit?
-    @exit
+  def execute
+    start
   end
 
   def start
-    say "Starting worker", :info
-
-    loop do
+    run_loop do
       run
-      break if exit?
     end
-
-    say "Stopping worker", :info
-  rescue => e
-    Rails.logger.fatal("Child process died: #{e.inspect}") rescue nil
-    ErrorReport.log_exception(:delayed_jobs, e) rescue nil
   ensure
-    Delayed::Job.clear_locks!(name)
+    Delayed::Job.clear_locks!(worker_name)
   end
 
   def run
     job =
         self.class.lifecycle.run_callbacks(:pop, self) do
           Delayed::Job.get_and_lock_next_available(
-            name,
+            worker_name,
             queue,
             min_priority,
             max_priority)
@@ -84,7 +81,7 @@ class Worker
           @exit = true
         end
 
-        if @max_memory_usage > 0
+        if process? && @max_memory_usage > 0
           memory = sample_memory
           if memory > @max_memory_usage
             say "Memory usage of #{memory} exceeds max of #{@max_memory_usage}, dying"
@@ -95,7 +92,7 @@ class Worker
         end
       end
     else
-      set_process_name("wait:#{Settings.worker_procname_prefix}#{@queue}:#{min_priority || 0}:#{max_priority || 'max'}")
+      self.description = process_name('wait')
       sleep(Settings.sleep_delay + (rand * Settings.sleep_delay_stagger))
     end
   end
@@ -103,7 +100,7 @@ class Worker
   def perform(job)
     count = 1
     self.class.lifecycle.run_callbacks(:perform, self, job) do
-      set_process_name("run:#{Settings.worker_procname_prefix}#{job.id}:#{job.name}")
+      self.description = process_name("#{job.id}:#{job.name}", false)
       say("Processing #{log_job(job, :long)}", :info)
       runtime = Benchmark.realtime do
         if job.batch?
@@ -128,7 +125,7 @@ class Worker
     if batch.mode == :serial
       batch.jobs.each do |job|
         job.source = parent_job.source
-        job.create_and_lock!(name)
+        job.create_and_lock!(worker_name)
         configure_for_job(job) do
           perform(job)
         end
@@ -143,10 +140,6 @@ class Worker
     job.reschedule(error)
   end
 
-  def id
-    Process.pid
-  end
-
   def say(msg, level = :debug)
     Rails.logger.send(level, msg)
   end
@@ -154,29 +147,37 @@ class Worker
   def log_job(job, format = :short)
     case format
     when :long
-      "#{job.full_name} #{ job.to_json(:include_root => false, :only => %w(tag strand priority attempts created_at max_attempts source)) }"
+      "#{job.full_name} #{ job.to_json(:include_root => false, :only => %w(id run_at tag strand priority attempts created_at max_attempts source)) }"
     else
       job.full_name
     end
   end
 
-  # set up the session context information, so that it gets logged with the job log lines
-  # also set up a unique tmpdir, which will get removed at the end of the job.
+  # Set up the session context information, so that it gets logged with the job log lines.
+  # Also set up a unique tmpdir, which will get removed at the end of the job (only if single threaded).
   def configure_for_job(job)
-    previous_tmpdir = ENV['TMPDIR']
     Thread.current[:running_delayed_job] = job
-
-    Dir.mktmpdir("job-#{job.id}-#{self.name.gsub(/[^\w\.]/, '.')}-") do |dir|
-      ENV['TMPDIR'] = dir
+    if process?
+      with_tmpdir(job) { yield }
+    else
       yield
     end
   ensure
-    ENV['TMPDIR'] = previous_tmpdir
     Thread.current[:running_delayed_job] = nil
   end
 
   def self.current_job
     Thread.current[:running_delayed_job]
+  end
+
+  def with_tmpdir(job)
+    previous_tmpdir = ENV['TMPDIR']
+    Dir.mktmpdir("job-#{job.id}-#{self.worker_name.gsub(/[^\w\.]/, '.')}-") do |dir|
+      ENV['TMPDIR'] = dir
+      yield
+    end
+  ensure
+    ENV['TMPDIR'] = previous_tmpdir
   end
 
   # `sample` reports KB, not B

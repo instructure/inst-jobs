@@ -3,7 +3,7 @@ shared_examples_for 'Delayed::Worker' do
     Delayed::Job.create({:payload_object => SimpleJob.new, :queue => Delayed::Settings.queue}.merge(opts))
   end
   def worker_create(opts = {})
-    Delayed::Worker.new(opts.merge(:max_priority => nil, :min_priority => nil, :quiet => true))
+    Delayed::Worker.new(opts.merge(:max_priority => nil, :min_priority => nil, :quiet => true, :worker_name => 'worker1'))
   end
 
   before(:each) do
@@ -82,7 +82,7 @@ shared_examples_for 'Delayed::Worker' do
 
   context "worker prioritization" do
     before(:each) do
-      @worker = Delayed::Worker.new(:max_priority => 5, :min_priority => 2, :quiet => true)
+      @worker = Delayed::Worker.new(:max_priority => 5, :min_priority => 2, :quiet => true, :worker_name => 'worker2')
     end
 
     it "should only run jobs that are >= min_priority" do
@@ -108,10 +108,6 @@ shared_examples_for 'Delayed::Worker' do
   end
 
   context "while running with locked jobs" do
-    before(:each) do
-      @worker.name = 'worker1'
-    end
-    
     it "should not run jobs locked by another worker" do
       job_create(:locked_by => 'other_worker', :locked_at => (Delayed::Job.db_time_now - 1.minutes))
       lambda { @worker.run }.should_not change { SimpleJob.runs }

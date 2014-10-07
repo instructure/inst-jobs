@@ -115,7 +115,7 @@ module Delayed
             return 0
           end
           pid_regex = pid || '(\d+)'
-          regex = Regexp.new("^#{Regexp.escape(name)}:#{pid_regex}$")
+          regex = Regexp.new("^#{Regexp.escape(name)}:#{pid_regex}($|:)")
           unlocked_jobs = 0
           running = false if pid
           self.running_jobs.each do |job|

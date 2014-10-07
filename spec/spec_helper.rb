@@ -86,7 +86,7 @@ ensure
 end
 
 def run_job(job)
-  Delayed::Worker.new.perform(job)
+  Delayed::Worker.new(worker_name: 'test').perform(job)
 end
 
 require File.expand_path('../sample_jobs', __FILE__)
