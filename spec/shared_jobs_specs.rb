@@ -1,7 +1,8 @@
-require File.expand_path('../shared/shared_backend', __FILE__)
 require File.expand_path('../shared/delayed_batch', __FILE__)
 require File.expand_path('../shared/delayed_method', __FILE__)
 require File.expand_path('../shared/performable_method', __FILE__)
+require File.expand_path('../shared/shared_backend', __FILE__)
+require File.expand_path('../shared/testing', __FILE__)
 require File.expand_path('../shared/worker', __FILE__)
 
 shared_examples_for 'a delayed_jobs implementation' do
@@ -10,4 +11,5 @@ shared_examples_for 'a delayed_jobs implementation' do
   include_examples 'random ruby objects'
   include_examples 'Delayed::PerformableMethod'
   include_examples 'Delayed::Worker'
+  include_examples 'Delayed::Testing'
 end

@@ -10,7 +10,7 @@ describe 'Delayed::Backend::Redis::Job' do
   end
 
   before do
-    Delayed::Job.redis.flushdb
+    Delayed::Testing.clear_all!
   end
 
   include_examples 'a delayed_jobs implementation'

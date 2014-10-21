@@ -10,8 +10,7 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
   end
 
   before do
-    Delayed::Job.delete_all
-    Delayed::Job::Failed.delete_all
+    Delayed::Testing.clear_all!
   end
 
   include_examples 'a delayed_jobs implementation'

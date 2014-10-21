@@ -100,6 +100,27 @@ end
 
 (more details forthcoming, and handy script)
 
+
+### Testing
+
+To write tests that interact with canvas-jobs, you'll need to configure
+an actual ActiveRecord or Redis backend. In the future we may add an
+in-memory testing backend.
+
+There are a few basic testing helpers available:
+
+```ruby
+require 'delayed/testing'
+
+Delayed::Testing.drain # run all queued jobs
+Delayed::Testing.run_job(job) # run a single job
+
+before(:each) do
+  Delayed::Testing.clear_all! # delete all queued jobs
+end
+```
+
+
 ## Contributing
 
 1. Fork it ( https://github.com/instructure/canvas-jobs/fork )

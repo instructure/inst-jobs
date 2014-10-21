@@ -1,4 +1,5 @@
 require 'delayed_job'
+require 'delayed/testing'
 
 require 'database_cleaner'
 require 'test_after_commit'
@@ -86,7 +87,7 @@ ensure
 end
 
 def run_job(job)
-  Delayed::Worker.new.perform(job)
+  Delayed::Testing.run_job(job)
 end
 
 require File.expand_path('../sample_jobs', __FILE__)
