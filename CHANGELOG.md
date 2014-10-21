@@ -1,9 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.9.4 - 2014-10-21
 ### Added
 - ERB parsing of the delayed_jobs.yml worker config file.
+- Basic Delayed::Testing test helpers.
 
 ### Changed
 - Remove the (not completely working) default redis connection.
