@@ -56,6 +56,8 @@ To use a separate database connection, specify it in an initializer:
 Delayed::Backend::ActiveRecord::Job.establish_connection(my_db_queue_config)
 ```
 
+The ActiveRecord backend only supports PostgreSQL.
+
 ### Redis Backend
 
 The redis backend doesn't require any migrations. To connect, you'll need to add an
