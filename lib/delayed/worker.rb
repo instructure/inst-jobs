@@ -34,6 +34,19 @@ class Worker
     @max_job_count = options[:worker_max_job_count].to_i
     @max_memory_usage = options[:worker_max_memory_usage].to_i
     @job_count = 0
+
+    app = Rails.application
+    if app && !app.config.cache_classes
+      Delayed::Worker.lifecycle.around(:perform) do |&block|
+        reload = app.config.reload_classes_only_on_change != true || app.reloaders.map(&:updated?).any?
+        ActionDispatch::Reloader.prepare! if reload
+        begin
+          block.call
+        ensure
+          ActionDispatch::Reloader.cleanup! if reload
+        end
+      end
+    end
   end
 
   def name=(name)
