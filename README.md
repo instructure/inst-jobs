@@ -97,10 +97,9 @@ end
 
 ### Running Workers
 
-    $ bin/rails runner 'Delayed::Pool.new.run()' # display help
-    $ bin/rails runner 'Delayed::Pool.new.run()' start
-
-(more details forthcoming, and handy script)
+    $ canvas_job # display help
+    $ canvas_job start # start a worker in the background
+    $ canvas_job run # start a worker in the foreground
 
 
 ### Testing

@@ -12,6 +12,7 @@ Gem::Specification.new do |s|
   s.homepage    = "http://www.instructure.com"
   s.summary     = "Instructure-maintained fork of delayed_job"
 
+  s.executables = ['canvas_job']
   s.files = Dir["{app,config,db,lib}/**/*"]
   s.test_files = Dir["spec/**/*"]
 
