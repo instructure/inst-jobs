@@ -69,7 +69,7 @@ class Worker
     say "Stopping worker", :info
   rescue => e
     Rails.logger.fatal("Child process died: #{e.inspect}") rescue nil
-    ErrorReport.log_exception(:delayed_jobs, e) rescue nil
+    self.class.Lifecycle.run_callbacks(:exceptional_exit, self, e) { }
   ensure
     Delayed::Job.clear_locks!(name)
   end
