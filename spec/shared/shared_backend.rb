@@ -270,6 +270,14 @@ shared_examples_for 'a backend' do
       Delayed::Job.get_and_lock_next_available('w3').should == nil
     end
 
+    it "should not find next jobs when given no priority" do
+      jobs = [create_job(:strand => 'strand1'), create_job(:strand => 'strand1')]
+      first = Delayed::Job.get_and_lock_next_available('w1', Delayed::Settings.queue, nil, nil)
+      second = Delayed::Job.get_and_lock_next_available('w2', Delayed::Settings.queue, nil, nil)
+      expect(first).to eq jobs.first
+      expect(second).to eq nil
+    end
+
     context 'singleton' do
       it "should create if there's no jobs on the strand" do
         @job = create_job(:singleton => 'myjobs')

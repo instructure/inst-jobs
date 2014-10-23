@@ -140,7 +140,7 @@ local find_available = function(queue, limit, offset, min_priority, max_priority
   end
 
   if not max_priority or max_priority == '' then
-    max_priority = "+inf"
+    max_priority = "(" .. Keys.waiting_strand_job_priority()
   else
     max_priority = "(" .. (max_priority + 1)
   end

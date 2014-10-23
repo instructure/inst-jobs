@@ -257,7 +257,7 @@ class Job
       when 'current'
         query ||= Delayed::Settings.queue
         check_queue(query)
-        self.find(functions.find_available(query, limit, offset, nil, nil, db_time_now))
+        self.find(functions.find_available(query, limit, offset, 0, "+inf", db_time_now))
       when 'future'
         query ||= Delayed::Settings.queue
         check_queue(query)
@@ -307,6 +307,7 @@ class Job
       # TODO: mark the job as failed one attempt
       job.unlock! if job.locked_by == worker_name
     end
+    nil
   end
 
   # returns a list of hashes { :tag => tag_name, :count => current_count }
