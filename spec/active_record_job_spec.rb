@@ -32,12 +32,12 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
 
     it "should not allow a second worker to get exclusive access if already successfully processed by worker1" do
       @job.destroy
-      @job_copy_for_worker_2.lock_exclusively!('worker2').should == false
+      @job_copy_for_worker_2.send(:lock_exclusively!, 'worker2').should == false
     end
 
     it "should not allow a second worker to get exclusive access if failed to be processed by worker1 and run_at time is now in future (due to backing off behaviour)" do
       @job.update_attributes(:attempts => 1, :run_at => 1.day.from_now)
-      @job_copy_for_worker_2.lock_exclusively!('worker2').should == false
+      @job_copy_for_worker_2.send(:lock_exclusively!, 'worker2').should == false
     end
 
     it "should select the next job at random if enabled" do
@@ -56,5 +56,15 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
         Delayed::Settings.select_random_from_batch = false
       end
     end
+  end
+
+  it "should unlock a successfully locked job and persist the job's unlocked state" do
+    job = Delayed::Job.create :payload_object => SimpleJob.new
+    job.send(:lock_exclusively!, 'worker1').should == true
+    job.unlock
+    job.save!
+    job.reload
+    job.locked_by.should == nil
+    job.locked_at.should == nil
   end
 end

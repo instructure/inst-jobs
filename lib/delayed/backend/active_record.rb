@@ -190,7 +190,7 @@ module Delayed
               jobs = jobs.sort_by { rand }
             end
             job = jobs.detect do |job|
-              job.lock_exclusively!(worker_name)
+              job.send(:lock_exclusively!, worker_name)
             end
             return job if job
           end
@@ -259,7 +259,16 @@ module Delayed
         def mark_as_locked!(time, worker)
           self.locked_at    = time
           self.locked_by    = worker
+          # We cheated ActiveRecord::Dirty with the update_all calls above, so
+          # we'll fix things up here.
+          if respond_to?(:changes_applied)
+            changes_applied
+          else
+            changed_attributes['locked_at'] = time
+            changed_attributes['locked_by'] = worker
+          end
         end
+        protected :lock_exclusively!, :mark_as_locked!
 
         def create_and_lock!(worker)
           raise "job already exists" unless new_record?
