@@ -15,8 +15,8 @@ class Pool
     @workers = {}
     @config = { :workers => [] }
     @options = {
-      :config_file => expand_rails_path("config/delayed_jobs.yml"),
-      :pid_folder => expand_rails_path("tmp/pids"),
+      :config_file => Settings.default_worker_config_name,
+      :pid_folder => Settings.expand_rails_path("tmp/pids"),
       :tail_logs => true, # only in FG mode
     }
   end
@@ -120,7 +120,7 @@ class Pool
   end
 
   def load_rails
-    require(expand_rails_path("config/environment.rb"))
+    require(Settings.expand_rails_path("config/environment.rb"))
     Dir.chdir(Rails.root)
   end
 
@@ -248,7 +248,7 @@ class Pool
     # it somewhere useful
     last_ditch_logfile = self.last_ditch_logfile || "log/delayed_job.log"
     if last_ditch_logfile[0] != '|'
-      last_ditch_logfile = expand_rails_path(last_ditch_logfile)
+      last_ditch_logfile = Settings.expand_rails_path(last_ditch_logfile)
     end
     STDIN.reopen("/dev/null")
     STDOUT.reopen(open(last_ditch_logfile, 'a'))
@@ -312,26 +312,11 @@ class Pool
   end
 
   def read_config(config_filename)
-    config = YAML.load(ERB.new(File.read(config_filename)).result)
-    env = defined?(RAILS_ENV) ? RAILS_ENV : ENV['RAILS_ENV'] || 'development'
-    @config = config[env] || config['default']
-    # Backwards compatibility from when the config was just an array of queues
-    @config = { :workers => @config } if @config.is_a?(Array)
-    unless @config && @config.is_a?(Hash)
-      raise ArgumentError,
-        "Invalid config file #{config_filename}"
-    end
+    @config = Settings.worker_config(config_filename)
   end
 
   def apply_config
-    @config = @config.with_indifferent_access
-    Settings::SETTINGS.each do |setting|
-      Settings.send("#{setting}=", @config[setting.to_s]) if @config.key?(setting.to_s)
-    end
-  end
-
-  def expand_rails_path(path)
-    File.expand_path("../#{path}", ENV['BUNDLE_GEMFILE'])
+    Settings.apply_worker_config!(@config)
   end
 
 end
