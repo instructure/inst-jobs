@@ -188,9 +188,12 @@ class Worker
     previous_tmpdir = ENV['TMPDIR']
     Thread.current[:running_delayed_job] = job
 
-    Dir.mktmpdir("job-#{job.id}-#{self.name.gsub(/[^\w\.]/, '.')}-") do |dir|
+    dir = Dir.mktmpdir("job-#{job.id}-#{self.name.gsub(/[^\w\.]/, '.')}-")
+    begin
       ENV['TMPDIR'] = dir
       yield
+    ensure
+      FileUtils.remove_entry(dir, true)
     end
   ensure
     ENV['TMPDIR'] = previous_tmpdir
