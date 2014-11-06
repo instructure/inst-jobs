@@ -419,6 +419,8 @@ class Job
       # replace this job with the other for returning.
       if job_id != self.id
         singleton = self.class.find(job_id)
+        singleton.run_at = [singleton.run_at, run_at].min
+        singleton.save! if singleton.changed?
         COLUMNS.each { |c| send("#{c}=", singleton.send(c)) }
       end
     else

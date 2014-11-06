@@ -315,6 +315,14 @@ shared_examples_for 'a backend' do
         @job3 = create_job(:singleton => 'myjobs')
         @job3.should == @job2
       end
+
+      it "should update existing job if new job is set to run sooner" do
+        job1 = create_job(singleton: 'myjobs', run_at: 1.hour.from_now)
+        job2 = create_job(singleton: 'myjobs')
+        job2.should == job1
+        # it should be scheduled to run immediately
+        Delayed::Job.get_and_lock_next_available('w1').should == job1
+      end
     end
 
     context 'n_strand' do
