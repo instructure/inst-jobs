@@ -1,9 +1,9 @@
 class OptimizeDelayedJobs < ActiveRecord::Migration
-  def self.connection
+  def connection
     Delayed::Backend::ActiveRecord::Job.connection
   end
 
-  def self.up
+  def up
     create_table :failed_jobs do |t|
       t.integer  "priority",    :default => 0
       t.integer  "attempts",    :default => 0
@@ -34,7 +34,7 @@ class OptimizeDelayedJobs < ActiveRecord::Migration
     end
   end
 
-  def self.down
+  def down
     raise ActiveRecord::IrreversibleMigration
   end
 end

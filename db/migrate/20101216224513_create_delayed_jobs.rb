@@ -1,9 +1,9 @@
 class CreateDelayedJobs < ActiveRecord::Migration
-  def self.connection
+  def connection
     Delayed::Backend::ActiveRecord::Job.connection
   end
 
-  def self.up
+  def up
     raise("#{connection.adapter_name} is not supported for delayed jobs queue") unless connection.adapter_name == 'PostgreSQL'
 
     create_table :delayed_jobs do |table|
@@ -34,7 +34,7 @@ class CreateDelayedJobs < ActiveRecord::Migration
     add_index :delayed_jobs, [:queue], :name => 'delayed_jobs_queue'
   end
 
-  def self.down
+  def down
     drop_table :delayed_jobs
   end
 end

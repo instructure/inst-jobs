@@ -1,14 +1,14 @@
 class AddSourceToJobs < ActiveRecord::Migration
-  def self.connection
+  def connection
     Delayed::Job.connection
   end
 
-  def self.up
+  def up
     add_column :delayed_jobs, :source, :string
     add_column :failed_jobs, :source, :string
   end
 
-  def self.down
+  def down
     remove_column :delayed_jobs, :source
     remove_column :failed_jobs, :source
   end

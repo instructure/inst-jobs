@@ -1,13 +1,13 @@
 class AddFailedJobsOriginalJobId < ActiveRecord::Migration
-  def self.connection
+  def connection
     Delayed::Backend::ActiveRecord::Job.connection
   end
 
-  def self.up
+  def up
     add_column :failed_jobs, :original_job_id, :integer, limit: 8
   end
 
-  def self.down
+  def down
     remove_column :failed_jobs, :original_job_id
   end
 end

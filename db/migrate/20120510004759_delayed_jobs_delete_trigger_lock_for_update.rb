@@ -1,9 +1,9 @@
 class DelayedJobsDeleteTriggerLockForUpdate < ActiveRecord::Migration
-  def self.connection
+  def connection
     Delayed::Backend::ActiveRecord::Job.connection
   end
 
-  def self.up
+  def up
     if connection.adapter_name == 'PostgreSQL'
       execute(<<-CODE)
       CREATE OR REPLACE FUNCTION delayed_jobs_after_delete_row_tr_fn () RETURNS trigger AS $$
@@ -16,7 +16,7 @@ class DelayedJobsDeleteTriggerLockForUpdate < ActiveRecord::Migration
     end
   end
 
-  def self.down
+  def down
     if connection.adapter_name == 'PostgreSQL'
       execute(<<-CODE)
       CREATE OR REPLACE FUNCTION delayed_jobs_after_delete_row_tr_fn () RETURNS trigger AS $$

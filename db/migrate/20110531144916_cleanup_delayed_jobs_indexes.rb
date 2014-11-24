@@ -1,9 +1,9 @@
 class CleanupDelayedJobsIndexes < ActiveRecord::Migration
-  def self.connection
+  def connection
     Delayed::Backend::ActiveRecord::Job.connection
   end
 
-  def self.up
+  def up
     case connection.adapter_name
     when 'PostgreSQL'
       # "nulls first" syntax is postgresql specific, and allows for more
@@ -18,7 +18,7 @@ class CleanupDelayedJobsIndexes < ActiveRecord::Migration
     remove_index :delayed_jobs, :name => 'delayed_jobs_priority'
   end
 
-  def self.down
+  def down
     remove_index :delayed_jobs, :name => 'get_delayed_jobs_index'
     add_index :delayed_jobs, [:priority, :run_at], :name => 'delayed_jobs_priority'
     add_index :delayed_jobs, [:queue], :name => 'delayed_jobs_queue'

@@ -1,9 +1,9 @@
 class AddDelayedJobsNextInStrand < ActiveRecord::Migration
-  def self.connection
+  def connection
     Delayed::Backend::ActiveRecord::Job.connection
   end
 
-  def self.up
+  def up
     remove_index :delayed_jobs, :name => 'index_delayed_jobs_for_get_next'
 
     add_column :delayed_jobs, :next_in_strand, :boolean, :default => true, :null => false
@@ -39,7 +39,7 @@ class AddDelayedJobsNextInStrand < ActiveRecord::Migration
     execute(%{UPDATE delayed_jobs SET next_in_strand = 'f' WHERE strand IS NOT NULL AND id <> (SELECT id FROM delayed_jobs j2 WHERE j2.strand = delayed_jobs.strand ORDER BY j2.strand, j2.id ASC LIMIT 1)})
   end
 
-  def self.down
+  def down
     execute %{DROP TRIGGER delayed_jobs_before_insert_row_tr ON delayed_jobs}
     execute %{DROP FUNCTION delayed_jobs_before_insert_row_tr_fn()}
     execute %{DROP TRIGGER delayed_jobs_after_delete_row_tr ON delayed_jobs}

@@ -1,9 +1,9 @@
 class DelayedJobsUseAdvisoryLocks < ActiveRecord::Migration
-  def self.connection
+  def connection
     Delayed::Backend::ActiveRecord::Job.connection
   end
 
-  def self.up
+  def up
     # use an advisory lock based on the name of the strand, instead of locking the whole table
     # note that we're using half of the md5, so collisions are possible, but we don't really
     # care because that would just be the old behavior, whereas for the most part locking will
@@ -51,7 +51,7 @@ class DelayedJobsUseAdvisoryLocks < ActiveRecord::Migration
     end
   end
 
-  def self.down
+  def down
     if connection.adapter_name == 'PostgreSQL'
       execute(<<-CODE)
       CREATE OR REPLACE FUNCTION delayed_jobs_before_insert_row_tr_fn () RETURNS trigger AS $$
