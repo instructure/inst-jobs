@@ -1,6 +1,20 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## 0.9.9 - 2014-11-24
+### Changed
+- Fix for migrations running on a different postgres connection.
+
+## 0.9.8 - 2014-11-07
+### Changed
+- Singleton jobs will now update run_at for an existing job on the
+  strand, if it exists and the run_at is later.
+- Don't fail removing the job tmpdir if it was already removed.
+
+## 0.9.7 - 2014-11-03
+### Changed
+- Make worker configuration accessible to outside code.
+
 ## 0.9.6 - 2014-10-27
 ### Added
 - A convenient bin/canvas_job script to install with binstubs.
