@@ -29,6 +29,7 @@ require 'delayed/lifecycle'
 require 'delayed/message_sending'
 require 'delayed/performable_method'
 require 'delayed/periodic'
+require 'delayed/plugin'
 require 'delayed/pool'
 require 'delayed/worker'
 

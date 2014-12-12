@@ -288,4 +288,27 @@ shared_examples_for 'Delayed::Worker' do
       worker.queue.should == queue_name
     end
   end
+
+  context "plugins" do
+    class TestPlugin < ::Delayed::Plugin
+      cattr_accessor :runs
+      self.runs = 0
+      callbacks do |lifecycle|
+        lifecycle.around(:invoke_job) do |job, *args, &block|
+          TestPlugin.runs += 1
+          block.call(job, *args)
+        end
+      end
+    end
+
+    it "should create and call the plugin callbacks" do
+      TestPlugin.runs = 0
+      Delayed::Worker.plugins << TestPlugin
+      job_create
+      @worker = Delayed::Worker.new(:quiet => true)
+      @worker.run
+      expect(TestPlugin.runs).to eq(1)
+      expect(SimpleJob.runs).to eq(1)
+    end
+  end
 end

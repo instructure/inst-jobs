@@ -6,6 +6,7 @@ module Delayed
       :perform          => [:worker, :job],
       :pop              => [:worker],
       :exceptional_exit => [:worker, :exception],
+      :invoke_job       => [:job],
     }
 
     def initialize
@@ -14,6 +15,7 @@ module Delayed
 
     def reset!
       @callbacks = EVENTS.keys.inject({}) { |hash, e| hash[e] = Callback.new; hash }
+      Delayed::Worker.plugins.each { |plugin| plugin.reset! }
     end
 
     def before(event, &block)

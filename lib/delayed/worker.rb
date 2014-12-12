@@ -3,6 +3,7 @@ module Delayed
 class TimeoutError < RuntimeError; end
 
 require 'tmpdir'
+require 'set'
 
 class Worker
   attr_reader :config, :queue, :min_priority, :max_priority
@@ -19,6 +20,9 @@ class Worker
     @@on_max_failures = block
   end
   cattr_reader :on_max_failures
+
+  cattr_accessor :plugins
+  self.plugins = Set.new
 
   def self.lifecycle
     @lifecycle ||= Delayed::Lifecycle.new
@@ -47,6 +51,8 @@ class Worker
         end
       end
     end
+
+    plugins.each { |plugin| plugin.inject! }
   end
 
   def name=(name)
