@@ -47,11 +47,11 @@ class Pool
     command = @args.shift
     case command
     when 'start'
-      exit 1 if status(:alive) == :running
+      exit 1 if status(print: :alive) == :running
       daemonize
       start
     when 'stop'
-      stop(options[:kill])
+      stop(kill: options[:kill])
     when 'run'
       start
     when 'status'
@@ -61,13 +61,14 @@ class Pool
         exit 1
       end
     when 'restart'
-      alive = status(false)
+      pid = self.pid
+      alive = status(pid: pid, print: false)
       if alive == :running || (options[:kill] && alive == :draining)
-        stop(options[:kill])
+        stop(pid: pid, kill: options[:kill])
         if options[:kill]
-          sleep(0.5) while status(false)
+          sleep(0.5) while status(pid: pid, print: false)
         else
-          sleep(0.5) while status(false) == :running
+          sleep(0.5) while status(pid: pid, print: false) == :running
         end
       end
       daemonize
@@ -243,7 +244,15 @@ class Pool
     Process.setpgrp
 
     @daemon = true
-    File.open(pid_file, 'wb') { |f| f.write(Process.pid.to_s) }
+    lock_file = File.open(pid_file, 'wb')
+    # someone else is already running; just exit
+    unless lock_file.flock(File::LOCK_EX | File::LOCK_NB)
+      exit
+    end
+    at_exit { lock_file.flock(File::LOCK_UN) }
+    lock_file.puts(Process.pid.to_s)
+    lock_file.flush
+
     # if we blow up so badly that we can't syslog the error, try to send
     # it somewhere useful
     last_ditch_logfile = self.last_ditch_logfile || "log/delayed_job.log"
@@ -264,21 +273,14 @@ class Pool
     File.join(pid_folder, 'delayed_jobs_pool.pid')
   end
 
-  def remove_pid_file
-    return unless @daemon
-    pid = File.read(pid_file) if File.file?(pid_file)
-    if pid.to_i == Process.pid
-      FileUtils.rm(pid_file)
-    end
-  end
-
   def last_ditch_logfile
     @config['last_ditch_logfile']
   end
 
-  def stop(kill = false)
-    pid = status(false) && File.read(pid_file).to_i if File.file?(pid_file)
-    if pid && pid > 0
+  def stop(options = {})
+    kill = options[:kill]
+    pid = options[:pid] || self.pid
+    if pid && status(pid: pid, print: false)
       puts "Stopping pool #{pid}..."
       signal = 'INT'
       if kill
@@ -299,10 +301,19 @@ class Pool
     end
   end
 
-  def status(print = true)
-    pid = File.read(pid_file) if File.file?(pid_file)
-    alive = pid && pid.to_i > 0 && (Process.kill(0, pid.to_i) rescue false) && :running
-    alive ||= :draining if pid.to_i > 0 && Process.kill(0, -pid.to_i) rescue false
+  def pid
+    if File.file?(pid_file)
+      pid = File.read(pid_file).to_i
+      pid = nil unless pid > 0
+    end
+    pid
+  end
+
+  def status(options = { print: true })
+    print = options[:print]
+    pid = options[:pid] || self.pid
+    alive = pid && (Process.kill(0, pid) rescue false) && :running
+    alive ||= :draining if pid && Process.kill(0, -pid) rescue false
     if alive
       puts "Delayed jobs #{alive}, pool PID: #{pid}" if print
     else
