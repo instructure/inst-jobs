@@ -7,6 +7,7 @@ module Delayed
       :pop              => [:worker],
       :exceptional_exit => [:worker, :exception],
       :invoke_job       => [:job],
+      :error            => [:worker, :job, :exception],
     }
 
     def initialize

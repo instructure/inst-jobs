@@ -42,6 +42,20 @@ Or install it yourself as:
 
 ## Usage
 
+### Lifecycle Events
+
+There are several callbacks you can hook into from outside
+the library, find them at the top of the "lifecycle.rb" class.
+
+To hook into a callback, write something that looks like this in
+an initializer:
+
+```ruby
+Delayed::Worker.lifecycle.before(:error) do |worker, exception|
+  ErrorThingy.notify(exception)
+end
+```
+
 ### ActiveRecord Backend
 
 If you are using the ActiveRecord backend, you'll need to install and
@@ -107,6 +121,19 @@ end
 To write tests that interact with canvas-jobs, you'll need to configure
 an actual ActiveRecord or Redis backend. In the future we may add an
 in-memory testing backend.
+
+By default, if you have postgres and redis running on their default ports,
+and if you have run:
+
+```
+$> createdb canvas-jobs-test-1
+```
+
+Then you should be able to run the tests that come with the library with:
+
+```
+$> bundle exec rspec spec
+```
 
 There are a few basic testing helpers available:
 

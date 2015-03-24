@@ -136,7 +136,7 @@ class Worker
       runtime = Benchmark.realtime do
         if job.batch?
           # each job in the batch will have perform called on it, so we don't
-          # need a timeout around this 
+          # need a timeout around this
           count = perform_batch(job)
         else
           job.invoke_job
@@ -147,7 +147,9 @@ class Worker
     end
     count
   rescue Exception => e
-    handle_failed_job(job, e)
+    self.class.lifecycle.run_callbacks(:error, self, job, e) do
+      handle_failed_job(job, e)
+    end
     count
   end
 
