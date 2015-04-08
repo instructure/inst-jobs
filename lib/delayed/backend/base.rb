@@ -105,7 +105,7 @@ module Delayed
         # Note: This does not ping the DB to get the time, so all your clients
         # must have syncronized clocks.
         def db_time_now
-          Time.zone.now
+          Time.now.utc
         end
 
         def unlock_orphaned_jobs(pid = nil, name = nil)
