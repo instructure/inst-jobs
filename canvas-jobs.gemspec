@@ -31,4 +31,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'test_after_commit', '0.4.1'
   s.add_development_dependency 'timecop', '0.7.1'
   s.add_development_dependency 'wwtd', '0.7.0'
+  s.add_development_dependency 'sinatra'
+  s.add_development_dependency 'sinatra-contrib'
+  s.add_development_dependency 'rack-test'
 end

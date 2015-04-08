@@ -2,6 +2,7 @@ require 'delayed_job'
 require 'delayed/testing'
 
 require 'database_cleaner'
+require 'rack/test'
 require 'test_after_commit'
 require 'timecop'
 require 'pry'
@@ -17,15 +18,17 @@ RSpec.configure do |config|
     DatabaseCleaner.clean_with(:truncation)
   end
 
-  config.around(:each) do |example|
+  config.before(:each) do |example|
     if Delayed::Backend::Redis::Job.redis
       Delayed::Backend::Redis::Job.redis.flushdb
     end
-    DatabaseCleaner.cleaning do
-      example.run
-    end
+    DatabaseCleaner.strategy = (example.metadata[:sinatra] ? :truncation : :transaction)
+    DatabaseCleaner.start
   end
 
+  config.after(:each) do
+    DatabaseCleaner.clean
+  end
 end
 
 ENV['TEST_ENV_NUMBER'] ||= '1'

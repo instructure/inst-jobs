@@ -14,3 +14,4 @@
 *.a
 mkmf.log
 /spec/gemfiles/.bundle
+.rbenv-vars

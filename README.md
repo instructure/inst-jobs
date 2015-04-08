@@ -148,6 +148,47 @@ before(:each) do
 end
 ```
 
+### Web UI
+
+#### For Rails Apps
+To use the web UI in your existing Rails application there are two options,
+first "The Rails Way" as shown just below this text or the Rack way shown
+at the very end of this section.
+
+For "The Rails Way" to work there are two changes that need to be made to your
+application. First you'll need to add Sinatra and `sinatra-contrib` to your
+Gemfile (these dependencies are excluded from the default list so those who
+aren't using this feature don't get the extra gems). Second, you'll need to
+ add the following to your routes file:
+
+```ruby
+require 'delayed/server'
+
+Rails.application.routes.draw do
+  # The delayed jobs server can mounted at any route you desire, delayed_jobs is
+  # just for this example
+  mount Delayed::Server.new => '/delayed_jobs'
+end
+```
+
+Additionally, if you wish to restrict who has access to this route it is
+recommended that users wrap this route in a constraint.
+
+#### For Rack and Sinatra Apps
+To use the web UI in your Rack app you can simply mount the app just like any other Rack
+app in your config.ru file:
+
+```ruby
+require 'delayed/server'
+
+# The delayed jobs server can mounted at any route you desire, delayed_jobs is
+# just for this example
+map '/delayed_jobs' do
+  run Delayed::Server.new
+end
+
+run MyApp
+```
 
 ## Contributing
 
