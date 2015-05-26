@@ -1,4 +1,4 @@
-require 'rufus-scheduler'
+require 'rufus/scheduler'
 
 module Delayed
 class Periodic
@@ -21,7 +21,7 @@ class Periodic
   def self.add_overrides(overrides)
     overrides.each do |name, cron_line|
       # throws error if the line is malformed
-      Rufus::CronLine.new(cron_line)
+      Rufus::Scheduler::CronLine.new(cron_line)
     end
     self.overrides.merge!(overrides)
   end
@@ -49,7 +49,7 @@ class Periodic
 
   def initialize(name, cron_line, job_args, block)
     @name = name
-    @cron = Rufus::CronLine.new(cron_line)
+    @cron = Rufus::Scheduler::CronLine.new(cron_line)
     @job_args = { :priority => Delayed::LOW_PRIORITY }.merge(job_args.symbolize_keys)
     @block = block
   end
