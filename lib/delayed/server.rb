@@ -28,6 +28,7 @@ module Delayed
         ActiveRecord::Base.verify_active_connections!
       end
     end
+
     # Release any used connections back to the pool
     after do
       ActiveRecord::Base.clear_active_connections! if using_active_record?
@@ -51,13 +52,19 @@ module Delayed
     get '/running' do
       content_type :json
       json({
-        data: Delayed::Job.running_jobs.map{ |j| j.as_json(include_root: false, except: [:handler, :last_error]) }
+        draw: params['draw'].to_i,
+        recordsTotal: Delayed::Job.running.count,
+        recordsFiltered: Delayed::Job.running.count,
+        data: Delayed::Job.running_jobs.map{ |j|
+          j.as_json(include_root: false, except: [:handler, :last_error])
+        },
       })
     end
 
     get '/tags' do
       content_type :json
       json({
+        draw: params['draw'].to_i,
         data: Delayed::Job.tag_counts('current', 10)
       })
     end
@@ -66,19 +73,27 @@ module Delayed
     MAX_PAGE_SIZE = 100
     get '/jobs' do
       content_type :json
-      page_size = params['length'] || DEFAULT_PAGE_SIZE
+      page_size = extract_page_size
+      offset = Integer(params['start'] || 0)
+      flavor = params['flavor'] || 'current'
+      json({
+        draw: params['draw'].to_i,
+        recordsTotal: Delayed::Job.jobs_count(flavor),
+        recordsFiltered: Delayed::Job.jobs_count(flavor),
+        data: Delayed::Job.list_jobs(flavor, page_size, offset).map{ |j|
+          j.as_json(include_root: false, except: [:handler, :last_error])
+        },
+      })
+    end
+
+    private
+
+    def extract_page_size
+      page_size = Integer(params['length'] || DEFAULT_PAGE_SIZE)
       # if dataTables wants all of the records it will send us -1 but we don't
       # want the potential to kill our servers with this request so we'll limit it
       page_size = DEFAULT_PAGE_SIZE if page_size == -1
-      page_size = [page_size, MAX_PAGE_SIZE].min
-      if params['start']
-        offset = params['start'].to_i + page_size
-      else
-        offset = 0
-      end
-      json({
-        data: Delayed::Job.list_jobs('current', page_size, offset).map{ |j| j.as_json(include_root: false, except: [:handler, :last_error]) }
-      })
+      [page_size, MAX_PAGE_SIZE].min
     end
   end
 end

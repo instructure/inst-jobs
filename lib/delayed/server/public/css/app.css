@@ -1,12 +1,12 @@
 table.dataTable td {
     word-wrap: break-word;
 }
-table.dataTable td.tag {
-    max-width: 150px;
-}
 table.dataTable td.strand {
     max-width: 100px;
 }
 table.dataTable td.tag {
     max-width: 100px;
+}
+div.job-list-row {
+    padding-top: 10px;
 }

@@ -34,6 +34,28 @@
 <div class="row">
   <div class="col-md-12">
     <h2>Jobs List</h2>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-2">
+    <select id="current_jobs_flavor" class="form-control">
+      <option value="current">Current</option>
+      <option value="future">Future</option>
+      <option value="failed">Failed</option>
+    </select>
+  </div>
+  <div class="col-md-2">
+    <a href="" class="btn btn-default" aria-label="Refresh Jobs Table" id="refresh_jobs_link">
+      <span class="glyphicon glyphicon-refresh"></span> Refresh
+    </a>
+  </div>
+  <div class="col-md-8">
+  </div>
+</div>
+
+<div class="row job-list-row">
+  <div class="col-md-12">
     <table id="jobs" class="table table-striped table-bordered">
       <thead>
         <tr>
