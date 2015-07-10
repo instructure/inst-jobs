@@ -38,19 +38,35 @@
 </div>
 
 <div class="row">
-  <div class="col-md-2">
-    <select id="current_jobs_flavor" class="form-control">
-      <option value="current">Current</option>
-      <option value="future">Future</option>
-      <option value="failed">Failed</option>
-    </select>
-  </div>
-  <div class="col-md-2">
-    <a href="" class="btn btn-default" aria-label="Refresh Jobs Table" id="refresh_jobs_link">
-      <span class="glyphicon glyphicon-refresh"></span> Refresh
-    </a>
-  </div>
-  <div class="col-md-8">
+  <div class="form-group">
+    <div class="col-md-2">
+      <select id="current_jobs_flavor" class="form-control">
+        <option value="current">Current</option>
+        <option value="future">Future</option>
+        <option value="failed">Failed</option>
+        <option value="id" data-requires-search="true">ID</option>
+        <option value="strand" data-requires-search="true">Strand</option>
+        <option value="tag" data-requires-search="true">Tag</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <!-- this inline style makes me sad but doing it in the stylesheet seems to break bootstrap -->
+      <div class="input-group" id="job_search" style="display: none;">
+        <input type="text" class="form-control" id="jobs_search_term" placeholder="">
+        <span class="input-group-btn">
+          <a href="" class="btn btn-default refresh_jobs_link" aria-label="Run Search">
+            Filter <span class="glyphicon glyphicon-filter"></span>
+          </a>
+        </span>
+      </div>
+    </div>
+    <div class="col-md-6">
+    </div>
+    <div class="col-md-1">
+      <a href="" class="btn btn-default pull-right refresh_jobs_link" aria-label="Refresh Jobs Table">
+        <span class="glyphicon glyphicon-refresh"></span> Refresh
+      </a>
+    </div>
   </div>
 </div>
 

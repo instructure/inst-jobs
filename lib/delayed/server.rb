@@ -73,16 +73,30 @@ module Delayed
     MAX_PAGE_SIZE = 100
     get '/jobs' do
       content_type :json
+      flavor = params['flavor'] || 'current'
       page_size = extract_page_size
       offset = Integer(params['start'] || 0)
-      flavor = params['flavor'] || 'current'
+      case flavor
+      when 'id'
+        jobs = Delayed::Job.where(id: params['search_term'])
+        total_records = 1
+      when 'future', 'current', 'failed'
+        jobs = Delayed::Job.list_jobs(flavor, page_size, offset)
+        total_records =  Delayed::Job.jobs_count(flavor)
+      else
+        query = params['search_term']
+        if query.present?
+          jobs = Delayed::Job.list_jobs(flavor, page_size, offset, query)
+        else
+          jobs = []
+        end
+        total_records =  Delayed::Job.jobs_count(flavor, query)
+      end
       json({
         draw: params['draw'].to_i,
-        recordsTotal: Delayed::Job.jobs_count(flavor),
-        recordsFiltered: Delayed::Job.jobs_count(flavor),
-        data: Delayed::Job.list_jobs(flavor, page_size, offset).map{ |j|
-          j.as_json(include_root: false, except: [:handler, :last_error])
-        },
+        recordsTotal: total_records,
+        recordsFiltered: jobs.size,
+        data: build_jobs_json(jobs),
       })
     end
 
@@ -94,6 +108,13 @@ module Delayed
       # want the potential to kill our servers with this request so we'll limit it
       page_size = DEFAULT_PAGE_SIZE if page_size == -1
       [page_size, MAX_PAGE_SIZE].min
+    end
+
+
+    def build_jobs_json(jobs)
+      json = jobs.map{ |j|
+        j.as_json(root: false, except: [:handler, :last_error])
+      }
     end
   end
 end
