@@ -84,8 +84,8 @@ Delayed.select_backend(Delayed::Backend::Redis::Job)
 
 ### Worker Configuration
 
-Worker and queue information is hard-coded to read from
-`config/delayed_jobs.yml`, this will change in the future:
+Worker and queue information defaults to read from `config/delayed_jobs.yml`,
+this can be overridden using the `--config` option from the command line.
 
 ```yaml
 development:
