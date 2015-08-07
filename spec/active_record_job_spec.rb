@@ -68,7 +68,6 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
     job.locked_at.should == nil
   end
 
-
   describe "bulk_update failed jobs" do
     before do
       @flavor = 'failed'
@@ -101,4 +100,107 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
     end
   end
 
+  context 'n_strand' do
+    it "should default to 1" do
+      expect(Delayed::Job).to receive(:rand).never
+      job = Delayed::Job.enqueue(SimpleJob.new, :n_strand => 'njobs')
+      job.strand.should == "njobs"
+    end
+
+    it "should set max_concurrent based on num_strands" do
+      change_setting(Delayed::Settings, :num_strands, ->(strand_name) { expect(strand_name).to eql "njobs"; "3" }) do
+        job = Delayed::Job.enqueue(SimpleJob.new, :n_strand => 'njobs')
+        job.strand.should == "njobs"
+        job.max_concurrent.should == 3
+      end
+    end
+
+    context "with two parameters" do
+      it "should use the first param as the setting to read" do
+        job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
+        job.strand.should == "njobs/123"
+        change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
+          case strand_name
+          when "njobs"; 3
+          else nil
+          end
+        }) do
+          job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
+          job.strand.should == "njobs/123"
+          job.max_concurrent.should == 3
+        end
+      end
+
+      it "should allow overridding the setting based on the second param" do
+        change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
+          case strand_name
+          when "njobs/123"; 5
+          else nil
+          end
+        }) do
+          job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
+          job.strand.should == "njobs/123"
+          job.max_concurrent.should == 5
+          job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "456"])
+          job.strand.should == "njobs/456"
+          job.max_concurrent.should == 1
+        end
+
+        change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
+          case strand_name
+          when "njobs/123"; 5
+          when "njobs"; 3
+          else nil
+          end
+        }) do
+          job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
+          job.strand.should == "njobs/123"
+          job.max_concurrent.should == 5
+          job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "456"])
+          job.strand.should == "njobs/456"
+          job.max_concurrent.should == 3
+        end
+      end
+    end
+
+    context "max_concurrent triggers" do
+      before do
+        skip("postgres specific") unless ActiveRecord::Base.connection.adapter_name == 'PostgreSQL'
+      end
+
+      it "should set one job as next_in_strand at a time with max_concurrent of 1" do
+        job1 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
+        job1.reload
+        job1.next_in_strand.should == true
+        job2 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
+        job2.reload
+        job2.next_in_strand.should == false
+        run_job(job1)
+        job2.reload
+        job2.next_in_strand.should == true
+      end
+
+      it "should run set multiple jobs as next_in_strand at a time based on max_concurrent" do
+        change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
+          case strand_name
+          when "njobs"; 2
+          else nil
+          end
+        }) do
+          job1 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
+          job1.reload
+          job1.next_in_strand.should == true
+          job2 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
+          job2.reload
+          job2.next_in_strand.should == true
+          job3 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
+          job3.reload
+          job3.next_in_strand.should == false
+          run_job(job1)
+          job3.reload
+          job3.next_in_strand.should == true
+        end
+      end
+    end
+  end
 end

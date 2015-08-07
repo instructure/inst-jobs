@@ -76,14 +76,14 @@ shared_examples_for 'a backend' do
     job = Delayed::Job.new :handler => "--- !ruby/struct:Delayed::JobThatDoesNotExist {}"
     lambda { job.payload_object.perform }.should raise_error(Delayed::Backend::DeserializationError)
   end
-  
+
   describe "find_available" do
     it "should not find failed jobs" do
       @job = create_job :attempts => 50
       @job.fail!
       Delayed::Job.find_available(5).should_not include(@job)
     end
-    
+
     it "should not find jobs scheduled for the future" do
       @job = create_job :run_at => (Delayed::Job.db_time_now + 1.minute)
       Delayed::Job.find_available(5).should_not include(@job)
@@ -94,13 +94,13 @@ shared_examples_for 'a backend' do
       Delayed::Job.get_and_lock_next_available('other_worker').should == @job
       Delayed::Job.find_available(5).should_not include(@job)
     end
-    
+
     it "should find open jobs" do
       @job = create_job
       Delayed::Job.find_available(5).should include(@job)
     end
   end
-  
+
   context "when another worker is already performing an task, it" do
 
     before :each do
@@ -132,13 +132,13 @@ shared_examples_for 'a backend' do
       @job.name.should == 'Story#save'
     end
   end
-  
+
   context "worker prioritization" do
     it "should fetch jobs ordered by priority" do
       10.times { create_job :priority => rand(10) }
       jobs = Delayed::Job.find_available(10)
       jobs.size.should == 10
-      jobs.each_cons(2) do |a, b| 
+      jobs.each_cons(2) do |a, b|
         a.priority.should <= b.priority
       end
     end
@@ -167,23 +167,23 @@ shared_examples_for 'a backend' do
       found.should == job3
     end
   end
-  
+
   context "clear_locks!" do
     before do
       @job = create_job(:locked_by => 'worker', :locked_at => Delayed::Job.db_time_now)
     end
-    
+
     it "should clear locks for the given worker" do
       Delayed::Job.clear_locks!('worker')
       Delayed::Job.find_available(5).should include(@job)
     end
-    
+
     it "should not clear locks for other workers" do
       Delayed::Job.clear_locks!('worker1')
       Delayed::Job.find_available(5).should_not include(@job)
     end
   end
-  
+
   context "unlock" do
     before do
       @job = create_job(:locked_by => 'worker', :locked_at => Delayed::Job.db_time_now)
@@ -322,69 +322,6 @@ shared_examples_for 'a backend' do
         job2.should == job1
         # it should be scheduled to run immediately
         Delayed::Job.get_and_lock_next_available('w1').should == job1
-      end
-    end
-
-    context 'n_strand' do
-      it "should default to 1" do
-        expect(Delayed::Job).to receive(:rand).never
-        job = Delayed::Job.enqueue(SimpleJob.new, :n_strand => 'njobs')
-        job.strand.should == "njobs"
-      end
-
-      it "should pick a strand randomly out of N" do
-        change_setting(Delayed::Settings, :num_strands, ->(strand_name) { expect(strand_name).to eql "njobs"; "3" }) do
-          expect(Delayed::Job).to receive(:rand).with(3).and_return(1)
-          job = Delayed::Job.enqueue(SimpleJob.new, :n_strand => 'njobs')
-          job.strand.should == "njobs:2"
-        end
-      end
-
-      context "with two parameters" do
-        it "should use the first param as the setting to read" do
-          job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
-          job.strand.should == "njobs/123"
-          change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
-            case strand_name
-            when "njobs"; 3
-            else nil
-            end
-          }) do
-            expect(Delayed::Job).to receive(:rand).with(3).and_return(1)
-            job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
-            job.strand.should == "njobs/123:2"
-          end
-        end
-
-        it "should allow overridding the setting based on the second param" do
-          change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
-            case strand_name
-            when "njobs/123"; 5
-            else nil
-            end
-          }) do
-            expect(Delayed::Job).to receive(:rand).with(5).and_return(3)
-            job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
-            job.strand.should == "njobs/123:4"
-            job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "456"])
-            job.strand.should == "njobs/456"
-          end
-
-          change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
-            case strand_name
-            when "njobs/123"; 5
-            when "njobs"; 3
-            else nil
-            end
-          }) do
-            expect(Delayed::Job).to receive(:rand).with(5).and_return(2)
-            expect(Delayed::Job).to receive(:rand).with(3).and_return(1)
-            job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
-            job.strand.should == "njobs/123:3"
-            job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "456"])
-            job.strand.should == "njobs/456:2"
-          end
-        end
       end
     end
   end

@@ -59,9 +59,7 @@ module Delayed
             num_strands ||= Delayed::Settings.num_strands.call(strand_name)
             num_strands = num_strands ? num_strands.to_i : 1
 
-            strand_num = num_strands > 1 ? rand(num_strands) + 1 : 1
-            full_strand_name += ":#{strand_num}" if strand_num > 1
-            options[:strand] = full_strand_name
+            options.merge!(n_strand_options(full_strand_name, num_strands))
           end
 
           if options[:singleton]
@@ -78,6 +76,15 @@ module Delayed
           JobTracking.job_created(job)
 
           job
+        end
+
+        # by default creates a new strand name randomly based on num_strands
+        # effectively balancing the load during queueing
+        # overwritten in ActiveRecord::Job to use triggers to balance at run time
+        def n_strand_options(strand_name, num_strands)
+          strand_num = num_strands > 1 ? rand(num_strands) + 1 : 1
+          strand_name += ":#{strand_num}" if strand_num > 1
+          {:strand => strand_name}
         end
 
         def in_delayed_job?

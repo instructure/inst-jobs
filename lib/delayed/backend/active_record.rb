@@ -43,6 +43,13 @@ module Delayed
           end
         end
 
+        # This overwrites the previous behavior
+        # so rather than changing the strand and balancing at queue time,
+        # this keeps the strand intact and uses triggers to limit the number running
+        def self.n_strand_options(strand_name, num_strands)
+          {:strand => strand_name, :max_concurrent => num_strands}
+        end
+
         def self.current
           where("run_at<=?", db_time_now)
         end
@@ -298,6 +305,7 @@ module Delayed
           attrs['original_job_id'] = attrs.delete('id')
           attrs['failed_at'] ||= self.class.db_time_now
           attrs.delete('next_in_strand')
+          attrs.delete('max_concurrent')
           self.class.transaction do
             failed_job = Failed.create(attrs)
             self.destroy

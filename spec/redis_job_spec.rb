@@ -74,4 +74,67 @@ describe 'Delayed::Backend::Redis::Job' do
       Delayed::Job.jobs_count(:current) == before_count + 1
     end
   end
+
+  context 'n_strand' do
+    it "should default to 1" do
+      expect(Delayed::Job).to receive(:rand).never
+      job = Delayed::Job.enqueue(SimpleJob.new, :n_strand => 'njobs')
+      job.strand.should == "njobs"
+    end
+
+    it "should pick a strand randomly out of N" do
+      change_setting(Delayed::Settings, :num_strands, ->(strand_name) { expect(strand_name).to eql "njobs"; "3" }) do
+        expect(Delayed::Job).to receive(:rand).with(3).and_return(1)
+        job = Delayed::Job.enqueue(SimpleJob.new, :n_strand => 'njobs')
+        job.strand.should == "njobs:2"
+      end
+    end
+
+    context "with two parameters" do
+      it "should use the first param as the setting to read" do
+        job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
+        job.strand.should == "njobs/123"
+        change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
+          case strand_name
+          when "njobs"; 3
+          else nil
+          end
+        }) do
+          expect(Delayed::Job).to receive(:rand).with(3).and_return(1)
+          job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
+          job.strand.should == "njobs/123:2"
+        end
+      end
+
+      it "should allow overridding the setting based on the second param" do
+        change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
+          case strand_name
+          when "njobs/123"; 5
+          else nil
+          end
+        }) do
+          expect(Delayed::Job).to receive(:rand).with(5).and_return(3)
+          job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
+          job.strand.should == "njobs/123:4"
+          job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "456"])
+          job.strand.should == "njobs/456"
+        end
+
+        change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
+          case strand_name
+          when "njobs/123"; 5
+          when "njobs"; 3
+          else nil
+          end
+        }) do
+          expect(Delayed::Job).to receive(:rand).with(5).and_return(2)
+          expect(Delayed::Job).to receive(:rand).with(3).and_return(1)
+          job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "123"])
+          job.strand.should == "njobs/123:3"
+          job = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs", "456"])
+          job.strand.should == "njobs/456:2"
+        end
+      end
+    end
+  end
 end
