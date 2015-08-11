@@ -144,7 +144,7 @@ module Delayed
         begin
           obj = payload_object
           obj.on_failure(error) if obj && obj.respond_to?(:on_failure)
-        rescue DeserializationError
+        rescue
           # don't allow a failed deserialization to prevent rescheduling
         end
 
