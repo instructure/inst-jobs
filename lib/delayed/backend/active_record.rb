@@ -148,11 +148,14 @@ module Delayed
 
           case action.to_s
           when 'hold'
+            scope = scope.where(locked_by: nil)
             scope.update_all(:locked_by => ON_HOLD_LOCKED_BY, :locked_at => db_time_now, :attempts => ON_HOLD_COUNT)
           when 'unhold'
             now = db_time_now
+            scope = scope.where(locked_by: ON_HOLD_LOCKED_BY)
             scope.update_all(["locked_by = NULL, locked_at = NULL, attempts = 0, run_at = (CASE WHEN run_at > ? THEN run_at ELSE ? END), failed_at = NULL", now, now])
           when 'destroy'
+            scope = scope.where("locked_by IS NULL OR locked_by=?", ON_HOLD_LOCKED_BY)
             scope.delete_all
           end
         end
