@@ -201,7 +201,7 @@ class Pool
   def join
     loop do
       child = Process.wait
-      if child
+      if workers.include?(child)
         worker = workers.delete(child)
         if worker.is_a?(Symbol)
           say "ran auditor: #{worker}"
