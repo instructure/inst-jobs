@@ -190,6 +190,14 @@ module Delayed
           scope.order("COUNT(tag) DESC").count.map { |t,c| { :tag => t, :count => c } }
         end
 
+        def self.maybe_silence_periodic_log(&block)
+          if Settings.silence_periodic_log
+            ::ActiveRecord::Base.logger.silence(&block)
+          else
+            block.call
+          end
+        end
+
         def self.get_and_lock_next_available(worker_name,
                                              queue = Delayed::Settings.queue,
                                              min_priority = nil,
@@ -199,7 +207,9 @@ module Delayed
           check_priorities(min_priority, max_priority)
 
           loop do
-            jobs = find_available(Settings.fetch_batch_size, queue, min_priority, max_priority)
+            jobs = maybe_silence_periodic_log do
+              find_available(Settings.fetch_batch_size, queue, min_priority, max_priority)
+            end
             return nil if jobs.empty?
             if Settings.select_random_from_batch
               jobs = jobs.sort_by { rand }
