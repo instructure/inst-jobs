@@ -67,4 +67,33 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
     job.locked_by.should == nil
     job.locked_at.should == nil
   end
+
+
+  describe "bulk_update failed jobs" do
+    before do
+      @flavor = 'failed'
+      @affected_jobs = []
+      @ignored_jobs = []
+      Timecop.freeze(5.minutes.ago) do
+        3.times { @affected_jobs << create_job.tap { |j| j.fail! } }
+        @ignored_jobs << create_job(:run_at => 2.hours.from_now)
+        @ignored_jobs << create_job(:queue => 'q2')
+      end
+    end
+
+    it "should raise error when holding failed jobs" do
+      expect { Delayed::Job.bulk_update('hold', :flavor => @flavor, :query => @query) }.to raise_error
+    end
+
+    it "should raise error unholding holding failed jobs" do
+      expect { Delayed::Job.bulk_update('unhold', :flavor => @flavor, :query => @query) }.to raise_error
+    end
+
+    it "should delete failed jobs" do
+      Delayed::Job.bulk_update('destroy', :flavor => @flavor, :query => @query).should == @affected_jobs.size
+      @affected_jobs.map { |j| Delayed::Job.find(j.id) rescue nil }.compact.should be_blank
+      @ignored_jobs.map { |j| Delayed::Job.find(j.id) rescue nil }.compact.size.should == @ignored_jobs.size
+    end
+  end
+
 end
