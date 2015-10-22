@@ -39,7 +39,7 @@ module Delayed
         before_create :lock_strand_on_create
         def lock_strand_on_create
           if strand.present?
-            self.class.connection.execute("SELECT pg_advisory_xact_lock(half_md5_as_bigint(#{self.class.sanitize(strand)}))")
+            self.class.connection.execute("SELECT pg_advisory_xact_lock(#{self.class.connection.quote_table_name('half_md5_as_bigint')}(#{self.class.sanitize(strand)}))")
           end
         end
 
@@ -229,7 +229,7 @@ module Delayed
         # depending on the db driver
         def self.transaction_for_singleton(strand)
           self.transaction do
-            connection.execute(sanitize_sql(["SELECT pg_advisory_xact_lock(half_md5_as_bigint(?))", strand]))
+            connection.execute(sanitize_sql(["SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(?))", strand]))
             yield
           end
         end
