@@ -85,7 +85,7 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
       expect { Delayed::Job.bulk_update('hold', :flavor => @flavor, :query => @query) }.to raise_error
     end
 
-    it "should raise error unholding holding failed jobs" do
+    it "should raise error holding or unholding failed jobs" do
       expect { Delayed::Job.bulk_update('unhold', :flavor => @flavor, :query => @query) }.to raise_error
     end
 
