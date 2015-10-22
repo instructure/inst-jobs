@@ -139,7 +139,7 @@ module Delayed
         def self.bulk_update(action, opts)
           raise("Can't #{action.to_s} failed jobs") if opts[:flavor].to_s == 'failed' && action.to_s != 'destroy'
           scope = if opts[:ids]
-            if opts[:flavor].present? && opts[:flavor] == 'failed'
+            if opts[:flavor] == 'failed'
               Delayed::Job::Failed.where(:id => opts[:ids])
             else
               self.where(:id => opts[:ids])
