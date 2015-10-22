@@ -137,11 +137,16 @@ module Delayed
         # to specify the jobs to act on, either pass opts[:ids] = [list of job ids]
         # or opts[:flavor] = <some flavor> to perform on all jobs of that flavor
         def self.bulk_update(action, opts)
-          scope = if opts[:flavor]
-            raise("Can't bulk update failed jobs") if opts[:flavor].to_s == 'failed'
+          raise("Can't #{action.to_s} failed jobs") if opts[:flavor].to_s == 'failed' && action.to_s != 'destroy'
+          scope = if opts[:ids]
+            if opts[:flavor] == 'failed'
+              Delayed::Job::Failed.where(:id => opts[:ids])
+            else
+              self.where(:id => opts[:ids])
+            end
+          elsif opts[:flavor]
+
             self.scope_for_flavor(opts[:flavor], opts[:query])
-          elsif opts[:ids]
-            self.where(:id => opts[:ids])
           end
 
           return 0 unless scope
