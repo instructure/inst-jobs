@@ -199,7 +199,10 @@ module Delayed
           check_priorities(min_priority, max_priority)
 
           loop do
-            jobs = find_available(Settings.fetch_batch_size, queue, min_priority, max_priority)
+            jobs = with_ar_log_silence do
+              find_available(Settings.fetch_batch_size, queue, min_priority, max_priority)
+            end
+
             return nil if jobs.empty?
             if Settings.select_random_from_batch
               jobs = jobs.sort_by { rand }
@@ -208,6 +211,14 @@ module Delayed
               job.send(:lock_exclusively!, worker_name)
             end
             return job if job
+          end
+        end
+
+        def self.with_ar_log_silence
+          if ENV['CANVAS_JOBS_POLLING_SILENCE']
+            ::ActiveRecord::Base.logger.silence { yield }
+          else
+            yield
           end
         end
 
