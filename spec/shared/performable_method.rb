@@ -49,4 +49,18 @@ shared_examples_for 'Delayed::PerformableMethod' do
     p = Delayed::PerformableMethod.new(reader, :read, [['arg1', story, { [:key, 1] => story }]])
     p.full_name.should == "StoryReader#read([\"arg1\", Story.find(#{story.id}), {[:key, 1] => Story.find(#{story.id})}])"
   end
+
+  it "should call the on_failure callback" do
+    story = Story.create :text => 'wat'
+    p = Delayed::PerformableMethod.new(story, :tell, [], :text=)
+    p.send(:on_failure, 'fail')
+    story.text.should == 'fail'
+  end
+
+  it "should call the on_permanent_failure callback" do
+    story = Story.create :text => 'wat'
+    p = Delayed::PerformableMethod.new(story, :tell, [], nil, :text=)
+    p.send(:on_permanent_failure, 'fail_frd')
+    story.text.should == 'fail_frd'
+  end
 end

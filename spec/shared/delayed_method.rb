@@ -71,16 +71,16 @@ shared_examples_for 'random ruby objects' do
         end
         obj = TestObject.new
         method = double()
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [1,2,3]).and_return(method)
+        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [1,2,3], nil, nil).and_return(method)
         expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
         obj.test_method(1,2,3)
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [4]).and_return(method)
+        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [4], nil, nil).and_return(method)
         expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
         obj.test_method(4)
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [6]).and_return(method)
+        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [6], nil, nil).and_return(method)
         expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
         obj.test_method_with_send_later(6)
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [5,6]).and_return(method)
+        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [5,6], nil, nil).and_return(method)
         expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
         obj.test_method_with_send_later(5,6)
         obj.ran.should be_nil
@@ -96,14 +96,14 @@ shared_examples_for 'random ruby objects' do
         class TestObject
           attr_reader :ran
           def test_method(*args); @ran = args; end
-          add_send_later_methods(:test_method, {:enqueue_arg_2 => :thing2}, false)
+          add_send_later_methods(:test_method, {:enqueue_arg_2 => :thing2, :on_failure => :fail, :on_permanent_failure => :fail_frd}, false)
         end
         obj = TestObject.new
         method = double()
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [6]).and_return(method)
+        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [6], :fail, :fail_frd).and_return(method)
         expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_2 => :thing2)
         obj.test_method_with_send_later(6)
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [5,6]).and_return(method)
+        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [5,6], :fail, :fail_frd).and_return(method)
         expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_2 => :thing2)
         obj.test_method_with_send_later(5,6)
         obj.ran.should be_nil

@@ -130,6 +130,7 @@ class Worker
 
   def perform(job)
     count = 1
+    raise Delayed::Backend::JobExpired, "job expired at #{job.expires_at}" if job.expired?
     self.class.lifecycle.run_callbacks(:perform, self, job) do
       set_process_name("run:#{Settings.worker_procname_prefix}#{job.id}:#{job.name}")
       say("Processing #{log_job(job, :long)}", :info)

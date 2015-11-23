@@ -14,6 +14,8 @@ module Delayed
       end
 
       no_delay = enqueue_args.delete(:no_delay)
+      on_failure = enqueue_args.delete(:on_failure)
+      on_permanent_failure = enqueue_args.delete(:on_permanent_failure)
       if !no_delay
         # delay queuing up the job in another database until the results of the current
         # transaction are visible
@@ -23,13 +25,15 @@ module Delayed
 
         if (Delayed::Job != Delayed::Backend::ActiveRecord::Job || connection != Delayed::Job.connection)
           connection.after_transaction_commit do
-            Delayed::Job.enqueue(Delayed::PerformableMethod.new(self, method.to_sym, args), enqueue_args)
+            Delayed::Job.enqueue(Delayed::PerformableMethod.new(self, method.to_sym, args,
+                                                                on_failure, on_permanent_failure), enqueue_args)
           end
           return nil
         end
       end
 
-      result = Delayed::Job.enqueue(Delayed::PerformableMethod.new(self, method.to_sym, args), enqueue_args)
+      result = Delayed::Job.enqueue(Delayed::PerformableMethod.new(self, method.to_sym, args,
+                                                                   on_failure, on_permanent_failure), enqueue_args)
       result = nil unless no_delay
       result
     end

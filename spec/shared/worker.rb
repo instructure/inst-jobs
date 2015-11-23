@@ -198,6 +198,12 @@ shared_examples_for 'Delayed::Worker' do
         @job.save!
         2.times { @job.reschedule }
       end
+
+      it "should be destroyed if it has expired" do
+        job = Delayed::Job.create :payload_object => SimpleJob.new, :expires_at => Delayed::Job.db_time_now - 1.day
+        expect(job).to receive(:destroy)
+        job.reschedule
+      end
     end
     
     context "and we don't want to destroy jobs" do
@@ -220,7 +226,12 @@ shared_examples_for 'Delayed::Worker' do
         @job = Delayed::Job.find(@job.id)
         @job.failed_at.should == nil
       end
-      
+
+      it "should be failed if it has expired" do
+        job = Delayed::Job.create :payload_object => SimpleJob.new, :expires_at => Delayed::Job.db_time_now - 1.day
+        expect(job).to receive(:fail!)
+        job.reschedule
+      end
     end
 
     context "and we give an on_max_failures callback" do
@@ -309,6 +320,41 @@ shared_examples_for 'Delayed::Worker' do
       @worker.run
       expect(TestPlugin.runs).to eq(1)
       expect(SimpleJob.runs).to eq(1)
+    end
+  end
+
+  describe "expires_at" do
+    it "should run non-expired jobs" do
+      Delayed::Job.enqueue SimpleJob.new, :expires_at => Delayed::Job.db_time_now + 1.day
+      expect { @worker.run }.to change { SimpleJob.runs }.by(1)
+    end
+
+    it "should not run expired jobs" do
+      Delayed::Job.enqueue SimpleJob.new, :expires_at => Delayed::Job.db_time_now - 1.day
+      expect { @worker.run }.to change { SimpleJob.runs }.by(0)
+    end
+
+    it "should report a permanent failure when an expired job is dequeued" do
+      ErrorJob.last_error = nil
+      Delayed::Job.enqueue ErrorJob.new, :expires_at => Delayed::Job.db_time_now - 1.day
+      expect { @worker.run }.to change { ErrorJob.permanent_failure_runs }.by(1)
+      expect(ErrorJob.last_error).to be_a Delayed::Backend::JobExpired
+    end
+  end
+
+  describe "send_later_enqueue_args failure callbacks" do
+    it "should call the on_failure callback" do
+      ErrorJob.last_error = nil
+      ErrorJob.new.send_later_enqueue_args(:perform, :max_attempts => 2, :on_failure => :on_failure)
+      expect { @worker.run }.to change { ErrorJob.failure_runs }.by(1)
+      expect(ErrorJob.last_error.to_s).to eq 'did not work'
+    end
+
+    it "should call the on_permanent_failure callback" do
+      ErrorJob.last_error = nil
+      ErrorJob.new.send_later_enqueue_args(:perform, :max_attempts => 1, :on_permanent_failure => :on_failure)
+      expect { @worker.run }.to change { ErrorJob.failure_runs }.by(1)
+      expect(ErrorJob.last_error.to_s).to eq 'did not work'
     end
   end
 end

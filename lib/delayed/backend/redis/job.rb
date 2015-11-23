@@ -130,6 +130,7 @@ class Job
   column(:max_attempts, :integer)
   column(:strand, :string)
   column(:source, :string)
+  column(:expires_at, :timestamp)
 
   def initialize(attrs = {})
     attrs.each { |k, v| self.send("#{k}=", v) }

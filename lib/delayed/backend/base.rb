@@ -6,6 +6,9 @@ module Delayed
     class RecordNotFound < DeserializationError
     end
 
+    class JobExpired < StandardError
+    end
+
     module Base
       ON_HOLD_LOCKED_BY = 'on hold'
       ON_HOLD_COUNT = 50
@@ -145,6 +148,10 @@ module Delayed
       end
       alias_method :failed, :failed?
 
+      def expired?
+        expires_at && (self.class.db_time_now >= expires_at)
+      end
+
       # Reschedule the job in the future (when a job fails).
       # Uses an exponential scale depending on the number of failed attempts.
       def reschedule(error = nil, time = nil)
@@ -158,6 +165,8 @@ module Delayed
         self.attempts += 1
         if self.attempts >= (self.max_attempts || Delayed::Settings.max_attempts)
           permanent_failure error || "max attempts reached"
+        elsif expired?
+          permanent_failure error || "job has expired"
         else
           time ||= self.reschedule_at
           self.run_at = time

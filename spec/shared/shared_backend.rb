@@ -46,6 +46,12 @@ shared_examples_for 'a backend' do
     @job.run_at.should be_within(1).of(later)
   end
 
+  it "should be able to set expires_at when enqueuing items" do
+    later = Delayed::Job.db_time_now + 1.day
+    @job = Delayed::Job.enqueue SimpleJob.new, :expires_at => later
+    @job.expires_at.should be_within(1).of(later)
+  end
+
   it "should work with jobs in modules" do
     M::ModuleJob.runs = 0
     job = Delayed::Job.enqueue M::ModuleJob.new

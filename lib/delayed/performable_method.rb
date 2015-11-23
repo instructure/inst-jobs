@@ -1,11 +1,13 @@
 module Delayed
-  class PerformableMethod < Struct.new(:object, :method, :args)
-    def initialize(object, method, args = [])
+  class PerformableMethod < Struct.new(:object, :method, :args, :fail_cb, :permanent_fail_cb)
+    def initialize(object, method, args = [], fail_cb = nil, permanent_fail_cb = nil)
       raise NoMethodError, "undefined method `#{method}' for #{object.inspect}" unless object.respond_to?(method, true)
 
       self.object = object
       self.args   = args
       self.method = method.to_sym
+      self.fail_cb           = fail_cb
+      self.permanent_fail_cb = permanent_fail_cb
     end
 
     def display_name
@@ -19,6 +21,14 @@ module Delayed
 
     def perform
       object.send(method, *args)
+    end
+
+    def on_failure(error)
+      object.send(fail_cb, error) if fail_cb
+    end
+
+    def on_permanent_failure(error)
+      object.send(permanent_fail_cb, error) if permanent_fail_cb
     end
 
     def deep_de_ar_ize(arg)
