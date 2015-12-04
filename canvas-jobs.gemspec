@@ -16,6 +16,8 @@ Gem::Specification.new do |s|
   s.files = Dir["{app,config,db,lib}/**/*"]
   s.test_files = Dir["spec/**/*"]
 
+  s.required_ruby_version = '>= 2.0'
+
   s.add_dependency 'after_transaction_commit', '1.0.1'
   s.add_dependency 'rails',           '>= 3.2'
   s.add_dependency 'rufus-scheduler', '~> 3.1.2'

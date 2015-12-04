@@ -1,13 +1,17 @@
 # New definitions for YAML to aid in serialization and deserialization of delayed jobs.
 
 require 'yaml'
-require 'syck'
-# this code needs to be updated to work with the new Psych YAML engine in ruby 1.9.x
-# for now we force Syck
-YAML::ENGINE.yamler = 'syck' if defined?(YAML::ENGINE) && YAML::ENGINE.yamler != 'syck'
 
 # First, tell YAML how to load a Module. This depends on Rails .constantize and autoloading.
 YAML.add_ruby_type("object:Module") do |type, val|
+  val.constantize
+end
+
+Psych.add_domain_type("ruby/object", "Module") do |type, val|
+  val.constantize
+end
+
+Psych.add_domain_type("ruby/object", "Class") do |type, val|
   val.constantize
 end
 
@@ -30,6 +34,10 @@ class Class
       out.scalar(taguri, name)
     end
   end
+
+  def encode_with(coder)
+    coder.scalar("!ruby/object:Class", name)
+  end
 end
 
 # Now, tell YAML how to intelligently load ActiveRecord objects, using the
@@ -47,12 +55,50 @@ class ActiveRecord::Base
     end
   end
 
+  def encode_with(coder)
+    if id.nil?
+      raise("Can't serialize unsaved ActiveRecord object for delayed job: #{self.inspect}")
+    end
+    coder.scalar("!ruby/ActiveRecord:#{self.class.name}", id.to_s)
+  end
+
   def self.yaml_new(klass, tag, val)
     klass.find(val)
   rescue ActiveRecord::RecordNotFound
     raise Delayed::Backend::RecordNotFound, "Couldn't find #{klass} with id #{val.inspect}"
   end
 end
+
+module Delayed
+  module PsychExt
+    module ToRuby
+      def visit_Psych_Nodes_Scalar(object)
+        case object.tag
+        when %r{^!ruby/ActiveRecord:(.+)$}
+          begin
+            klass = resolve_class(Regexp.last_match[1])
+            klass.unscoped.find(object.value)
+          rescue ActiveRecord::RecordNotFound
+            raise Delayed::Backend::RecordNotFound, "Couldn't find #{klass} with id #{object.value.inspect}"
+          end
+        when Psych.dump_tags[Delayed::Periodic]
+          Delayed::Periodic.scheduled[object.value] || raise(NameError, "job #{object.value} is no longer scheduled")
+        else
+          super
+        end
+      end
+
+      def resolve_class(klass_name)
+        return nil if !klass_name || klass_name.empty?
+        klass_name.constantize
+      rescue
+        super
+      end
+    end
+  end
+end
+
+Psych::Visitors::ToRuby.prepend(Delayed::PsychExt::ToRuby)
 
 # Load Module/Class from yaml tag.
 class Module

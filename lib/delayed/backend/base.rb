@@ -301,7 +301,7 @@ module Delayed
         handler = nil
         begin
           handler = _yaml_deserialize(source)
-        rescue TypeError
+        rescue TypeError, ArgumentError
           attempt_to_load_from_source(source)
           handler = _yaml_deserialize(source)
         end

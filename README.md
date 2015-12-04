@@ -15,21 +15,13 @@ TODO: explain the differences and additions
 
 ## Installation
 
-canvas-jobs requires Rails 3.2 or above, and Ruby 1.9.3 or above. It is
+canvas-jobs requires Rails 3.2 or above, and Ruby 2.0 or above. It is
 tested through Rails 4.2 and Ruby 2.1.
 
 Add this line to your Rails application's Gemfile:
 
 ```ruby
 gem 'canvas-jobs'
-```
-
-If you are using Ruby >= 2.0, you'll also need to install the syck gem.
-We can't have this gem do it automatically without breaking support for
-ruby 1.9.
-
-```ruby
-gem 'syck'
 ```
 
 And then execute:

@@ -6,7 +6,6 @@ gemfile:
   - spec/gemfiles/41.gemfile
   - spec/gemfiles/42.gemfile
 rvm:
-  - 1.9.3
   - 2.1.4
 matrix:
   exclude:

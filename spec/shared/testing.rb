@@ -22,6 +22,7 @@ shared_examples_for 'Delayed::Testing' do
   describe '.drain' do
     it 'should run all queued jobs' do
       3.times { TestingWorker.send_later(:run) }
+      YAML.dump(TestingWorker)
       Delayed::Testing.drain
       expect(TestingWorker.runs).to eq 3
     end

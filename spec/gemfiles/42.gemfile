@@ -3,7 +3,3 @@ source "https://rubygems.org"
 gemspec :path=>"../../"
 
 gem "rails", "~> 4.2.0.beta2"
-
-platforms :ruby_20, :ruby_21, :ruby_22 do
-  gem 'syck', '>= 1.0.4'
-end
