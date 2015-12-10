@@ -180,7 +180,7 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
         job2.next_in_strand.should == true
       end
 
-      it "should run set multiple jobs as next_in_strand at a time based on max_concurrent" do
+      it "should set multiple jobs as next_in_strand at a time based on max_concurrent" do
         change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
           case strand_name
           when "njobs"; 2
@@ -199,6 +199,40 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
           run_job(job1)
           job3.reload
           job3.next_in_strand.should == true
+        end
+      end
+
+      it "should set multiple jobs as next_in_strand at once if needed" do
+        change_setting(Delayed::Settings, :num_strands, ->(strand_name) {
+          case strand_name
+          when "njobs"; 2
+          else nil
+          end
+        }) do
+          job1 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
+          job1.reload
+          job1.next_in_strand.should == true
+          job2 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
+          job2.reload
+          job2.next_in_strand.should == true
+
+          job3 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
+          job3.reload
+          job3.next_in_strand.should == false
+
+          # manually unset next_in_strand
+          Delayed::Job.where(:id => job2).update_all(:next_in_strand => false)
+          job2.reload
+          job2.next_in_strand.should == false
+
+          run_job(job1) # should update both jobs
+
+          job3.reload
+          job3.next_in_strand.should == true
+
+          job2.reload
+          job2.next_in_strand.should == true
+
         end
       end
     end
