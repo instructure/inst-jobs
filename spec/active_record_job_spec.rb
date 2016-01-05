@@ -69,34 +69,40 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
   end
 
   describe "bulk_update failed jobs" do
-    before do
-      @flavor = 'failed'
-      @affected_jobs = []
-      @ignored_jobs = []
-      Timecop.freeze(5.minutes.ago) do
-        5.times { @affected_jobs << create_job.tap { |j| j.fail! } }
-        @ignored_jobs << create_job(:run_at => 2.hours.from_now)
-        @ignored_jobs << create_job(:queue => 'q2')
+    context "holding/unholding failed jobs" do
+      before :each do
+        @job = Delayed::Job.create :payload_object => SimpleJob.new
+        Delayed::Job.get_and_lock_next_available('worker1').should == @job
+        @job.fail!
+      end
+
+      it "should raise error when holding failed jobs" do
+        expect { Delayed::Job.bulk_update('hold', :flavor => 'failed', :query => @query) }.to raise_error
+      end
+
+      it "should raise error unholding failed jobs" do
+        expect { Delayed::Job.bulk_update('unhold', :flavor => 'failed', :query => @query) }.to raise_error
       end
     end
 
-    it "should raise error when holding failed jobs" do
-      expect { Delayed::Job.bulk_update('hold', :flavor => @flavor, :query => @query) }.to raise_error
-    end
+    context "deleting failed jobs" do
+      before :each do
+        2.times {
+          j = Delayed::Job.create(:payload_object => SimpleJob.new)
+          j.send(:lock_exclusively!, 'worker1').should == true
+          j.fail!
+        }
+      end
 
-    it "should raise error holding or unholding failed jobs" do
-      expect { Delayed::Job.bulk_update('unhold', :flavor => @flavor, :query => @query) }.to raise_error
-    end
+      it "should delete failed jobs by id" do
+        target_ids = Delayed::Job::Failed.all[0..2].map { |j| j.id }
+        Delayed::Job.bulk_update('destroy', :ids => target_ids, :flavor => 'failed', :query => @query).should == target_ids.length
+      end
 
-    it "should delete failed jobs by id" do
-      target_ids = Delayed::Job::Failed.all[0..2].map { |j| j.id }
-      Delayed::Job.bulk_update('destroy', :ids => target_ids, :flavor => @flavor, :query => @query).should == target_ids.length
-    end
-
-    it "should delete all failed jobs" do
-      Delayed::Job.bulk_update('destroy', :flavor => @flavor, :query => @query).should == @affected_jobs.size
-      @affected_jobs.map { |j| Delayed::Job.find(j.id) rescue nil }.compact.should be_blank
-      @ignored_jobs.map { |j| Delayed::Job.find(j.id) rescue nil }.compact.size.should == @ignored_jobs.size
+      it "should delete all failed jobs" do
+        failed_count = Delayed::Job::Failed.count
+        Delayed::Job.bulk_update('destroy', :flavor => 'failed', :query => @query).should == failed_count
+      end
     end
   end
 

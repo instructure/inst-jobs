@@ -167,7 +167,7 @@ module Delayed
             scope = scope.where(locked_by: ON_HOLD_LOCKED_BY)
             scope.update_all(["locked_by = NULL, locked_at = NULL, attempts = 0, run_at = (CASE WHEN run_at > ? THEN run_at ELSE ? END), failed_at = NULL", now, now])
           when 'destroy'
-            scope = scope.where("locked_by IS NULL OR locked_by=?", ON_HOLD_LOCKED_BY)
+            scope = scope.where("locked_by IS NULL OR locked_by=?", ON_HOLD_LOCKED_BY) unless opts[:flavor] == 'failed'
             scope.delete_all
           end
         end
