@@ -1,0 +1,19 @@
+# using v1 compose format until our CI servers are upgraded
+
+app:
+  build: .
+  dockerfile: Dockerfile.ci
+  environment:
+    TEST_DB_HOST: postgres
+    TEST_REDIS_CONNECTION: redis://redis:6379/
+  links:
+    - postgres
+    - redis
+
+postgres:
+  image: postgres:9.3
+  environment:
+    POSTGRES_DB: canvas-jobs-test-1
+
+redis:
+  image: redis:2.6

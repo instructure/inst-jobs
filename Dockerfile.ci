@@ -1,0 +1,11 @@
+FROM instructure/ruby:2.1
+
+WORKDIR /app
+
+RUN gem install wwtd -v '~> 1.3.0'
+COPY . /app
+USER root
+RUN chown -R docker:docker /app
+USER docker
+
+ENTRYPOINT ["wwtd", "--local"]

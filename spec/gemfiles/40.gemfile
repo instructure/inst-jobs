@@ -3,7 +3,3 @@ source "https://rubygems.org"
 gemspec :path=>"../../"
 
 gem "rails", "~> 4.0.10"
-
-platforms :ruby_20, :ruby_21, :ruby_22 do
-  gem 'byebug'
-end
