@@ -1,3 +1,6 @@
+require 'yaml'
+require 'erb'
+
 module Delayed
   module Settings
     SETTINGS = [
@@ -11,6 +14,9 @@ module Delayed
       :pool_procname_suffix,
       :default_job_options,
       :silence_periodic_log,
+      :disable_periodic_jobs,
+      :disable_automatic_orphan_unlocking,
+      :last_ditch_logfile,
     ]
     SETTINGS_WITH_ARGS = [ :num_strands ]
 
@@ -52,7 +58,11 @@ module Delayed
         raise ArgumentError,
           "Invalid config file #{config_filename}"
       end
-      config.with_indifferent_access
+      config = config.with_indifferent_access
+      config[:workers].map! do |worker_config|
+        config.except(:workers).merge(worker_config.with_indifferent_access)
+      end
+      config
     end
 
     def self.apply_worker_config!(config)

@@ -1,4 +1,4 @@
 #!/usr/bin/env ruby
 
 require File.expand_path('config/environment')
-Delayed::Pool.new.run()
+Delayed::CLI.new.run()
