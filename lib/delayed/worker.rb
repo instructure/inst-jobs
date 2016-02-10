@@ -55,10 +55,6 @@ class Worker
     plugins.each { |plugin| plugin.inject! }
   end
 
-  def name=(name)
-    @name = name
-  end
-
   def name
     @name ||= "#{Socket.gethostname rescue "X"}:#{self.id}"
   end

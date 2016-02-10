@@ -130,10 +130,7 @@ class Pool
   end
 
   def unlock_orphaned_jobs(worker = nil, pid = nil)
-    # don't bother trying to unlock jobs by process name if the name is overridden
-    return if @config.key?(:name)
     return if @config[:disable_automatic_orphan_unlocking]
-    return if @config[:workers].any? { |worker_config| worker_config.key?(:name) || worker_config.key?('name') }
 
     unlocked_jobs = Delayed::Job.unlock_orphaned_jobs(pid)
     say "Unlocked #{unlocked_jobs} orphaned jobs" if unlocked_jobs > 0

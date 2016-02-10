@@ -46,7 +46,7 @@ shared_examples_for 'Delayed::Worker' do
         @worker.perform(batch_job).should == 3
         expect(@runs).to eql 4 # batch, plus all jobs
       end
-    
+
       it "should succeed regardless of the success/failure of its component jobs" do
         change_setting(Delayed::Settings, :max_attempts, 2) do
           batch = Delayed::Batch::PerformableBatch.new(:serial, [
@@ -66,7 +66,7 @@ shared_examples_for 'Delayed::Worker' do
           to_retry[0].attempts.should == 1
         end
       end
-  
+
       it "should retry a failed individual job" do
         batch = Delayed::Batch::PerformableBatch.new(:serial, [
           { :payload_object => Delayed::PerformableMethod.new(1, :/, [0]) },
@@ -108,21 +108,17 @@ shared_examples_for 'Delayed::Worker' do
   end
 
   context "while running with locked jobs" do
-    before(:each) do
-      @worker.name = 'worker1'
-    end
-    
     it "should not run jobs locked by another worker" do
       job_create(:locked_by => 'other_worker', :locked_at => (Delayed::Job.db_time_now - 1.minutes))
       lambda { @worker.run }.should_not change { SimpleJob.runs }
     end
-    
+
     it "should run open jobs" do
       job_create
       lambda { @worker.run }.should change { SimpleJob.runs }.from(0).to(1)
     end
   end
-  
+
   describe "failed jobs" do
     before do
       # reset defaults
@@ -150,7 +146,7 @@ shared_examples_for 'Delayed::Worker' do
 
       Delayed::Job.find_available(100, @job.queue).should == []
     end
-    
+
     it "should re-schedule jobs after failing" do
       @worker.perform(@job)
       @job = Delayed::Job.find(@job.id)
@@ -174,18 +170,18 @@ shared_examples_for 'Delayed::Worker' do
       ErrorJob.permanent_failure_runs.should == 1
     end
   end
-  
+
   context "reschedule" do
     before do
       @job = Delayed::Job.create :payload_object => SimpleJob.new
     end
-    
+
     context "and we want to destroy jobs" do
       it "should be destroyed if it failed more than Settings.max_attempts times" do
         expect(@job).to receive(:destroy)
         Delayed::Settings.max_attempts.times { @job.reschedule }
       end
-      
+
       it "should not be destroyed if failed fewer than Settings.max_attempts times" do
         expect(@job).to receive(:destroy).never
         (Delayed::Settings.max_attempts - 1).times { @job.reschedule }
@@ -205,7 +201,7 @@ shared_examples_for 'Delayed::Worker' do
         job.reschedule
       end
     end
-    
+
     context "and we don't want to destroy jobs" do
       before do
         Delayed::Worker.on_max_failures = proc { false }
@@ -268,7 +264,7 @@ shared_examples_for 'Delayed::Worker' do
       SimpleJob.runs.should == 0
       worker.run
       SimpleJob.runs.should == 1
-      
+
       SimpleJob.runs = 0
 
       worker = worker_create(:queue=>'queue2')
@@ -291,7 +287,7 @@ shared_examples_for 'Delayed::Worker' do
       worker = worker_create(:queue=>nil)
       worker.queue.should == queue_name
     end
-    
+
     it "should override default queue name if specified in initialize" do
       queue_name = "my_queue"
       Delayed::Settings.queue = "default_queue"
