@@ -76,9 +76,11 @@ class Worker
 
     trap('INT') { say 'Exiting'; @exit = true }
 
-    loop do
-      run
-      break if exit?
+    self.class.lifecycle.run_callbacks(:execute, self) do
+      loop do
+        run
+        break if exit?
+      end
     end
 
     say "Stopping worker", :info
@@ -90,37 +92,39 @@ class Worker
   end
 
   def run
-    job =
-        self.class.lifecycle.run_callbacks(:pop, self) do
-          Delayed::Job.get_and_lock_next_available(
-            name,
-            queue,
-            min_priority,
-            max_priority)
-        end
+    self.class.lifecycle.run_callbacks(:loop, self) do
+      job =
+          self.class.lifecycle.run_callbacks(:pop, self) do
+            Delayed::Job.get_and_lock_next_available(
+              name,
+              queue,
+              min_priority,
+              max_priority)
+          end
 
-    if job
-      configure_for_job(job) do
-        @job_count += perform(job)
+      if job
+        configure_for_job(job) do
+          @job_count += perform(job)
 
-        if @max_job_count > 0 && @job_count >= @max_job_count
-          say "Max job count of #{@max_job_count} exceeded, dying"
-          @exit = true
-        end
-
-        if @max_memory_usage > 0
-          memory = sample_memory
-          if memory > @max_memory_usage
-            say "Memory usage of #{memory} exceeds max of #{@max_memory_usage}, dying"
+          if @max_job_count > 0 && @job_count >= @max_job_count
+            say "Max job count of #{@max_job_count} exceeded, dying"
             @exit = true
-          else
-            say "Memory usage: #{memory}"
+          end
+
+          if @max_memory_usage > 0
+            memory = sample_memory
+            if memory > @max_memory_usage
+              say "Memory usage of #{memory} exceeds max of #{@max_memory_usage}, dying"
+              @exit = true
+            else
+              say "Memory usage: #{memory}"
+            end
           end
         end
+      else
+        set_process_name("wait:#{Settings.worker_procname_prefix}#{@queue}:#{min_priority || 0}:#{max_priority || 'max'}")
+        sleep(Settings.sleep_delay + (rand * Settings.sleep_delay_stagger))
       end
-    else
-      set_process_name("wait:#{Settings.worker_procname_prefix}#{@queue}:#{min_priority || 0}:#{max_priority || 'max'}")
-      sleep(Settings.sleep_delay + (rand * Settings.sleep_delay_stagger))
     end
   end
 

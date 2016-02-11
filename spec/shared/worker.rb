@@ -353,4 +353,26 @@ shared_examples_for 'Delayed::Worker' do
       expect(ErrorJob.last_error.to_s).to eq 'did not work'
     end
   end
+
+  describe "#start" do
+    it "fires off an execute callback on the processing jobs loop" do
+      fired = false
+      expect(@worker).to receive(:run)
+      expect(@worker).to receive(:exit?).and_return(true)
+      Delayed::Worker.lifecycle.before(:execute) { |w| w == @worker && fired = true }
+      @worker.start
+      expect(fired).to eq(true)
+    end
+  end
+
+  describe "#run" do
+    it "fires off a loop callback on each call to run" do
+      fired = 0
+      Delayed::Worker.lifecycle.before(:loop) { |w| w == @worker && fired += 1 }
+      expect(Delayed::Job).to receive(:get_and_lock_next_available).twice.and_return(nil)
+      @worker.run
+      @worker.run
+      expect(fired).to eq(2)
+    end
+  end
 end
