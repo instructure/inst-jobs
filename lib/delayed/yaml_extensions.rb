@@ -81,7 +81,7 @@ module Delayed
           rescue ActiveRecord::RecordNotFound
             raise Delayed::Backend::RecordNotFound, "Couldn't find #{klass} with id #{object.value.inspect}"
           end
-        when "tag:ruby.yaml.org,2002:Delayed::Periodic"
+        when "tag:ruby.yaml.org,2002:Delayed::Periodic", "!ruby/Delayed::Periodic"
           Delayed::Periodic.scheduled[object.value] || raise(NameError, "job #{object.value} is no longer scheduled")
         else
           super
