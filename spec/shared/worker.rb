@@ -285,14 +285,14 @@ shared_examples_for 'Delayed::Worker' do
       queue_name = "default_queue"
       Delayed::Settings.queue = queue_name
       worker = worker_create(:queue=>nil)
-      worker.queue.should == queue_name
+      worker.queue_name.should == queue_name
     end
 
     it "should override default queue name if specified in initialize" do
       queue_name = "my_queue"
       Delayed::Settings.queue = "default_queue"
       worker = worker_create(:queue=>queue_name)
-      worker.queue.should == queue_name
+      worker.queue_name.should == queue_name
     end
   end
 

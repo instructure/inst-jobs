@@ -35,6 +35,8 @@ require 'delayed/periodic'
 require 'delayed/plugin'
 require 'delayed/pool'
 require 'delayed/worker'
+require 'delayed/work_queue/in_process'
+require 'delayed/work_queue/parent_process'
 
 require 'delayed/engine'
 

@@ -4,10 +4,8 @@ module Delayed
 class CLI
   def initialize(args = ARGV)
     @args = args
-    # config that will be applied on Settings
+    # config that will be applied on Settings and passed to the created Pool
     @config = {}
-    # worker configs that will be passed to the created Pool
-    @worker_configs = []
     # CLI options that will be kept to this class
     @options = {
       :config_file => Settings.default_worker_config_name,
@@ -56,7 +54,6 @@ class CLI
 
   def load_and_apply_config!
     @config = Settings.worker_config(@options[:config_file])
-    @worker_configs = @config.delete(:workers)
     Settings.apply_worker_config!(@config)
   end
 
@@ -88,7 +85,7 @@ class CLI
   def start
     load_rails
     tail_rails_log unless daemon.daemonized?
-    Delayed::Pool.new(@worker_configs).start
+    Delayed::Pool.new(@config).start
   end
 
   def load_rails

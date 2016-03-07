@@ -6,7 +6,7 @@ require 'tmpdir'
 require 'set'
 
 class Worker
-  attr_reader :config, :queue, :min_priority, :max_priority
+  attr_reader :config, :queue_name, :min_priority, :max_priority, :work_queue
 
   # Callback to fire when a delayed job fails max_attempts times. If this
   # callback is defined, then the value of destroy_failed_jobs is ignored, and
@@ -32,11 +32,12 @@ class Worker
     @exit = false
     @config = options
     @parent_pid = options[:parent_pid]
-    @queue = options[:queue] || Settings.queue
+    @queue_name = options[:queue] || Settings.queue
     @min_priority = options[:min_priority]
     @max_priority = options[:max_priority]
     @max_job_count = options[:worker_max_job_count].to_i
     @max_memory_usage = options[:worker_max_memory_usage].to_i
+    @work_queue = options[:work_queue] || WorkQueue::InProcess.new
     @job_count = 0
 
     app = Rails.application
@@ -93,14 +94,9 @@ class Worker
 
   def run
     self.class.lifecycle.run_callbacks(:loop, self) do
-      job =
-          self.class.lifecycle.run_callbacks(:pop, self) do
-            Delayed::Job.get_and_lock_next_available(
-              name,
-              queue,
-              min_priority,
-              max_priority)
-          end
+      job = self.class.lifecycle.run_callbacks(:pop, self) do
+        work_queue.get_and_lock_next_available(name, queue_name, min_priority, max_priority)
+      end
 
       if job
         configure_for_job(job) do
@@ -122,7 +118,7 @@ class Worker
           end
         end
       else
-        set_process_name("wait:#{Settings.worker_procname_prefix}#{@queue}:#{min_priority || 0}:#{max_priority || 'max'}")
+        set_process_name("wait:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || 'max'}")
         sleep(Settings.sleep_delay + (rand * Settings.sleep_delay_stagger))
       end
     end

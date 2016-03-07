@@ -89,6 +89,24 @@ production:
   - workers: 10
 ```
 
+### Work Queue
+
+By default, each Worker process will independently query and lock jobs in the
+queue. There is an experimental ParentProcess WorkQueue implementation that has
+each Worker on a server communicate to a separate process on the server that
+centrally handles querying and locking jobs. This can be enabled in the yml
+config:
+
+```yaml
+production:
+  work_queue: parent_process
+```
+
+This will cut down on DB lock contention drastically, at the cost of potentially
+taking a bit longer to find new jobs. It also enables another lifecycle callback
+that can be used by plugins for added functionality. This may become the default
+or only implementation, eventually.
+
 ### Periodic Jobs
 
 Periodic jobs need to be configured during application startup, so that

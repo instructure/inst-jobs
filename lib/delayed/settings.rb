@@ -17,6 +17,7 @@ module Delayed
       :disable_periodic_jobs,
       :disable_automatic_orphan_unlocking,
       :last_ditch_logfile,
+      :parent_process_client_timeout,
     ]
     SETTINGS_WITH_ARGS = [ :num_strands ]
 
@@ -43,6 +44,7 @@ module Delayed
     self.fetch_batch_size = 5
     self.select_random_from_batch = false
     self.silence_periodic_log = false
+    self.parent_process_client_timeout = 10.0
 
     self.num_strands = ->(strand_name){ nil }
     self.default_job_options = ->{ Hash.new }

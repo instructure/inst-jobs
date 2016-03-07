@@ -6,13 +6,12 @@ class Pool
   attr_reader :workers
 
   def initialize(*args)
-    if args.size == 1 && args.first.is_a?(Array)
-      worker_configs = args.first
+    if args.first.is_a?(Hash)
+      @config = args.first
     else
       warn "Calling Delayed::Pool.new directly is deprecated. Use `Delayed::CLI.new.run()` instead."
     end
     @workers = {}
-    @config = { workers: worker_configs }
   end
 
   def run
@@ -66,9 +65,23 @@ class Pool
   def spawn_all_workers
     ActiveRecord::Base.connection_handler.clear_all_connections!
 
+    if @config[:work_queue] == 'parent_process'
+      @work_queue = WorkQueue::ParentProcess.new
+      spawn_work_queue
+    end
+
     @config[:workers].each do |worker_config|
       (worker_config[:workers] || 1).times { spawn_worker(worker_config) }
     end
+  end
+
+  def spawn_work_queue
+    parent_pid = Process.pid
+    pid = fork_with_reconnects do
+      $0 = "delayed_jobs_work_queue#{Settings.pool_procname_suffix}"
+      @work_queue.server(parent_pid: parent_pid).run
+    end
+    workers[pid] = :work_queue
   end
 
   def spawn_worker(worker_config)
@@ -76,6 +89,7 @@ class Pool
       return # backwards compat
     else
       worker_config[:parent_pid] = Process.pid
+      worker_config[:work_queue] = @work_queue.client if @work_queue
       worker = Delayed::Worker.new(worker_config)
     end
 
@@ -125,8 +139,12 @@ class Pool
       child = Process.wait
       if workers.include?(child)
         worker = workers.delete(child)
-        if worker.is_a?(Symbol)
+        case worker
+        when :periodic_audit
           say "ran auditor: #{worker}"
+        when :work_queue
+          say "work queue exited, restarting", :info
+          spawn_work_queue
         else
           say "child exited: #{child}, restarting", :info
           # fork to handle unlocking (to prevent polluting the parent with worker objects)
