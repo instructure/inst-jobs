@@ -2,10 +2,18 @@ FROM instructure/ruby:2.1
 
 WORKDIR /app
 
-RUN gem install wwtd -v '~> 1.3.0'
+COPY canvas-jobs.gemspec Gemfile* /app/
+COPY lib/delayed/version.rb /app/lib/delayed/version.rb
+USER root
+RUN chown -R docker:docker /app
+USER docker
+RUN bundle install
 COPY . /app
+
 USER root
 RUN chown -R docker:docker /app
 USER docker
 
-ENTRYPOINT ["wwtd", "--local"]
+ENV TEST_DB_USERNAME postgres
+
+CMD ["wwtd", "--local"]
