@@ -29,7 +29,7 @@ shared_examples_for 'Delayed::Batch' do
       }
       Delayed::Job.jobs_count(:current).should == 1
       job = Delayed::Job.find_available(1).first
-      expect{ job.invoke_job }.to raise_error
+      expect{ job.invoke_job }.to raise_error(RuntimeError)
     end
 
     it "should create valid jobs" do

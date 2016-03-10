@@ -29,7 +29,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'pg'
   s.add_development_dependency 'pry'
   s.add_development_dependency 'rake'
-  s.add_development_dependency 'rspec', '3.1.0'
+  s.add_development_dependency 'rspec', '3.4.0'
   s.add_development_dependency 'test_after_commit', '0.4.1'
   s.add_development_dependency 'timecop', '0.7.1'
   s.add_development_dependency 'wwtd', '~> 1.3.0'

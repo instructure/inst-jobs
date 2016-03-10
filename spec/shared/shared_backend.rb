@@ -429,10 +429,10 @@ shared_examples_for 'a backend' do
         Delayed::Periodic.scheduled = {}
         expect { Delayed::Periodic.cron('my ChangedJob', '*/5 * * * * *') do
           Delayed::Job.enqueue(SimpleJob.new)
-        end }.to raise_error
+        end }.to raise_error(ArgumentError)
       end
 
-      expect { Delayed::Periodic.add_overrides({ 'my ChangedJob' => '*/10 * * * * * *' }) }.to raise_error
+      expect { Delayed::Periodic.add_overrides({ 'my ChangedJob' => '*/10 * * * * * *' }) }.to raise_error(ArgumentError)
     end
   end
 
@@ -451,12 +451,12 @@ shared_examples_for 'a backend' do
 
   it "should fail on job creation if an unsaved AR object is used" do
     story = Story.new :text => "Once upon..."
-    lambda { story.send_later(:text) }.should raise_error
+    lambda { story.send_later(:text) }.should raise_error(RuntimeError)
 
     reader = StoryReader.new
-    lambda { reader.send_later(:read, story) }.should raise_error
+    lambda { reader.send_later(:read, story) }.should raise_error(RuntimeError)
 
-    lambda { [story, 1, story, false].send_later(:first) }.should raise_error
+    lambda { [story, 1, story, false].send_later(:first) }.should raise_error(RuntimeError)
   end
 
   # the sort order of current_jobs and list_jobs depends on the back-end

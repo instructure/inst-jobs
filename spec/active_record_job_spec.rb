@@ -19,7 +19,7 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
     allow(Delayed::Job::Failed).to receive(:create).and_raise(RuntimeError)
     job = "test".send_later_enqueue_args :reverse, no_delay: true
     job_id = job.id
-    proc { job.fail! }.should raise_error
+    proc { job.fail! }.should raise_error(RuntimeError)
     proc { Delayed::Job.find(job_id) }.should raise_error(ActiveRecord::RecordNotFound)
     Delayed::Job.count.should == 0
   end
@@ -77,11 +77,11 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
       end
 
       it "should raise error when holding failed jobs" do
-        expect { Delayed::Job.bulk_update('hold', :flavor => 'failed', :query => @query) }.to raise_error
+        expect { Delayed::Job.bulk_update('hold', :flavor => 'failed', :query => @query) }.to raise_error(RuntimeError)
       end
 
       it "should raise error unholding failed jobs" do
-        expect { Delayed::Job.bulk_update('unhold', :flavor => 'failed', :query => @query) }.to raise_error
+        expect { Delayed::Job.bulk_update('unhold', :flavor => 'failed', :query => @query) }.to raise_error(RuntimeError)
       end
     end
 

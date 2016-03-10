@@ -1,12 +1,12 @@
 shared_examples_for 'Delayed::PerformableMethod' do
-  
+
   it "should not ignore ActiveRecord::RecordNotFound errors because they are not always permanent" do
     story = Story.create :text => 'Once upon...'
     p = Delayed::PerformableMethod.new(story, :tell, [])
     story.destroy
-    lambda { YAML.load(p.to_yaml) }.should raise_error
+    lambda { YAML.load(p.to_yaml) }.should raise_error(Delayed::Backend::RecordNotFound)
   end
-  
+
   it "should store the object using native YAML even if its an active record" do
     story = Story.create :text => 'Once upon...'
     p = Delayed::PerformableMethod.new(story, :tell, [])
@@ -16,7 +16,7 @@ shared_examples_for 'Delayed::PerformableMethod' do
     p.args.should    == []
     p.perform.should == 'Once upon...'
   end
-  
+
   it "should allow class methods to be called on ActiveRecord models" do
     Story.create!(:text => 'Once upon a...')
     p = Delayed::PerformableMethod.new(Story, :count, [])
@@ -32,7 +32,7 @@ shared_examples_for 'Delayed::PerformableMethod' do
     p = Delayed::PerformableMethod.new(MyReverser, :reverse, ["ohai"])
     lambda { p.send(:perform).should == "iaho" }.should_not raise_error
   end
-  
+
   it "should store arguments as native YAML if they are active record objects" do
     story = Story.create :text => 'Once upon...'
     reader = StoryReader.new
