@@ -80,11 +80,15 @@ class ParentProcess
     def initialize(listen_socket, parent_pid: nil)
       @listen_socket = listen_socket
       @parent_pid = parent_pid
-      @clients = []
+      @clients = {}
     end
 
     def connected_clients
       @clients.size
+    end
+
+    def all_workers_idle?
+      !@clients.any? { |_, c| c.working }
     end
 
     def say(msg, level = :debug)
@@ -110,7 +114,7 @@ class ParentProcess
     end
 
     def run_once
-      handles = @clients + [@listen_socket]
+      handles = @clients.keys + [@listen_socket]
       readable, _, _ = IO.select(handles, nil, nil, 1)
       if readable
         readable.each { |s| handle_read(s) }
@@ -129,7 +133,9 @@ class ParentProcess
     # and terminate the work queue process, to be restarted by the parent daemon.
     def handle_accept
       client, _addr = @listen_socket.accept_nonblock
-      @clients << client if client
+      if client
+        @clients[client] = ClientState.new(false)
+      end
     rescue IO::WaitReadable
       # ignore and just try accepting again next time through the loop
     end
@@ -140,7 +146,11 @@ class ParentProcess
       # here forever. This is only a reasonable assumption because we control
       # the client.
       request = client_timeout { Marshal.load(socket) }
-      response = Delayed::Job.get_and_lock_next_available(*request)
+      response = nil
+      Delayed::Worker.lifecycle.run_callbacks(:work_queue_pop, self) do
+        response = Delayed::Job.get_and_lock_next_available(*request)
+        @clients[socket].working = !response.nil?
+      end
       client_timeout { Marshal.dump(response, socket) }
     rescue SystemCallError, IOError, Timeout::Error
       # this socket went away
@@ -162,6 +172,8 @@ class ParentProcess
     def client_timeout
       Timeout.timeout(Settings.parent_process_client_timeout) { yield }
     end
+
+    ClientState = Struct.new(:working)
   end
 end
 end

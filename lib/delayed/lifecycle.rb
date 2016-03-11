@@ -10,6 +10,7 @@ module Delayed
       :loop             => [:worker],
       :perform          => [:worker, :job],
       :pop              => [:worker],
+      :work_queue_pop   => [:work_queue],
     }
 
     def initialize

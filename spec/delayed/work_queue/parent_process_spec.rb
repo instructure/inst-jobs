@@ -9,12 +9,16 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
     Delayed.send(:remove_const, :Job)
   end
 
+  after :each do
+    Delayed::Worker.lifecycle.reset!
+  end
+
   let(:subject) { described_class.new }
 
   it 'generates a server listening on a valid unix socket' do
     server = subject.server
     expect(server).to be_a(Delayed::WorkQueue::ParentProcess::Server)
-    expect(server.listen_socket.local_address.unix?).to be_truthy
+    expect(server.listen_socket.local_address.unix?).to be(true)
     expect { server.listen_socket.accept_nonblock }.to raise_error(IO::WaitReadable)
   end
 
@@ -22,7 +26,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
     server = subject.server
     client = subject.client
     expect(client).to be_a(Delayed::WorkQueue::ParentProcess::Client)
-    expect(client.addrinfo.unix?).to be_truthy
+    expect(client.addrinfo.unix?).to be(true)
     expect(client.addrinfo.unix_path).to eq(server.listen_socket.local_address.unix_path)
   end
 
@@ -82,10 +86,12 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
     end
 
     it 'queries the queue on client request' do
-      client, server = Socket.pair(:UNIX, :STREAM)
+      client = Socket.unix(subject.listen_socket.local_address.unix_path)
+      subject.run_once
+
       expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*args).and_return(job)
       Marshal.dump(args, client)
-      subject.handle_request(server)
+      subject.run_once
       expect(Marshal.load(client)).to eq(job)
     end
 
@@ -108,6 +114,46 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
       expect(Marshal).to receive(:load).and_raise(Timeout::Error.new("socket timed out"))
       expect(Timeout).to receive(:timeout).with(Delayed::Settings.parent_process_client_timeout).and_yield
       expect { subject.run_once }.to change(subject, :connected_clients).by(-1)
+    end
+
+    it 'tracks when clients are idle' do
+      expect(subject.all_workers_idle?).to be(true)
+
+      client = Socket.unix(subject.listen_socket.local_address.unix_path)
+      subject.run_once
+      expect(subject.all_workers_idle?).to be(true)
+
+      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*args).and_return(job)
+      Marshal.dump(args, client)
+      subject.run_once
+      expect(subject.all_workers_idle?).to be(false)
+
+      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*args).and_return(nil)
+      Marshal.dump(args, client)
+      subject.run_once
+      expect(subject.all_workers_idle?).to be(true)
+    end
+
+    it 'triggers the lifecycle event around the pop' do
+      called = false
+      client = Socket.unix(subject.listen_socket.local_address.unix_path)
+      subject.run_once
+
+      Delayed::Worker.lifecycle.around(:work_queue_pop) do |queue, &cb|
+        expect(subject.all_workers_idle?).to be(true)
+        expect(queue).to eq(subject)
+        expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*args).and_return(job)
+        called = true
+        res = cb.call(queue)
+        expect(subject.all_workers_idle?).to be(false)
+        res
+      end
+
+      Marshal.dump(args, client)
+      subject.run_once
+
+      expect(Marshal.load(client)).to eq(job)
+      expect(called).to eq(true)
     end
   end
 end
