@@ -58,11 +58,11 @@ class ParentProcess
       @addrinfo = addrinfo
     end
 
-    def get_and_lock_next_available(name, queue_name, min_priority, max_priority)
+    def get_and_lock_next_available(worker_name, worker_config)
       @socket ||= @addrinfo.connect
-      Marshal.dump([name, queue_name, min_priority, max_priority], @socket)
+      Marshal.dump([worker_name, worker_config], @socket)
       response = Marshal.load(@socket)
-      unless response.nil? || (response.is_a?(Delayed::Job) && response.locked_by == name)
+      unless response.nil? || (response.is_a?(Delayed::Job) && response.locked_by == worker_name)
         raise(ProtocolError, "response is not a locked job: #{response.inspect}")
       end
       response
@@ -145,10 +145,14 @@ class ParentProcess
       # request and then leave the socket open. Doing so would leave us hanging
       # here forever. This is only a reasonable assumption because we control
       # the client.
-      request = client_timeout { Marshal.load(socket) }
+      worker_name, worker_config = client_timeout { Marshal.load(socket) }
       response = nil
-      Delayed::Worker.lifecycle.run_callbacks(:work_queue_pop, self) do
-        response = Delayed::Job.get_and_lock_next_available(*request)
+      Delayed::Worker.lifecycle.run_callbacks(:work_queue_pop, self, worker_name, worker_config) do
+        response = Delayed::Job.get_and_lock_next_available(
+          worker_name,
+          worker_config[:queue],
+          worker_config[:min_priority],
+          worker_config[:max_priority])
         @clients[socket].working = !response.nil?
       end
       client_timeout { Marshal.dump(response, socket) }

@@ -30,14 +30,14 @@ class Worker
 
   def initialize(options = {})
     @exit = false
-    @config = options
     @parent_pid = options[:parent_pid]
-    @queue_name = options[:queue] || Settings.queue
+    @queue_name = options[:queue] ||= Settings.queue
     @min_priority = options[:min_priority]
     @max_priority = options[:max_priority]
     @max_job_count = options[:worker_max_job_count].to_i
     @max_memory_usage = options[:worker_max_memory_usage].to_i
-    @work_queue = options[:work_queue] || WorkQueue::InProcess.new
+    @work_queue = options.delete(:work_queue) || WorkQueue::InProcess.new
+    @config = options
     @job_count = 0
 
     app = Rails.application
@@ -95,7 +95,7 @@ class Worker
   def run
     self.class.lifecycle.run_callbacks(:loop, self) do
       job = self.class.lifecycle.run_callbacks(:pop, self) do
-        work_queue.get_and_lock_next_available(name, queue_name, min_priority, max_priority)
+        work_queue.get_and_lock_next_available(name, config)
       end
 
       if job
