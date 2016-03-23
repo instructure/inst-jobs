@@ -21,7 +21,7 @@ before_install:
   - gem update bundler
 
 before_script:
-  - psql -c 'create database "canvas-jobs-test-1";' -U postgres
+  - psql -c 'create database "inst-jobs-test-1";' -U postgres
 
 env:
   - TEST_DB_USERNAME=postgres

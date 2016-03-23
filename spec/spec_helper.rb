@@ -33,7 +33,7 @@ end
 
 ENV['TEST_ENV_NUMBER'] ||= '1'
 ENV['TEST_DB_HOST'] ||= 'localhost'
-ENV['TEST_DB_DATABASE'] ||= "canvas-jobs-test-#{ENV['TEST_ENV_NUMBER']}"
+ENV['TEST_DB_DATABASE'] ||= "inst-jobs-test-#{ENV['TEST_ENV_NUMBER']}"
 ENV['TEST_REDIS_CONNECTION'] ||= 'redis://localhost:6379/'
 
 Delayed::Backend::Redis::Job.redis = Redis.new(url: ENV['TEST_REDIS_CONNECTION'])

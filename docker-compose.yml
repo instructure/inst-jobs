@@ -13,7 +13,7 @@ app:
 postgres:
   image: postgres:9.3
   environment:
-    POSTGRES_DB: canvas-jobs-test-1
+    POSTGRES_DB: inst-jobs-test-1
 
 redis:
   image: redis:2.6

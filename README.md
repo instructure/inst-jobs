@@ -1,7 +1,7 @@
-# Canvas Delayed Jobs
+# Instructure Delayed Jobs
 
 [![Build
-Status](https://travis-ci.org/instructure/canvas-jobs.svg?branch=master)](https://travis-ci.org/instructure/canvas-jobs)
+Status](https://travis-ci.org/instructure/inst-jobs.svg?branch=master)](https://travis-ci.org/instructure/inst-jobs)
 
 This gem is a very heavily modified fork of
 [delayed_job](https://github.com/collectiveidea/delayed_job).
@@ -15,13 +15,13 @@ TODO: explain the differences and additions
 
 ## Installation
 
-canvas-jobs requires Rails 3.2 or above, and Ruby 2.0 or above. It is
+inst-jobs requires Rails 3.2 or above, and Ruby 2.0 or above. It is
 tested through Rails 4.2 and Ruby 2.1.
 
 Add this line to your Rails application's Gemfile:
 
 ```ruby
-gem 'canvas-jobs'
+gem 'inst-jobs'
 ```
 
 And then execute:
@@ -30,7 +30,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install canvas-jobs
+    $ gem install inst-jobs
 
 ## Usage
 
@@ -121,14 +121,14 @@ end
 
 ### Running Workers
 
-    $ canvas_job # display help
-    $ canvas_job start # start a worker in the background
-    $ canvas_job run # start a worker in the foreground
+    $ inst_job # display help
+    $ inst_job start # start a worker in the background
+    $ inst_job run # start a worker in the foreground
 
 
 ### Testing
 
-To write tests that interact with canvas-jobs, you'll need to configure
+To write tests that interact with inst-jobs, you'll need to configure
 an actual ActiveRecord or Redis backend. In the future we may add an
 in-memory testing backend.
 
@@ -136,7 +136,7 @@ By default, if you have postgres and redis running on their default ports,
 and if you have run:
 
 ```
-$> createdb canvas-jobs-test-1
+$> createdb inst-jobs-test-1
 ```
 
 Then you should be able to run the tests that come with the library with:
@@ -202,7 +202,7 @@ run MyApp
 
 ## Contributing
 
-1. Fork it ( https://github.com/instructure/canvas-jobs/fork )
+1. Fork it ( https://github.com/instructure/inst-jobs/fork )
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)

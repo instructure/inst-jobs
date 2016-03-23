@@ -2,7 +2,7 @@ FROM instructure/ruby:2.1
 
 WORKDIR /app
 
-COPY canvas-jobs.gemspec Gemfile* /app/
+COPY inst-jobs.gemspec Gemfile* /app/
 COPY lib/delayed/version.rb /app/lib/delayed/version.rb
 USER root
 RUN chown -R docker:docker /app

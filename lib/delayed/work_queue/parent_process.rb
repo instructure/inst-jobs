@@ -34,7 +34,7 @@ class ParentProcess
     # write a unix socket file to the same location, we lose the hard uniqueness
     # guarantees of Tempfile. This is OK for this use case, we only generate one
     # Tempfile with this prefix.
-    tmp = Tempfile.new("canvas-jobs-#{Process.pid}-")
+    tmp = Tempfile.new("inst-jobs-#{Process.pid}-")
     path = tmp.path
     tmp.close!
     path

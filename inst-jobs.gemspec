@@ -5,14 +5,14 @@ require "delayed/version"
 
 # Describe your gem and declare its dependencies:
 Gem::Specification.new do |s|
-  s.name        = "canvas-jobs"
+  s.name        = "inst-jobs"
   s.version     = Delayed::VERSION
   s.authors     = ["Tobias Luetke", "Brian Palmer"]
   s.email       = ["brianp@instructure.com"]
   s.homepage    = "http://www.instructure.com"
   s.summary     = "Instructure-maintained fork of delayed_job"
 
-  s.executables = ['canvas_job']
+  s.executables = ['inst_job']
   s.files = Dir["{app,config,db,lib}/**/*"]
   s.test_files = Dir["spec/**/*"]
 
