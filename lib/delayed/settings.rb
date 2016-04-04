@@ -82,7 +82,7 @@ module Delayed
       root = if defined?(Rails) && Rails.root
         (Rails.root+"Gemfile").to_s
       else
-        ENV.fetch('BUNDLE_GEMFILE')
+        ENV.fetch('BUNDLE_GEMFILE', Dir.pwd+"/Gemfile")
       end
       File.expand_path("../#{path}", root)
     end

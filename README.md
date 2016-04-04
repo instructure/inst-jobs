@@ -112,9 +112,9 @@ production:
 
 ### Running Workers
 
-    $ inst_job # display help
-    $ inst_job start # start a worker in the background
-    $ inst_job run # start a worker in the foreground
+    $ inst_jobs # display help
+    $ inst_jobs start # start a worker in the background
+    $ inst_jobs run # start a worker in the foreground
 
 ### Queueing Jobs
 

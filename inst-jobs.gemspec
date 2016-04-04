@@ -9,10 +9,10 @@ Gem::Specification.new do |s|
   s.version     = Delayed::VERSION
   s.authors     = ["Tobias Luetke", "Brian Palmer"]
   s.email       = ["brianp@instructure.com"]
-  s.homepage    = "http://www.instructure.com"
+  s.homepage    = "https://github.com/instructure/inst-jobs"
   s.summary     = "Instructure-maintained fork of delayed_job"
 
-  s.executables = ['inst_job']
+  s.executables = ['inst_jobs']
   s.files = Dir["{app,config,db,lib}/**/*"]
   s.test_files = Dir["spec/**/*"]
 
