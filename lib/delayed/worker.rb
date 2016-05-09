@@ -74,6 +74,7 @@ class Worker
 
   def start
     say "Starting worker", :info
+    set_process_name("start:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || 'max'}")
 
     trap('INT') { say 'Exiting'; @exit = true }
 
