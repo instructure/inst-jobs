@@ -180,7 +180,7 @@ module Delayed
           # notify the payload_object of a permanent failure
           obj = payload_object
           obj.on_permanent_failure(error) if obj && obj.respond_to?(:on_permanent_failure)
-        rescue DeserializationError
+        rescue
           # don't allow a failed deserialization to prevent destroying the job
         end
 

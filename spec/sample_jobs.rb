@@ -26,3 +26,8 @@ module M
     def perform; @@runs += 1; end
   end
 end
+
+class DeserializeErrorJob < SimpleJob; end
+Psych.add_domain_type("ruby/object", "DeserializeErrorJob") do |_type, val|
+  raise "error deserializing"
+end

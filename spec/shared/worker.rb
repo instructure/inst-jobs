@@ -354,6 +354,22 @@ shared_examples_for 'Delayed::Worker' do
     end
   end
 
+  describe "custom deserialization errors" do
+    it "should reschedule with more attempts left" do
+      job = Delayed::Job.create({:payload_object => DeserializeErrorJob.new, max_attempts: 2})
+      job.instance_variable_set("@payload_object", nil)
+      worker = Delayed::Worker.new(:max_priority => nil, :min_priority => nil, :quiet => true)
+      expect { worker.perform(job) }.not_to raise_error
+    end
+
+    it "run permanent failure code on last attempt" do
+      job = Delayed::Job.create({:payload_object => DeserializeErrorJob.new, max_attempts: 1})
+      job.instance_variable_set("@payload_object", nil)
+      worker = Delayed::Worker.new(:max_priority => nil, :min_priority => nil, :quiet => true)
+      expect { worker.perform(job) }.not_to raise_error
+    end
+  end
+
   describe "#start" do
     it "fires off an execute callback on the processing jobs loop" do
       fired = false
