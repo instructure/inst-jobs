@@ -83,6 +83,11 @@ shared_examples_for 'a backend' do
     lambda { job.payload_object.perform }.should raise_error(Delayed::Backend::DeserializationError)
   end
 
+  it "should raise an DeserializationError when the handler is invalid YAML" do
+    job = Delayed::Job.new :handler => %{test: ""11"}
+    lambda { job.payload_object.perform }.should raise_error(Delayed::Backend::DeserializationError, /parsing error/)
+  end
+
   describe "find_available" do
     it "should not find failed jobs" do
       @job = create_job :attempts => 50

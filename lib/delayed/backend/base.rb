@@ -313,6 +313,9 @@ module Delayed
       rescue TypeError, LoadError, NameError => e
         raise DeserializationError,
           "Job failed to load: #{e.message}. Try to manually require the required file."
+      rescue ArgumentError, Psych::SyntaxError => e
+          raise DeserializationError,
+            "YAML parsing error: #{e.message}. Probably not recoverable."
       end
 
       def _yaml_deserialize(source)
