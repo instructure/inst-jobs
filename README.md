@@ -292,6 +292,17 @@ taking a bit longer to find new jobs. It also enables another lifecycle callback
 that can be used by plugins for added functionality. This may become the default
 or only implementation, eventually.
 
+### Sentry Error Reporting
+
+The [standard delayed_job
+integration](https://github.com/getsentry/raven-ruby/blob/master/lib/raven/integrations/delayed_job.rb)
+will work with inst-jobs as well. Just add in an initializer along with your
+other raven-ruby configuration:
+
+```ruby
+require 'raven/integrations/delayed_job'
+```
+
 ## Testing
 
 To write tests that interact with inst-jobs, you'll need to configure
