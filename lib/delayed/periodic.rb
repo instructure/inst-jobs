@@ -4,18 +4,8 @@ module Delayed
 class Periodic
   attr_reader :name, :cron
 
-  yaml_as "tag:ruby.yaml.org,2002:Delayed::Periodic"
-
-  def to_yaml(opts = {})
-    YAML.quick_emit(self.object_id, opts) { |out| out.scalar(taguri, @name) }
-  end
-
   def encode_with(coder)
     coder.scalar("!ruby/Delayed::Periodic", @name)
-  end
-
-  def self.yaml_new(klass, tag, val)
-    self.scheduled[val] || raise(NameError, "job #{val} is no longer scheduled")
   end
 
   cattr_accessor :scheduled, :overrides
