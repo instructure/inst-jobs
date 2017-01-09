@@ -42,7 +42,7 @@ those familiar with it:
 ## Installation
 
 inst-jobs requires Rails 3.2 or above, and Ruby 2.0 or above. It is
-tested through Rails 4.2 and Ruby 2.1.
+tested through Rails 5.0 and Ruby 2.2.
 
 Add this line to your Rails application's Gemfile:
 
@@ -358,10 +358,14 @@ first "The Rails Way" as shown just below this text or the Rack way shown
 at the very end of this section.
 
 For "The Rails Way" to work there are two changes that need to be made to your
-application. First you'll need to add Sinatra and `sinatra-contrib` to your
+application.
+
+First you'll need to add Sinatra and `sinatra-contrib` to your
 Gemfile (these dependencies are excluded from the default list so those who
-aren't using this feature don't get the extra gems). Second, you'll need to
- add the following to your routes file:
+aren't using this feature don't get the extra gems). For Rails 5.x applications,
+you'll need to use Sinatra 2.x, which is in beta at the time of this writing.
+
+Second, you'll need to add the following to your routes file:
 
 ```ruby
 require 'delayed/server'

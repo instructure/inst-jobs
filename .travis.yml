@@ -5,8 +5,11 @@ gemfile:
   - spec/gemfiles/40.gemfile
   - spec/gemfiles/41.gemfile
   - spec/gemfiles/42.gemfile
+  - spec/gemfiles/50.gemfile
 rvm:
-  - 2.1.4
+  - 2.0
+  - 2.1
+  - 2.2
 matrix:
   exclude:
 script: bundle exec rake spec
