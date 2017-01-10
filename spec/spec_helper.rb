@@ -37,14 +37,22 @@ ENV['TEST_DB_DATABASE'] ||= "inst-jobs-test-#{ENV['TEST_ENV_NUMBER']}"
 ENV['TEST_REDIS_CONNECTION'] ||= 'redis://localhost:6379/'
 
 Delayed::Backend::Redis::Job.redis = Redis.new(url: ENV['TEST_REDIS_CONNECTION'])
+Delayed::Backend::Redis::Job.redis.select ENV['TEST_ENV_NUMBER']
 
-ActiveRecord::Base.establish_connection({
+connection_config = {
   adapter: :postgresql,
   host: ENV['TEST_DB_HOST'],
   encoding: 'utf8',
   username: ENV['TEST_DB_USERNAME'],
   database: ENV['TEST_DB_DATABASE'],
-})
+}
+# create the test db if it does not exist, to help out wwtd
+ActiveRecord::Base.establish_connection(connection_config.merge(database: 'postgres'))
+begin
+  ActiveRecord::Base.connection.create_database(connection_config[:database])
+rescue ActiveRecord::StatementInvalid
+end
+ActiveRecord::Base.establish_connection(connection_config)
 # TODO reset db and migrate again, to test migrations
 
 ActiveRecord::Migrator.migrate("db/migrate")

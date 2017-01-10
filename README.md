@@ -41,8 +41,8 @@ those familiar with it:
 
 ## Installation
 
-inst-jobs requires Rails 3.2 or above, and Ruby 2.0 or above. It is
-tested through Rails 5.0 and Ruby 2.2.
+inst-jobs requires Rails 3.2 or above, and Ruby 2.1 or above. It is
+tested through Rails 5.0 and Ruby 2.3.
 
 Add this line to your Rails application's Gemfile:
 

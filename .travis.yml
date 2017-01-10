@@ -7,11 +7,14 @@ gemfile:
   - spec/gemfiles/42.gemfile
   - spec/gemfiles/50.gemfile
 rvm:
-  - 2.0
-  - 2.1
-  - 2.2
+  - "2.1"
+  - "2.2"
+  - "2.3"
 matrix:
   exclude:
+  - rvm: "2.1"
+    gemfile: spec/gemfiles/50.gemfile
+    env: TEST_DB_USERNAME=postgres
 script: bundle exec rake spec
 
 addons:
