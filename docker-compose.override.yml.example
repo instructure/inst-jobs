@@ -1,0 +1,9 @@
+version: "2"
+services:
+  app:
+    volumes:
+      - "gems:/home/docker/.gem"
+      - ".:/app"
+
+volumes:
+  gems: {}
