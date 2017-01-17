@@ -33,28 +33,25 @@ shared_examples_for 'random ruby objects' do
   context "class methods" do
     context "add_send_later_methods" do
       it "should work with default_async" do
-        class TestObject
+        klass = Class.new do
           attr_reader :ran
           def test_method; @ran = true; end
           add_send_later_methods :test_method, {}, true
         end
-        obj = TestObject.new
+        obj = klass.new
         lambda { obj.test_method }.should change { Delayed::Job.jobs_count(:current) }.by(1)
-        lambda { obj.test_method_with_send_later }.should change { Delayed::Job.jobs_count(:current) }.by(1)
         obj.ran.should be_falsey
         lambda { obj.test_method_without_send_later }.should_not change { Delayed::Job.jobs_count(:current) }
         obj.ran.should be true
       end
 
       it "should work without default_async" do
-        class TestObject
+        klass = Class.new do
           attr_accessor :ran
           def test_method; @ran = true; end
           add_send_later_methods :test_method, {}, false
         end
-        obj = TestObject.new
-        lambda { obj.test_method_with_send_later }.should change { Delayed::Job.jobs_count(:current) }.by(1)
-        obj.ran.should be_falsey
+        obj = klass.new
         lambda { obj.test_method }.should_not change { Delayed::Job.jobs_count(:current) }
         obj.ran.should be true
         obj.ran = false
@@ -64,57 +61,23 @@ shared_examples_for 'random ruby objects' do
       end
 
       it "should send along enqueue args and args default async" do
-        class TestObject
-          attr_reader :ran
+        klass = Class.new do
+          attr_accessor :ran
           def test_method(*args); @ran = args; end
           add_send_later_methods(:test_method, {:enqueue_arg_1 => :thing}, true)
         end
-        obj = TestObject.new
+        obj = klass.new
         method = double()
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [1,2,3], nil, nil).and_return(method)
-        expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
-        obj.test_method(1,2,3)
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [4], nil, nil).and_return(method)
-        expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
-        obj.test_method(4)
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [6], nil, nil).and_return(method)
-        expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
-        obj.test_method_with_send_later(6)
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [5,6], nil, nil).and_return(method)
-        expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
-        obj.test_method_with_send_later(5,6)
-        obj.ran.should be_nil
-        obj.test_method_without_send_later(7)
-        obj.ran.should == [7]
-        obj.ran = nil
-        obj.ran.should == nil
-        obj.test_method_without_send_later(8,9)
-        obj.ran.should == [8,9]
-      end
 
-      it "should send along enqueue args and args without default async" do
-        class TestObject
-          attr_reader :ran
-          def test_method(*args); @ran = args; end
-          add_send_later_methods(:test_method, {:enqueue_arg_2 => :thing2, :on_failure => :fail, :on_permanent_failure => :fail_frd}, false)
-        end
-        obj = TestObject.new
-        method = double()
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [6], :fail, :fail_frd).and_return(method)
-        expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_2 => :thing2)
-        obj.test_method_with_send_later(6)
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method_without_send_later, [5,6], :fail, :fail_frd).and_return(method)
-        expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_2 => :thing2)
-        obj.test_method_with_send_later(5,6)
-        obj.ran.should be_nil
+        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method, [1,2,3, {synchronous: true}], nil, nil).and_return(method)
+        expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
         obj.test_method(1,2,3)
-        obj.ran.should == [1,2,3]
-        obj.ran = nil
-        obj.ran.should == nil
+
+        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method, [4, {:synchronous=>true}], nil, nil).and_return(method)
+        expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
         obj.test_method(4)
-        obj.ran.should == [4]
-        obj.ran = nil
-        obj.ran.should == nil
+
+        obj.ran.should be_nil
         obj.test_method_without_send_later(7)
         obj.ran.should == [7]
         obj.ran = nil
@@ -124,28 +87,25 @@ shared_examples_for 'random ruby objects' do
       end
 
       it "should handle punctuation correctly with default_async" do
-        class TestObject
+        klass = Class.new do
           attr_reader :ran
           def test_method?; @ran = true; end
           add_send_later_methods :test_method?, {}, true
         end
-        obj = TestObject.new
+        obj = klass.new
         lambda { obj.test_method? }.should change { Delayed::Job.jobs_count(:current) }.by(1)
-        lambda { obj.test_method_with_send_later? }.should change { Delayed::Job.jobs_count(:current) }.by(1)
         obj.ran.should be_falsey
         lambda { obj.test_method_without_send_later? }.should_not change { Delayed::Job.jobs_count(:current) }
         obj.ran.should be true
       end
 
       it "should handle punctuation correctly without default_async" do
-        class TestObject
+        klass = Class.new do
           attr_accessor :ran
           def test_method?; @ran = true; end
           add_send_later_methods :test_method?, {}, false
         end
-        obj = TestObject.new
-        lambda { obj.test_method_with_send_later? }.should change { Delayed::Job.jobs_count(:current) }.by(1)
-        obj.ran.should be_falsey
+        obj = klass.new
         lambda { obj.test_method? }.should_not change { Delayed::Job.jobs_count(:current) }
         obj.ran.should be true
         obj.ran = false
@@ -155,28 +115,25 @@ shared_examples_for 'random ruby objects' do
       end
 
       it "should handle assignment punctuation correctly with default_async" do
-        class TestObject
+        klass = Class.new do
           attr_reader :ran
           def test_method=(val); @ran = val; end
           add_send_later_methods :test_method=, {}, true
         end
-        obj = TestObject.new
+        obj = klass.new
         lambda { obj.test_method = 3 }.should change { Delayed::Job.jobs_count(:current) }.by(1)
-        lambda { obj.test_method_with_send_later = 4 }.should change { Delayed::Job.jobs_count(:current) }.by(1)
         obj.ran.should be_nil
         lambda { obj.test_method_without_send_later = 5 }.should_not change { Delayed::Job.jobs_count(:current) }
         obj.ran.should == 5
       end
 
       it "should handle assignment punctuation correctly without default_async" do
-        class TestObject
+        klass = Class.new do
           attr_accessor :ran
           def test_method=(val); @ran = val; end
           add_send_later_methods :test_method=, {}, false
         end
-        obj = TestObject.new
-        lambda { obj.test_method_with_send_later = 1 }.should change { Delayed::Job.jobs_count(:current) }.by(1)
-        obj.ran.should be_nil
+        obj = klass.new
         lambda { obj.test_method = 2 }.should_not change { Delayed::Job.jobs_count(:current) }
         obj.ran.should == 2
         lambda { obj.test_method_without_send_later = 3 }.should_not change { Delayed::Job.jobs_count(:current) }
@@ -184,26 +141,26 @@ shared_examples_for 'random ruby objects' do
       end
 
       it "should correctly sort out method accessibility with default async" do
-        class TestObject1
+        klass1 = Class.new do
           def test_method; end
           add_send_later_methods :test_method, {}, true
         end
-        class TestObject2
+
+        klass2 = Class.new do
           protected
           def test_method; end
           add_send_later_methods :test_method, {}, true
         end
-        class TestObject3
+
+        klass3 = Class.new do
           private
           def test_method; end
           add_send_later_methods :test_method, {}, true
         end
-        TestObject1.public_method_defined?(:test_method).should be true
-        TestObject2.public_method_defined?(:test_method).should be false
-        TestObject3.public_method_defined?(:test_method).should be false
-        TestObject2.protected_method_defined?(:test_method).should be true
-        TestObject3.protected_method_defined?(:test_method).should be false
-        TestObject3.private_method_defined?(:test_method).should be true
+
+        klass1.public_method_defined?(:test_method).should be true
+        klass2.protected_method_defined?(:test_method).should be true
+        klass3.private_method_defined?(:test_method).should be true
       end
     end
 
@@ -286,8 +243,8 @@ shared_examples_for 'random ruby objects' do
 
     job = Delayed::Job.list_jobs(:current, 1).first
     job.payload_object.class.should   == Delayed::PerformableMethod
-    job.payload_object.method.should  == :whatever_without_send_later
-    job.payload_object.args.should    == [1, 5]
+    job.payload_object.method.should  == :whatever
+    job.payload_object.args.should    == [1, 5, {:synchronous=>true}]
     job.payload_object.perform.should == 'Once upon...'
   end
 
@@ -298,8 +255,8 @@ shared_examples_for 'random ruby objects' do
 
     job = Delayed::Job.list_jobs(:current, 1, 0, "testqueue").first
     job.payload_object.class.should   == Delayed::PerformableMethod
-    job.payload_object.method.should  == :whatever_else_without_send_later
-    job.payload_object.args.should    == [1, 5]
+    job.payload_object.method.should  == :whatever_else
+    job.payload_object.args.should    == [1, 5, {:synchronous=>true}]
     job.payload_object.perform.should == 'Once upon...'
   end
 
@@ -327,14 +284,14 @@ shared_examples_for 'random ruby objects' do
         "string".send_at(1.hour.from_now, :length)
       end.should change { Delayed::Job.jobs_count(:future) }.by(1)
     end
-    
+
     it "should schedule the job in the future" do
       time = 1.hour.from_now
       "string".send_at(time, :length)
       job = Delayed::Job.list_jobs(:future, 1).first
       job.run_at.to_i.should == time.to_i
     end
-    
+
     it "should store payload as PerformableMethod" do
       "string".send_at(1.hour.from_now, :count, 'r')
       job = Delayed::Job.list_jobs(:future, 1).first
@@ -343,7 +300,7 @@ shared_examples_for 'random ruby objects' do
       job.payload_object.args.should    == ['r']
       job.payload_object.perform.should == 1
     end
-    
+
     it "should use the default queue if there is one" do
       set_queue("testqueue") do
         "string".send_at 1.hour.from_now, :reverse
@@ -359,14 +316,14 @@ shared_examples_for 'random ruby objects' do
         "string".send_at_with_queue(1.hour.from_now, :length, "testqueue")
       end.should change { Delayed::Job.jobs_count(:future, "testqueue") }.by(1)
     end
-    
+
     it "should schedule the job in the future" do
       time = 1.hour.from_now
       "string".send_at_with_queue(time, :length, "testqueue")
       job = Delayed::Job.list_jobs(:future, 1, 0, "testqueue").first
       job.run_at.to_i.should == time.to_i
     end
-    
+
     it "should override the default queue" do
       set_queue("default_queue") do
         "string".send_at_with_queue(1.hour.from_now, :length, "testqueue")
@@ -374,7 +331,7 @@ shared_examples_for 'random ruby objects' do
         job.queue.should == "testqueue"
       end
     end
-    
+
     it "should store payload as PerformableMethod" do
       "string".send_at_with_queue(1.hour.from_now, :count, "testqueue", 'r')
       job = Delayed::Job.list_jobs(:future, 1, 0, "testqueue").first
@@ -415,5 +372,4 @@ shared_examples_for 'random ruby objects' do
       UnlessInJob.runs.should == 0
     end
   end
-
 end

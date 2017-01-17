@@ -28,6 +28,17 @@ class Worker
     @lifecycle ||= Delayed::Lifecycle.new
   end
 
+  def self.current_job
+    Thread.current[:running_delayed_job]
+  end
+
+  def self.running_job(job)
+    Thread.current[:running_delayed_job] = job
+    yield
+  ensure
+    Thread.current[:running_delayed_job] = nil
+  end
+
   def initialize(options = {})
     @exit = false
     @parent_pid = options[:parent_pid]
@@ -192,22 +203,18 @@ class Worker
   # also set up a unique tmpdir, which will get removed at the end of the job.
   def configure_for_job(job)
     previous_tmpdir = ENV['TMPDIR']
-    Thread.current[:running_delayed_job] = job
 
-    dir = Dir.mktmpdir("job-#{job.id}-#{self.name.gsub(/[^\w\.]/, '.')}-")
-    begin
-      ENV['TMPDIR'] = dir
-      yield
-    ensure
-      FileUtils.remove_entry(dir, true)
+    self.class.running_job(job) do
+      dir = Dir.mktmpdir("job-#{job.id}-#{self.name.gsub(/[^\w\.]/, '.')}-")
+      begin
+        ENV['TMPDIR'] = dir
+        yield
+      ensure
+        FileUtils.remove_entry(dir, true)
+      end
     end
   ensure
     ENV['TMPDIR'] = previous_tmpdir
-    Thread.current[:running_delayed_job] = nil
-  end
-
-  def self.current_job
-    Thread.current[:running_delayed_job]
   end
 
   # `sample` reports KB, not B
@@ -230,6 +237,5 @@ class Worker
       end
     end
   end
-
 end
 end

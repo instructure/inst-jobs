@@ -98,24 +98,32 @@ module Delayed
       def add_send_later_methods(method, enqueue_args={}, default_async=false)
         aliased_method, punctuation = method.to_s.sub(/([?!=])$/, ''), $1
 
-        with_method, without_method = "#{aliased_method}_with_send_later#{punctuation}", "#{aliased_method}_without_send_later#{punctuation}"
+        # we still need this for backwards compatibility
+        without_method = "#{aliased_method}_without_send_later#{punctuation}"
 
-        define_method(with_method) do |*args|
-          send_later_enqueue_args(without_method, enqueue_args, *args)
+        if public_method_defined?(method)
+          visibility = :public
+        elsif private_method_defined?(method)
+          visibility = :private
+        else
+          visibility = :protected
         end
-        alias_method without_method, method
 
-        if default_async
-          alias_method method, with_method
-          case
-            when public_method_defined?(without_method)
-              public method
-            when protected_method_defined?(without_method)
-              protected method
-            when private_method_defined?(without_method)
-              private method
+        generated_delayed_methods.class_eval(<<-EOF, __FILE__, __LINE__ + 1)
+          def #{without_method}(*args)
+            send(:#{method}, *args, synchronous: true)
           end
-        end
+          #{visibility} :#{without_method}
+
+          def #{method}(*args, synchronous: #{!default_async})
+            if synchronous
+              super(*args)
+            else
+              send_later_enqueue_args(:#{method}, #{enqueue_args.inspect}, *args, synchronous: true)
+            end
+          end
+          #{visibility} :#{method}
+        EOF
       end
 
       def handle_asynchronously(method, enqueue_args={})
@@ -128,6 +136,13 @@ module Delayed
 
       def handle_asynchronously_if_production(method, enqueue_args={})
         add_send_later_methods(method, enqueue_args, Rails.env.production?)
+      end
+
+      private def generated_delayed_methods
+        @generated_delayed_methods ||= Module.new.tap do |mod|
+          const_set(:DelayedMethods, mod)
+          prepend mod
+        end
       end
     end
   end
