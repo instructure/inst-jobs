@@ -95,35 +95,54 @@ module Delayed
     end
 
     module ClassMethods
-      def add_send_later_methods(method, enqueue_args={}, default_async=false)
-        aliased_method, punctuation = method.to_s.sub(/([?!=])$/, ''), $1
+      KWARG_ARG_TYPES = %i{key keyreq keyrest}.freeze
+      private_constant :KWARG_ARG_TYPES
+
+      def add_send_later_methods(method_name, enqueue_args={}, default_async=false)
+        aliased_method, punctuation = method_name.to_s.sub(/([?!=])$/, ''), $1
 
         # we still need this for backwards compatibility
         without_method = "#{aliased_method}_without_send_later#{punctuation}"
 
-        if public_method_defined?(method)
+        if public_method_defined?(method_name)
           visibility = :public
-        elsif private_method_defined?(method)
+        elsif private_method_defined?(method_name)
           visibility = :private
         else
           visibility = :protected
         end
 
-        generated_delayed_methods.class_eval do
-          define_method without_method do |*args|
-            send(method, *args, synchronous: true)
-          end
-          send(visibility, without_method)
-
-          define_method(method, -> (*args, synchronous: !default_async) do
-            if synchronous
-              super(*args)
-            else
-              send_later_enqueue_args(method, enqueue_args, *args, synchronous: true)
+        if has_kwargs? method_name
+          generated_delayed_methods.class_eval do
+            define_method without_method do |*args, **kwargs|
+              send(method_name, *args, synchronous: true, **kwargs)
             end
-          end)
-          send(visibility, method)
+
+            define_method(method_name, -> (*args, synchronous: !default_async, **kwargs) do
+              if synchronous
+                super(*args, **kwargs)
+              else
+                send_later_enqueue_args(method_name, enqueue_args, *args, synchronous: true, **kwargs)
+              end
+            end)
+          end
+        else
+          generated_delayed_methods.class_eval do
+            define_method without_method do |*args|
+              send(method_name, *args, synchronous: true)
+            end
+
+            define_method(method_name, -> (*args, synchronous: !default_async) do
+              if synchronous
+                super(*args)
+              else
+                send_later_enqueue_args(method_name, enqueue_args, *args, synchronous: true)
+              end
+            end)
+          end
         end
+        generated_delayed_methods.send(visibility, without_method)
+        generated_delayed_methods.send(visibility, method_name)
       end
 
       def handle_asynchronously(method, enqueue_args={})
@@ -138,11 +157,18 @@ module Delayed
         add_send_later_methods(method, enqueue_args, Rails.env.production?)
       end
 
-      private def generated_delayed_methods
+      private
+
+      def generated_delayed_methods
         @generated_delayed_methods ||= Module.new.tap do |mod|
           const_set(:DelayedMethods, mod)
           prepend mod
         end
+      end
+
+      def has_kwargs?(method_name)
+        original_arg_types = instance_method(method_name).parameters.map(&:first)
+        original_arg_types.any? { |arg_type| KWARG_ARG_TYPES.include?(arg_type) }
       end
     end
   end
