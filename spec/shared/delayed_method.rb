@@ -45,6 +45,17 @@ shared_examples_for 'random ruby objects' do
         obj.ran.should be true
       end
 
+      it 'must work with enqueue args that are lambdas' do
+        klass = Class.new do
+          attr_reader :ran
+          def test_method; @ran = true; end
+          add_send_later_methods :test_method, {singleton: -> (obj) { "foobar:#{obj.object_id}" }}, true
+        end
+
+        obj = klass.new
+        lambda { obj.test_method }.should change { Delayed::Job.jobs_count(:current) }.by(1)
+      end
+
       it "should work without default_async" do
         klass = Class.new do
           attr_accessor :ran

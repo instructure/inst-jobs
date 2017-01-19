@@ -109,21 +109,21 @@ module Delayed
           visibility = :protected
         end
 
-        generated_delayed_methods.class_eval(<<-EOF, __FILE__, __LINE__ + 1)
-          def #{without_method}(*args)
-            send(:#{method}, *args, synchronous: true)
+        generated_delayed_methods.class_eval do
+          define_method without_method do |*args|
+            send(method, *args, synchronous: true)
           end
-          #{visibility} :#{without_method}
+          send(visibility, without_method)
 
-          def #{method}(*args, synchronous: #{!default_async})
+          define_method(method, -> (*args, synchronous: !default_async) do
             if synchronous
               super(*args)
             else
-              send_later_enqueue_args(:#{method}, #{enqueue_args.inspect}, *args, synchronous: true)
+              send_later_enqueue_args(method, enqueue_args, *args, synchronous: true)
             end
-          end
-          #{visibility} :#{method}
-        EOF
+          end)
+          send(visibility, method)
+        end
       end
 
       def handle_asynchronously(method, enqueue_args={})
