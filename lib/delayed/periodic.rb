@@ -49,7 +49,7 @@ class Periodic
   end
 
   def enqueue
-    Delayed::Job.enqueue(self, @job_args.merge(:max_attempts => 1, :run_at => @cron.next_time(Delayed::Periodic.now), :singleton => tag))
+    Delayed::Job.enqueue(self, @job_args.merge(:max_attempts => 1, :run_at => @cron.next_time(Delayed::Periodic.now).utc.to_time, :singleton => tag))
   end
 
   def perform
