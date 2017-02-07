@@ -198,7 +198,7 @@ module Delayed
           end
         end
 
-        def self.get_and_lock_next_available(worker_name,
+        def self.get_and_lock_next_available(worker_names,
                                              queue = Delayed::Settings.queue,
                                              min_priority = nil,
                                              max_priority = nil)
@@ -208,16 +208,31 @@ module Delayed
 
           loop do
             jobs = maybe_silence_periodic_log do
-              find_available(Settings.fetch_batch_size, queue, min_priority, max_priority)
+              batch_size = Settings.fetch_batch_size
+              batch_size *= worker_names.length if worker_names.is_a?(Array)
+              find_available(batch_size, queue, min_priority, max_priority)
             end
             return nil if jobs.empty?
             if Settings.select_random_from_batch
               jobs = jobs.sort_by { rand }
             end
-            job = jobs.detect do |job|
-              job.send(:lock_exclusively!, worker_name)
+            if worker_names.is_a?(Array)
+              result = {}
+              jobs.each do |job|
+                break if worker_names.empty?
+                worker_name = worker_names.first
+                if job.send(:lock_exclusively!, worker_name)
+                  result[worker_name] = job
+                  worker_names.shift
+                end
+              end
+              return result
+            else
+              job = jobs.detect do |job|
+                job.send(:lock_exclusively!, worker_names)
+              end
+              return job if job
             end
-            return job if job
           end
         end
 

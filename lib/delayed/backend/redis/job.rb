@@ -225,11 +225,17 @@ class Job
 
     check_queue(queue)
     check_priorities(min_priority, max_priority)
+    if worker_name.is_a?(Array)
+      multiple_workers = true
+      worker_name = worker_name.first
+    end
 
     # as an optimization this lua function returns the hash of job attributes,
     # rather than just a job id, saving a round trip
     job_attrs = functions.get_and_lock_next_available(worker_name, queue, min_priority, max_priority, db_time_now)
-    instantiate_from_attrs(job_attrs) # will return nil if the attrs are blank
+    job = instantiate_from_attrs(job_attrs) # will return nil if the attrs are blank
+    job = { worker_name => job } if multiple_workers
+    job
   end
 
   def self.find_available(limit,

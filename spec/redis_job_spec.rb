@@ -137,4 +137,14 @@ describe 'Delayed::Backend::Redis::Job' do
       end
     end
   end
+
+  it "allows the API for fetching multiple jobs at once" do
+    jobs = 3.times.map { Delayed::Job.create :payload_object => SimpleJob.new }
+    locked_jobs = Delayed::Job.get_and_lock_next_available(['worker1', 'worker2'])
+    locked_jobs.length.should == 1
+    locked_jobs.keys.should == ['worker1']
+    jobs.map(&:id).should be_include(locked_jobs.values.first.id)
+    jobs.map { |j| Delayed::Job.find(j.id).locked_by }.compact.should == ['worker1']
+  end
+
 end

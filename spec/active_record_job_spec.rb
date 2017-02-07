@@ -243,4 +243,13 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
       end
     end
   end
+
+  it "allows fetching multiple jobs at once" do
+    jobs = 3.times.map { Delayed::Job.create :payload_object => SimpleJob.new }
+    locked_jobs = Delayed::Job.get_and_lock_next_available(['worker1', 'worker2'])
+    locked_jobs.length.should == 2
+    locked_jobs.keys.should == ['worker1', 'worker2']
+    locked_jobs.values.should == jobs[0..1]
+    jobs.map(&:reload).map(&:locked_by).should == ['worker1', 'worker2', nil]
+  end
 end
