@@ -7,7 +7,7 @@ COPY lib/delayed/version.rb /app/lib/delayed/version.rb
 USER root
 RUN chown -R docker:docker /app
 USER docker
-RUN /bin/bash -l -c "cd /app && bundle install"
+RUN /bin/bash -l -c "cd /app && rvm-exec 2.3 bundle install"
 COPY . /app
 
 USER root
@@ -16,4 +16,4 @@ USER docker
 
 ENV TEST_DB_USERNAME postgres
 
-CMD /bin/bash -l -c "bundle exec wwtd --parallel"
+CMD /bin/bash -l -c "rvm-exec 2.3 bundle exec wwtd --parallel"

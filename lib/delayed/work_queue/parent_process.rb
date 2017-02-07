@@ -81,6 +81,7 @@ class ParentProcess
       @listen_socket = listen_socket
       @parent_pid = parent_pid
       @clients = {}
+      @waiting_clients = {}
     end
 
     def connected_clients
@@ -115,10 +116,12 @@ class ParentProcess
 
     def run_once
       handles = @clients.keys + [@listen_socket]
-      readable, _, _ = IO.select(handles, nil, nil, 1)
+      timeout = Settings.sleep_delay + (rand * Settings.sleep_delay_stagger)
+      readable, _, _ = IO.select(handles, nil, nil, timeout)
       if readable
         readable.each { |s| handle_read(s) }
       end
+      check_for_work
     end
 
     def handle_read(socket)
@@ -132,9 +135,9 @@ class ParentProcess
     # Any error on the listen socket other than WaitReadable will bubble up
     # and terminate the work queue process, to be restarted by the parent daemon.
     def handle_accept
-      client, _addr = @listen_socket.accept_nonblock
-      if client
-        @clients[client] = ClientState.new(false)
+      socket, _addr = @listen_socket.accept_nonblock
+      if socket
+        @clients[socket] = ClientState.new(false, socket)
       end
     rescue IO::WaitReadable
       # ignore and just try accepting again next time through the loop
@@ -146,17 +149,40 @@ class ParentProcess
       # here forever. This is only a reasonable assumption because we control
       # the client.
       worker_name, worker_config = client_timeout { Marshal.load(socket) }
-      response = nil
-      Delayed::Worker.lifecycle.run_callbacks(:work_queue_pop, self, worker_name, worker_config) do
-        response = Delayed::Job.get_and_lock_next_available(
-          worker_name,
-          worker_config[:queue],
-          worker_config[:min_priority],
-          worker_config[:max_priority])
-        @clients[socket].working = !response.nil?
-      end
-      client_timeout { Marshal.dump(response, socket) }
+      client = @clients[socket]
+      client.name = worker_name
+      client.working = false
+      (@waiting_clients[worker_config] ||= []) << client
+
     rescue SystemCallError, IOError, Timeout::Error
+      drop_socket(socket)
+    end
+
+    def check_for_work
+      @waiting_clients.each do |(worker_config, workers)|
+        next if workers.empty?
+
+        Delayed::Worker.lifecycle.run_callbacks(:work_queue_pop, self, worker_config) do
+          response = Delayed::Job.get_and_lock_next_available(
+              workers.map(&:name),
+              worker_config[:queue],
+              worker_config[:min_priority],
+              worker_config[:max_priority])
+          response.each do |(worker_name, job)|
+            client = workers.find { |worker| worker.name == worker_name }
+            client.working = true
+            @waiting_clients[worker_config].delete(client)
+            begin
+              client_timeout { Marshal.dump(job, client.socket) }
+            rescue SystemCallError, IOError, Timeout::Error
+              drop_socket(client.socket)
+            end
+          end
+        end
+      end
+    end
+
+    def drop_socket(socket)
       # this socket went away
       begin
         socket.close
@@ -177,7 +203,7 @@ class ParentProcess
       Timeout.timeout(Settings.parent_process_client_timeout) { yield }
     end
 
-    ClientState = Struct.new(:working)
+    ClientState = Struct.new(:working, :socket, :name)
   end
 end
 end

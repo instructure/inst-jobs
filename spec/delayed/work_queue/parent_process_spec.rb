@@ -16,7 +16,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
   let(:subject) { described_class.new }
   let(:worker_config) { { queue: "queue_name", min_priority: 1, max_priority: 2 } }
   let(:args) { ["worker_name", worker_config] }
-  let(:job_args) { ["worker_name", "queue_name", 1, 2] }
+  let(:job_args) { [["worker_name"], "queue_name", 1, 2] }
 
   it 'generates a server listening on a valid unix socket' do
     server = subject.server
@@ -90,9 +90,45 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
       client = Socket.unix(subject.listen_socket.local_address.unix_path)
       subject.run_once
 
-      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return(job)
+      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return('worker_name' => job)
       Marshal.dump(args, client)
       subject.run_once
+      expect(client).to be_ready
+      expect(Marshal.load(client)).to eq(job)
+    end
+
+    it 'can pop multiple jobs at once' do
+      client1 = Socket.unix(subject.listen_socket.local_address.unix_path)
+      subject.run_once
+      client2 = Socket.unix(subject.listen_socket.local_address.unix_path)
+      subject.run_once
+
+      job_args = [["worker_name1", "worker_name2"], "queue_name", 1, 2]
+      jobs = { 'worker_name1' => :job1, 'worker_name2' => :job2 }
+
+      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return(jobs)
+      Marshal.dump(["worker_name1", worker_config], client1)
+      Marshal.dump(["worker_name2", worker_config], client2)
+      subject.run_once
+      expect(Marshal.load(client1)).to eq(:job1)
+      expect(Marshal.load(client2)).to eq(:job2)
+    end
+
+    it "doesn't respond immediately if there are no jobs available" do
+      client = Socket.unix(subject.listen_socket.local_address.unix_path)
+      subject.run_once
+
+      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return({}).ordered
+      Marshal.dump(args, client)
+      subject.run_once
+      expect(client).not_to be_ready
+
+      # next time around, return the result
+      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return('worker_name' => job).ordered
+      allow(Delayed::Settings).to receive(:sleep_delay).and_return(0)
+      allow(Delayed::Settings).to receive(:sleep_delay_stagger).and_return(0)
+      subject.run_once
+      expect(client).to be_ready
       expect(Marshal.load(client)).to eq(job)
     end
 
@@ -124,12 +160,12 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
       subject.run_once
       expect(subject.all_workers_idle?).to be(true)
 
-      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return(job)
+      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return('worker_name' => job)
       Marshal.dump(args, client)
       subject.run_once
       expect(subject.all_workers_idle?).to be(false)
 
-      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return(nil)
+      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return({})
       Marshal.dump(args, client)
       subject.run_once
       expect(subject.all_workers_idle?).to be(true)
@@ -143,7 +179,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
       Delayed::Worker.lifecycle.around(:work_queue_pop) do |queue, &cb|
         expect(subject.all_workers_idle?).to be(true)
         expect(queue).to eq(subject)
-        expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return(job)
+        expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return('worker_name' => job)
         called = true
         res = cb.call(queue)
         expect(subject.all_workers_idle?).to be(false)

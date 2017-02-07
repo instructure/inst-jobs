@@ -4,7 +4,7 @@ module WorkQueue
 # queries the queue inline.
 class InProcess
   def get_and_lock_next_available(worker_name, worker_config)
-    Delayed::Worker.lifecycle.run_callbacks(:work_queue_pop, self, worker_name, worker_config) do
+    Delayed::Worker.lifecycle.run_callbacks(:work_queue_pop, self, worker_config) do
       Delayed::Job.get_and_lock_next_available(
         worker_name,
         worker_config[:queue],

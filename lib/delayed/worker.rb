@@ -106,6 +106,7 @@ class Worker
 
   def run
     self.class.lifecycle.run_callbacks(:loop, self) do
+      set_process_name("pop:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || 'max'}")
       job = self.class.lifecycle.run_callbacks(:pop, self) do
         work_queue.get_and_lock_next_available(name, config)
       end
