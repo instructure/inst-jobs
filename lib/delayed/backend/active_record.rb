@@ -212,7 +212,9 @@ module Delayed
               batch_size *= worker_names.length if worker_names.is_a?(Array)
               find_available(batch_size, queue, min_priority, max_priority)
             end
-            return nil if jobs.empty?
+            if jobs.empty?
+              return worker_names.is_a?(Array) ? {} : nil
+            end
             if Settings.select_random_from_batch
               jobs = jobs.sort_by { rand }
             end

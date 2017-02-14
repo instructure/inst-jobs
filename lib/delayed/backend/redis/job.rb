@@ -234,7 +234,13 @@ class Job
     # rather than just a job id, saving a round trip
     job_attrs = functions.get_and_lock_next_available(worker_name, queue, min_priority, max_priority, db_time_now)
     job = instantiate_from_attrs(job_attrs) # will return nil if the attrs are blank
-    job = { worker_name => job } if multiple_workers
+    if multiple_workers
+      if job.nil?
+        job = {}
+      else
+        job = { worker_name => job }
+      end
+    end
     job
   end
 

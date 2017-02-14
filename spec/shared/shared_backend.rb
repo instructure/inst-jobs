@@ -110,6 +110,11 @@ shared_examples_for 'a backend' do
       @job = create_job
       Delayed::Job.find_available(5).should include(@job)
     end
+
+    it "returns an empty hash when asking for multiple jobs, and there aren't any" do
+      locked_jobs = Delayed::Job.get_and_lock_next_available(['worker1', 'worker2'])
+      locked_jobs.should == {}
+    end
   end
 
   context "when another worker is already performing an task, it" do
