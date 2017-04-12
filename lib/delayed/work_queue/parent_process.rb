@@ -51,8 +51,21 @@ class ParentProcess
     Client.new(Addrinfo.unix(@path))
   end
 
+  module SayUtil
+    def say(msg, level = :debug)
+      if defined?(Rails.logger) && Rails.logger
+        message = -> { "[#{Process.pid}]Q #{msg}" }
+        Rails.logger.send(level, self.class, &message)
+      else
+        puts(msg)
+      end
+    end
+  end
+
   class Client
     attr_reader :addrinfo
+
+    include SayUtil
 
     def initialize(addrinfo)
       @addrinfo = addrinfo
@@ -60,13 +73,17 @@ class ParentProcess
 
     def get_and_lock_next_available(worker_name, worker_config)
       @socket ||= @addrinfo.connect
+      say("Requesting work using #{@socket.inspect}")
       Marshal.dump([worker_name, worker_config], @socket)
       response = Marshal.load(@socket)
       unless response.nil? || (response.is_a?(Delayed::Job) && response.locked_by == worker_name)
+        say("Received invalid response from server: #{response.inspect}")
         raise(ProtocolError, "response is not a locked job: #{response.inspect}")
       end
+      say("Received work from server: #{response.inspect}")
       response
-    rescue SystemCallError, IOError
+    rescue SystemCallError, IOError => ex
+      say("Work queue connection lost, reestablishing on next poll. (#{ex})", :error)
       # The work queue process died. Return nil to signal the worker
       # process should sleep as if no job was found, and then retry.
       @socket = nil
@@ -76,6 +93,8 @@ class ParentProcess
 
   class Server
     attr_reader :listen_socket
+
+    include SayUtil
 
     def initialize(listen_socket, parent_pid: nil)
       @listen_socket = listen_socket
@@ -92,14 +111,6 @@ class ParentProcess
       !@clients.any? { |_, c| c.working }
     end
 
-    def say(msg, level = :debug)
-      if defined?(Rails.logger) && Rails.logger
-        Rails.logger.send(level, "[#{Process.pid}]Q #{msg}")
-      else
-        puts(msg)
-      end
-    end
-
     # run the server queue worker
     # this method does not return, only exits or raises an exception
     def run
@@ -110,7 +121,7 @@ class ParentProcess
       end
 
     rescue => e
-      say "WorkQueue Server died: #{e.inspect}"
+      say "WorkQueue Server died: #{e.inspect}", :error
       raise
     end
 
@@ -140,6 +151,7 @@ class ParentProcess
         @clients[socket] = ClientState.new(false, socket)
       end
     rescue IO::WaitReadable
+      say("Server attempted to read listen_socket but failed with IO::WaitReadable", :error)
       # ignore and just try accepting again next time through the loop
     end
 
@@ -154,7 +166,8 @@ class ParentProcess
       client.working = false
       (@waiting_clients[worker_config] ||= []) << client
 
-    rescue SystemCallError, IOError, Timeout::Error
+    rescue SystemCallError, IOError, Timeout::Error => ex
+      say("Receiving message from client (#{socket}) failed: #{ex.inspect}", :error)
       drop_socket(socket)
     end
 
