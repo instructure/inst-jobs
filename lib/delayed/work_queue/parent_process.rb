@@ -55,7 +55,7 @@ class ParentProcess
     def say(msg, level = :debug)
       if defined?(Rails.logger) && Rails.logger
         message = -> { "[#{Process.pid}]Q #{msg}" }
-        Rails.logger.send(level, self.class, &message)
+        Rails.logger.send(level, self.class.name, &message)
       else
         puts(msg)
       end
