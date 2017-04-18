@@ -75,7 +75,7 @@ module Delayed
            where("run_at<=? AND locked_at IS NULL AND next_in_strand=?", db_time_now, true)
          end
         def self.by_priority
-          order("priority ASC, run_at ASC")
+          order(:priority, :run_at, :id)
         end
 
         # When a worker is exiting, make sure we don't have any locked jobs.
@@ -208,9 +208,35 @@ module Delayed
 
           loop do
             jobs = maybe_silence_periodic_log do
-              batch_size = Settings.fetch_batch_size
-              batch_size *= worker_names.length if worker_names.is_a?(Array)
-              find_available(batch_size, queue, min_priority, max_priority)
+              if connection.adapter_name == 'PostgreSQL' && !Settings.select_random_from_batch
+                # In Postgres, we can lock a job and return which row was locked in a single
+                # query by using RETURNING. Combine that with the ROW_NUMBER() window function
+                # to assign a distinct locked_at value to each job locked, when doing multiple
+                # jobs in a single query.
+                effective_worker_names = Array(worker_names)
+
+                target_jobs = all_available(queue, min_priority, max_priority).
+                    limit(effective_worker_names.length).
+                    lock
+                jobs_with_row_number = all.from(target_jobs).
+                    select("id, ROW_NUMBER() OVER () AS row_number")
+                updates = "locked_by = CASE row_number "
+                effective_worker_names.each_with_index do |worker, i|
+                  updates << "WHEN #{i + 1} THEN #{connection.quote(worker)} "
+                end
+                updates << "END, locked_at = #{connection.quote(db_time_now)}"
+                # joins and returning in an update! just bypass AR
+                query = "UPDATE #{quoted_table_name} SET #{updates} FROM (#{jobs_with_row_number.to_sql}) j2 WHERE j2.id=delayed_jobs.id RETURNING delayed_jobs.*"
+                jobs = find_by_sql(query)
+                # because this is an atomic query, we don't have to return more jobs than we needed
+                # to try and lock them, nor is there a possibility we need to try again because
+                # all of the jobs we tried to lock had already been locked by someone else
+                return worker_names.is_a?(Array) ? jobs.index_by(&:locked_by) : jobs.first
+              else
+                batch_size = Settings.fetch_batch_size
+                batch_size *= worker_names.length if worker_names.is_a?(Array)
+                find_available(batch_size, queue, min_priority, max_priority)
+              end
             end
             if jobs.empty?
               return worker_names.is_a?(Array) ? {} : nil
