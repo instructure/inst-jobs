@@ -1,5 +1,5 @@
+require 'pathname'
 require 'socket'
-require 'tempfile'
 require 'timeout'
 
 module Delayed
@@ -24,31 +24,39 @@ class ParentProcess
   class ProtocolError < RuntimeError
   end
 
-  def initialize
-    @path = self.class.generate_socket_path
-  end
+  attr_reader :server_address
 
-  def self.generate_socket_path
-    # We utilize Tempfile as a convenient way to get a socket filename in the
-    # writeable temp directory. However, since we destroy the normal file and
-    # write a unix socket file to the same location, we lose the hard uniqueness
-    # guarantees of Tempfile. This is OK for this use case, we only generate one
-    # Tempfile with this prefix.
-    tmp = Tempfile.new("inst-jobs-#{Process.pid}-")
-    path = tmp.path
-    tmp.close!
-    path
+  DEFAULT_SOCKET_NAME = 'inst-jobs.sock'.freeze
+  private_constant :DEFAULT_SOCKET_NAME
+
+  def initialize(config = Settings.parent_process)
+    @config = config
+    @server_address = generate_socket_path(config['server_address'])
   end
 
   def server(parent_pid: nil)
     # The unix_server_socket method takes care of cleaning up any existing
     # socket for us if the work queue process dies and is restarted.
-    listen_socket = Socket.unix_server_socket(@path)
-    Server.new(listen_socket, parent_pid: parent_pid)
+    listen_socket = Socket.unix_server_socket(@server_address)
+    Server.new(listen_socket, parent_pid: parent_pid, config: @config)
   end
 
   def client
-    Client.new(Addrinfo.unix(@path))
+    Client.new(Addrinfo.unix(@server_address))
+  end
+
+  private
+
+  def generate_socket_path(supplied_path)
+    pathname = Pathname.new(supplied_path)
+
+    if pathname.absolute? && pathname.directory?
+      pathname.join(DEFAULT_SOCKET_NAME).to_s
+    elsif pathname.absolute?
+      supplied_path
+    else
+      generate_socket_path(Settings.expand_rails_path(supplied_path))
+    end
   end
 
   module SayUtil
@@ -96,7 +104,8 @@ class ParentProcess
 
     include SayUtil
 
-    def initialize(listen_socket, parent_pid: nil)
+    def initialize(listen_socket, parent_pid: nil, config: Settings.parent_process)
+      @config = config
       @listen_socket = listen_socket
       @parent_pid = parent_pid
       @clients = {}
@@ -213,7 +222,7 @@ class ParentProcess
     end
 
     def client_timeout
-      Timeout.timeout(Settings.parent_process_client_timeout) { yield }
+      Timeout.timeout(@config['server_socket_timeout']) { yield }
     end
 
     ClientState = Struct.new(:working, :socket, :name)

@@ -3,7 +3,7 @@ services:
   app:
     volumes:
       - "gems:/home/docker/.gem"
-      - ".:/app"
+      - ".:/usr/src/app"
 
 volumes:
   gems: {}

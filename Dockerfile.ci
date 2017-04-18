@@ -1,19 +1,21 @@
 FROM instructure/rvm
 
-WORKDIR /app
+WORKDIR /usr/src/app
 
-COPY inst-jobs.gemspec Gemfile* /app/
-COPY lib/delayed/version.rb /app/lib/delayed/version.rb
+RUN /bin/bash -lc "rvm use --default 2.3"
+
+COPY inst-jobs.gemspec Gemfile* /usr/src/app/
+COPY lib/delayed/version.rb /usr/src/app/lib/delayed/version.rb
 USER root
-RUN chown -R docker:docker /app
+RUN chown -R docker:docker /usr/src/app
 USER docker
-RUN /bin/bash -l -c "cd /app && rvm-exec 2.3 bundle install"
-COPY . /app
+RUN /bin/bash -l -c "bundle install"
+COPY . /usr/src/app
 
 USER root
-RUN chown -R docker:docker /app
+RUN chown -R docker:docker /usr/src/app
 USER docker
 
 ENV TEST_DB_USERNAME postgres
 
-CMD /bin/bash -l -c "rvm-exec 2.3 bundle exec wwtd --parallel"
+CMD /bin/bash -l -c "bundle exec wwtd --parallel"

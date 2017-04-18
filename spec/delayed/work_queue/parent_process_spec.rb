@@ -1,15 +1,22 @@
 require 'spec_helper'
+require 'fileutils'
 
 RSpec.describe Delayed::WorkQueue::ParentProcess do
   before :all do
+    FileUtils.mkdir_p(Delayed::Settings.expand_rails_path('tmp'))
     Delayed.select_backend(Delayed::Backend::ActiveRecord::Job)
+    Delayed::Settings.parent_process = {
+      'server_address' => '/tmp/inst-jobs-test.sock'
+    }
   end
 
   after :all do
     Delayed.send(:remove_const, :Job)
+    Delayed::Settings.parent_process = {}
   end
 
   after :each do
+    File.unlink('/tmp/inst-jobs-test.sock') if File.exist?('/tmp/inst-jobs-test.sock')
     Delayed::Worker.lifecycle.reset!
   end
 
@@ -17,6 +24,28 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
   let(:worker_config) { { queue: "queue_name", min_priority: 1, max_priority: 2 } }
   let(:args) { ["worker_name", worker_config] }
   let(:job_args) { [["worker_name"], "queue_name", 1, 2] }
+
+  describe '#initalize(config = Settings.parent_process)' do
+    it 'must expand a relative path to be within the Rails root' do
+      queue = described_class.new('server_address' => 'tmp/foo.sock')
+      expect(queue.server_address).to eq Delayed::Settings.expand_rails_path('tmp/foo.sock')
+    end
+
+    it 'must add a file name when a relative path to a directory is supplied' do
+      queue = described_class.new('server_address' => 'tmp')
+      expect(queue.server_address).to eq Delayed::Settings.expand_rails_path('tmp/inst-jobs.sock')
+    end
+
+    it 'must capture a full absolute path' do
+      queue = described_class.new('server_address' => '/tmp/foo.sock')
+      expect(queue.server_address).to eq '/tmp/foo.sock'
+    end
+
+    it 'must add a file name when an absolute path to a directory is supplied' do
+      queue = described_class.new('server_address' => '/tmp')
+      expect(queue.server_address).to eq '/tmp/inst-jobs.sock'
+    end
+  end
 
   it 'generates a server listening on a valid unix socket' do
     server = subject.server
@@ -77,8 +106,9 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
   end
 
   describe Delayed::WorkQueue::ParentProcess::Server do
+    let(:parent) { Delayed::WorkQueue::ParentProcess.new }
     let(:subject) { described_class.new(listen_socket) }
-    let(:listen_socket) { Socket.unix_server_socket(Delayed::WorkQueue::ParentProcess.generate_socket_path) }
+    let(:listen_socket) { Socket.unix_server_socket(parent.server_address) }
     let(:job) { :a_job }
 
     it 'accepts new clients' do
@@ -149,7 +179,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
       Marshal.dump(args, client)
 
       expect(Marshal).to receive(:load).and_raise(Timeout::Error.new("socket timed out"))
-      expect(Timeout).to receive(:timeout).with(Delayed::Settings.parent_process_client_timeout).and_yield
+      expect(Timeout).to receive(:timeout).with(Delayed::Settings.parent_process['server_socket_timeout']).and_yield
       expect { subject.run_once }.to change(subject, :connected_clients).by(-1)
     end
 

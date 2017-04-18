@@ -1,6 +1,4 @@
-# using v1 compose format until our CI servers are upgraded
 version: "2"
-
 services:
   app:
     build:
