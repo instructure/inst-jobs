@@ -12,7 +12,7 @@ library.
 It's still useful to highlight the primary differences with delayed_job, for
 those familiar with it:
 
-* `inst-jobs` was extracted from [Canvas
+* `inst-jobs` was adapted for [Canvas
   LMS](https://github.com/instructure/canvas-lms), where it has been
   battle-hardened over the last 5+ years, scaling with Canvas from zero to tens
   of millions of jobs run per day.
