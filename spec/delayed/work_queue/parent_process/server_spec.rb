@@ -113,8 +113,9 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
 
     Marshal.dump(args, client)
 
-    expect(Marshal).to receive(:load).and_raise(Timeout::Error.new("socket timed out"))
-    expect(Timeout).to receive(:timeout).with(Delayed::Settings.parent_process['server_socket_timeout']).and_yield
+    server_client_socket = subject.clients.keys.first
+
+    expect(server_client_socket).to receive(:wait_readable).and_return(false)
     expect { subject.run_once }.to change(subject, :connected_clients).by(-1)
   end
 

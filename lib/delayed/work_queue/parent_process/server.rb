@@ -2,17 +2,20 @@ module Delayed
 module WorkQueue
 class ParentProcess
   class Server
-    attr_reader :listen_socket
+    attr_reader :clients, :listen_socket
 
     include Delayed::Logging
 
     def initialize(listen_socket, parent_pid: nil, config: Settings.parent_process)
-      @config = config
       @listen_socket = listen_socket
       @parent_pid = parent_pid
       @clients = {}
       @waiting_clients = {}
       @pending_work = {}
+
+      @config = config
+      @client_timeout = config['server_socket_timeout'] || 10.0 # left for backwards compat
+      @receive_timeout = config['server_receive_timeout'] || 10.0
     end
 
     def connected_clients
@@ -78,15 +81,21 @@ class ParentProcess
     def handle_request(socket)
       # There is an assumption here that the client will never send a partial
       # request and then leave the socket open. Doing so would leave us hanging
-      # here forever. This is only a reasonable assumption because we control
-      # the client.
-      worker_name, worker_config = client_timeout { Marshal.load(socket) }
-      client = @clients[socket]
-      client.name = worker_name
-      client.working = false
-      (@waiting_clients[worker_config] ||= []) << client
+      # in Marshal.load forever. This is only a reasonable assumption because we
+      # control the client. Also, in theory, we shouldn't need to call
+      # #wait_readable to ensure there is data available since we just used
+      # select(2) to get this handle but it's better to be safe than sorry.
+      if socket.wait_readable(@receive_timeout)
+        worker_name, worker_config = Marshal.load(socket)
+        client = @clients[socket]
+        client.name = worker_name
+        client.working = false
+        (@waiting_clients[worker_config] ||= []) << client
+      else
+        drop_socket(socket)
+      end
 
-    rescue SystemCallError, IOError, Timeout::Error => ex
+    rescue SystemCallError, IOError => ex
       logger.error("Receiving message from client (#{socket}) failed: #{ex.inspect}")
       drop_socket(socket)
     end
@@ -181,7 +190,7 @@ class ParentProcess
     end
 
     def client_timeout
-      Timeout.timeout(@config['server_socket_timeout']) { yield }
+      Timeout.timeout(@client_timeout) { yield }
     end
 
     ClientState = Struct.new(:working, :socket, :name)

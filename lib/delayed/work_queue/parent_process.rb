@@ -45,7 +45,7 @@ class ParentProcess
   end
 
   def client
-    Client.new(Addrinfo.unix(@server_address))
+    Client.new(Addrinfo.unix(@server_address), config: @config)
   end
 
   private

@@ -33,8 +33,12 @@ module Delayed
     mattr_accessor(*SETTINGS_WITH_ARGS)
 
     PARENT_PROCESS_DEFAULTS = {
+      server_receive_timeout: 10.0,
       server_socket_timeout: 10.0,
       pending_jobs_idle_timeout: 30.0,
+
+      client_connect_timeout: 2.0,
+      client_receive_timeout: 10.0,
 
       # We'll accept a partial, relative path and assume we want it inside
       # Rails.root with inst-jobs.sock appended if provided a directory.
