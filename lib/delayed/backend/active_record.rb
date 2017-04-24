@@ -208,7 +208,9 @@ module Delayed
         def self.get_and_lock_next_available(worker_names,
                                              queue = Delayed::Settings.queue,
                                              min_priority = nil,
-                                             max_priority = nil)
+                                             max_priority = nil,
+                                             extra_jobs: 0,
+                                             extra_jobs_owner: nil)
 
           check_queue(queue)
           check_priorities(min_priority, max_priority)
@@ -223,13 +225,16 @@ module Delayed
                 effective_worker_names = Array(worker_names)
 
                 target_jobs = all_available(queue, min_priority, max_priority).
-                    limit(effective_worker_names.length).
+                    limit(effective_worker_names.length + extra_jobs).
                     lock
                 jobs_with_row_number = all.from(target_jobs).
                     select("id, ROW_NUMBER() OVER () AS row_number")
                 updates = "locked_by = CASE row_number "
                 effective_worker_names.each_with_index do |worker, i|
                   updates << "WHEN #{i + 1} THEN #{connection.quote(worker)} "
+                end
+                if extra_jobs_owner
+                  updates << "ELSE #{connection.quote(extra_jobs_owner)} "
                 end
                 updates << "END, locked_at = #{connection.quote(db_time_now)}"
                 # joins and returning in an update! just bypass AR
@@ -238,7 +243,14 @@ module Delayed
                 # because this is an atomic query, we don't have to return more jobs than we needed
                 # to try and lock them, nor is there a possibility we need to try again because
                 # all of the jobs we tried to lock had already been locked by someone else
-                return worker_names.is_a?(Array) ? jobs.index_by(&:locked_by) : jobs.first
+                if worker_names.is_a?(Array)
+                  result = jobs.index_by(&:locked_by)
+                  # all of the extras can come back as an array
+                  result[extra_jobs_owner] = jobs.select { |j| j.locked_by == extra_jobs_owner } if extra_jobs_owner
+                  return result
+                else
+                  return jobs.first
+                end
               else
                 batch_size = Settings.fetch_batch_size
                 batch_size *= worker_names.length if worker_names.is_a?(Array)
@@ -321,6 +333,12 @@ module Delayed
           end
         end
 
+        def self.unlock(jobs)
+          unlocked = where(id: jobs).update_all(locked_at: nil, locked_by: nil)
+          jobs.each(&:unlock)
+          unlocked
+        end
+
         # Lock this job for this worker.
         # Returns true if we have the lock, false otherwise.
         #
@@ -333,6 +351,18 @@ module Delayed
           affected_rows = self.class.where("id=? AND locked_at IS NULL AND run_at<=?", self, now).update_all(:locked_at => now, :locked_by => worker)
           if affected_rows == 1
             mark_as_locked!(now, worker)
+            return true
+          else
+            return false
+          end
+        end
+
+        def transfer_lock!(from:, to:)
+          now = self.class.db_time_now
+          # We don't own this job so we will update the locked_by name and the locked_at
+          affected_rows = self.class.where(id: self, locked_by: from).update_all(locked_at: now, locked_by: to)
+          if affected_rows == 1
+            mark_as_locked!(now, to)
             return true
           else
             return false

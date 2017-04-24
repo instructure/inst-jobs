@@ -221,7 +221,9 @@ class Job
   def self.get_and_lock_next_available(worker_name,
       queue = Delayed::Settings.queue,
       min_priority = Delayed::MIN_PRIORITY,
-      max_priority = Delayed::MAX_PRIORITY)
+      max_priority = Delayed::MAX_PRIORITY,
+      extra_jobs: nil,
+      extra_jobs_owner: nil)
 
     check_queue(queue)
     check_priorities(min_priority, max_priority)
@@ -352,8 +354,17 @@ class Job
     self.create!(options.merge(:singleton => true))
   end
 
+  def self.unlock(jobs)
+    jobs.each(&:unlock!)
+    jobs.length
+  end
+
   # not saved, just used as a marker when creating
   attr_accessor :singleton
+
+  def transfer_lock!(from:, to:)
+    lock_in_redis!(to)
+  end
 
   def lock_in_redis!(worker_name)
     self.locked_at = self.class.db_time_now
@@ -362,8 +373,7 @@ class Job
   end
 
   def unlock!
-    self.locked_at = nil
-    self.locked_by = nil
+    unlock
     save!
   end
 

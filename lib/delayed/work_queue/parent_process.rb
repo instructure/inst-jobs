@@ -110,6 +110,7 @@ class ParentProcess
       @parent_pid = parent_pid
       @clients = {}
       @waiting_clients = {}
+      @pending_work = {}
     end
 
     def connected_clients
@@ -125,9 +126,15 @@ class ParentProcess
     def run
       say "Starting work queue process"
 
+      last_orphaned_pending_jobs_purge = Job.db_time_now - rand(15 * 60)
       while !exit?
         run_once
+        if last_orphaned_pending_jobs_purge + 15 * 60 < Job.db_time_now
+          Job.unlock_orphaned_pending_jobs
+          last_orphaned_pending_jobs_purge = Job.db_time_now
+        end
       end
+      purge_all_pending_work
 
     rescue => e
       say "WorkQueue Server died: #{e.inspect}", :error
@@ -142,6 +149,7 @@ class ParentProcess
         readable.each { |s| handle_read(s) }
       end
       check_for_work
+      purge_extra_pending_work
     end
 
     def handle_read(socket)
@@ -180,17 +188,47 @@ class ParentProcess
       drop_socket(socket)
     end
 
+    def pending_jobs_owner
+      "work_queue:#{Socket.gethostname rescue 'X'}"
+    end
+
     def check_for_work
       @waiting_clients.each do |(worker_config, workers)|
+        pending_work = @pending_work[worker_config] ||= []
+        say("I have #{pending_work.length} jobs for #{workers.length} waiting workers")
+        while !pending_work.empty? && !workers.empty?
+          job = pending_work.shift
+          client = workers.shift
+          # couldn't re-lock it for some reason
+          unless job.transfer_lock!(from: pending_jobs_owner, to: client.name)
+            workers.unshift(client)
+            next
+          end
+          begin
+            client_timeout { Marshal.dump(job, client.socket) }
+          rescue SystemCallError, IOError, Timeout::Error
+            drop_socket(client.socket)
+          end
+        end
+
         next if workers.empty?
 
         Delayed::Worker.lifecycle.run_callbacks(:work_queue_pop, self, worker_config) do
+          recipients = workers.map(&:name)
+
           response = Delayed::Job.get_and_lock_next_available(
-              workers.map(&:name),
+              recipients,
               worker_config[:queue],
               worker_config[:min_priority],
-              worker_config[:max_priority])
+              worker_config[:max_priority],
+              extra_jobs: Settings.fetch_batch_size * (worker_config[:workers] || 1) - recipients.length,
+              extra_jobs_owner: pending_jobs_owner)
           response.each do |(worker_name, job)|
+            if worker_name == pending_jobs_owner
+              # it's actually an array of all the extra jobs
+              pending_work.concat(job)
+              next
+            end
             client = workers.find { |worker| worker.name == worker_name }
             client.working = true
             @waiting_clients[worker_config].delete(client)
@@ -202,6 +240,24 @@ class ParentProcess
           end
         end
       end
+    end
+
+    def purge_extra_pending_work
+      @pending_work.each do |(worker_config, jobs)|
+        next if jobs.empty?
+        if jobs.first.locked_at < Time.now.utc - Settings.parent_process[:pending_jobs_idle_timeout]
+          Delayed::Job.unlock(jobs)
+          @pending_work[worker_config] = []
+        end
+      end
+    end
+
+    def purge_all_pending_work
+      @pending_work.each do |(_worker_config, jobs)|
+        next if jobs.empty?
+        Delayed::Job.unlock(jobs)
+      end
+      @pending_work = {}
     end
 
     def drop_socket(socket)
@@ -230,3 +286,4 @@ class ParentProcess
 end
 end
 end
+

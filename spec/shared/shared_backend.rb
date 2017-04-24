@@ -210,6 +210,23 @@ shared_examples_for 'a backend' do
       @job.locked_by.should be_nil
       @job.locked_at.should be_nil
     end
+
+    it "clears locks from multiple jobs" do
+      job2 = create_job(:locked_by => 'worker', :locked_at => Delayed::Job.db_time_now)
+      Delayed::Job.unlock([@job, job2])
+      expect(@job.locked_at).to be_nil
+      expect(job2.locked_at).to be_nil
+      # make sure it was persisted, too
+      expect(Delayed::Job.find(@job.id).locked_at).to be_nil
+    end
+  end
+
+  describe "#transfer_lock" do
+    it "works" do
+      job = create_job(:locked_by => 'worker', :locked_at => Delayed::Job.db_time_now)
+      expect(job.transfer_lock!(from: 'worker', to: 'worker2')).to eq true
+      expect(Delayed::Job.find(job.id).locked_by).to eq 'worker2'
+    end
   end
 
   context "strands" do

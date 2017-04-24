@@ -23,7 +23,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
   let(:subject) { described_class.new }
   let(:worker_config) { { queue: "queue_name", min_priority: 1, max_priority: 2 } }
   let(:args) { ["worker_name", worker_config] }
-  let(:job_args) { [["worker_name"], "queue_name", 1, 2] }
+  let(:job_args) { [["worker_name"], "queue_name", 1, 2, hash_including(extra_jobs: 4)] }
 
   describe '#initalize(config = Settings.parent_process)' do
     it 'must expand a relative path to be within the Rails root' do
@@ -133,7 +133,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
       client2 = Socket.unix(subject.listen_socket.local_address.unix_path)
       subject.run_once
 
-      job_args = [["worker_name1", "worker_name2"], "queue_name", 1, 2]
+      job_args = [["worker_name1", "worker_name2"], "queue_name", 1, 2, hash_including(extra_jobs: 3)]
       jobs = { 'worker_name1' => :job1, 'worker_name2' => :job2 }
 
       expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return(jobs)
@@ -142,6 +142,27 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
       subject.run_once
       expect(Marshal.load(client1)).to eq(:job1)
       expect(Marshal.load(client2)).to eq(:job2)
+    end
+
+    it 'will fetch and use extra jobs' do
+      client = Socket.unix(subject.listen_socket.local_address.unix_path)
+      subject.run_once
+
+      allow(subject).to receive(:pending_jobs_owner).and_return('work_queue:X')
+      job_args = [["worker_name1"], "queue_name", 1, 2, extra_jobs: 4, extra_jobs_owner: 'work_queue:X']
+      job2 = Delayed::Job.new(:tag => 'tag')
+      job2.create_and_lock!('work_queue:X')
+      job3 = Delayed::Job.new(:tag => 'tag')
+      job3.create_and_lock!('work_queue:X')
+      jobs = { 'worker_name1' => :job1, 'work_queue:X' => [job2, job3]}
+
+      expect(Delayed::Job).to receive(:get_and_lock_next_available).once.with(*job_args).and_return(jobs)
+      Marshal.dump(["worker_name1", worker_config], client)
+      subject.run_once
+      expect(Marshal.load(client)).to eq(:job1)
+      Marshal.dump(["worker_name1", worker_config], client)
+      subject.run_once
+      expect(Marshal.load(client)).to eq(job2)
     end
 
     it "doesn't respond immediately if there are no jobs available" do

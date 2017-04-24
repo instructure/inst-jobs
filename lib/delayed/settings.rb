@@ -34,6 +34,7 @@ module Delayed
 
     PARENT_PROCESS_DEFAULTS = {
       server_socket_timeout: 10.0,
+      pending_jobs_idle_timeout: 30.0,
 
       # We'll accept a partial, relative path and assume we want it inside
       # Rails.root with inst-jobs.sock appended if provided a directory.
