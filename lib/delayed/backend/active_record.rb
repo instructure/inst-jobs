@@ -16,6 +16,13 @@ module Delayed
       class Job < ::ActiveRecord::Base
         include Delayed::Backend::Base
         self.table_name = :delayed_jobs
+        # Rails hasn't completely loaded yet, and setting the table name will cache some stuff
+        # so reset that cache so that it will load correctly after Rails is all loaded
+        # It's fixed in Rails 5 to not cache anything when you set the table_name
+        if Rails.version < '5' && Rails.version >= '4.2'
+          @arel_engine = nil
+          @arel_table = nil
+        end
 
         def self.reconnect!
           clear_all_connections!
