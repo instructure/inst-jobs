@@ -15,7 +15,6 @@ class ParentProcess
 
       @config = config
       @client_timeout = config['server_socket_timeout'] || 10.0 # left for backwards compat
-      @receive_timeout = config['server_receive_timeout'] || 10.0
     end
 
     def connected_clients
@@ -82,19 +81,13 @@ class ParentProcess
       # There is an assumption here that the client will never send a partial
       # request and then leave the socket open. Doing so would leave us hanging
       # in Marshal.load forever. This is only a reasonable assumption because we
-      # control the client. Also, in theory, we shouldn't need to call
-      # #wait_readable to ensure there is data available since we just used
-      # select(2) to get this handle but it's better to be safe than sorry.
-      if socket.wait_readable(@receive_timeout)
-        worker_name, worker_config = Marshal.load(socket)
-        client = @clients[socket]
-        client.name = worker_name
-        client.working = false
-        (@waiting_clients[worker_config] ||= []) << client
-      else
-        drop_socket(socket)
-      end
-
+      # control the client.
+      return drop_socket(socket) if socket.eof?
+      worker_name, worker_config = Marshal.load(socket)
+      client = @clients[socket]
+      client.name = worker_name
+      client.working = false
+      (@waiting_clients[worker_config] ||= []) << client
     rescue SystemCallError, IOError => ex
       logger.error("Receiving message from client (#{socket}) failed: #{ex.inspect}")
       drop_socket(socket)
@@ -114,8 +107,10 @@ class ParentProcess
           end
           begin
             client_timeout { Marshal.dump(job, client.socket) }
-          rescue SystemCallError, IOError, Timeout::Error
+          rescue SystemCallError, IOError, Timeout::Error => ex
+            logger.error("Failed to send pre-fetched job to #{client.name}: #{ex.inspect}")
             drop_socket(client.socket)
+            Delayed::Job.unlock([job])
           end
         end
 
@@ -142,8 +137,10 @@ class ParentProcess
             @waiting_clients[worker_config].delete(client)
             begin
               client_timeout { Marshal.dump(job, client.socket) }
-            rescue SystemCallError, IOError, Timeout::Error
+            rescue SystemCallError, IOError, Timeout::Error => ex
+              logger.error("Failed to send job to #{client.name}: #{ex.inspect}")
               drop_socket(client.socket)
+              Delayed::Job.unlock([job])
             end
           end
         end

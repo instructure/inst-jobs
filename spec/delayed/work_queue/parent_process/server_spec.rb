@@ -107,7 +107,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect { subject.run_once }.to change(subject, :connected_clients).by(-1)
   end
 
-  it 'drops the client on timeout' do
+  it 'drops the client when the client disconnects' do
     client = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
 
@@ -115,7 +115,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
 
     server_client_socket = subject.clients.keys.first
 
-    expect(server_client_socket).to receive(:wait_readable).and_return(false)
+    expect(server_client_socket).to receive(:eof?).and_return(true)
     expect { subject.run_once }.to change(subject, :connected_clients).by(-1)
   end
 

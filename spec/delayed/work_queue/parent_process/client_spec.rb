@@ -20,27 +20,9 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
 
   it 'marshals the given arguments to the server and returns the response' do
     expect(addrinfo).to receive(:connect).once.and_return(connection)
-    expect(connection).to receive(:wait_readable).with(10.0).and_return(connection)
     expect(connection).to receive(:eof?).and_return(false)
     expect(Marshal).to receive(:dump).with(args, connection).ordered
     expect(Marshal).to receive(:load).with(connection).and_return(job).ordered
-    response = subject.get_and_lock_next_available(*args)
-    expect(response).to eq(job)
-  end
-
-  it 'returns nil and then reconnects on receive timeout' do
-    expect(addrinfo).to receive(:connect).once.and_return(connection)
-    expect(connection).to receive(:wait_readable).with(10.0).and_return(nil)
-    expect(Marshal).to receive(:dump).with(args, connection).ordered
-    expect(connection).to receive(:close)
-    response = subject.get_and_lock_next_available(*args)
-    expect(response).to be_nil
-
-    expect(addrinfo).to receive(:connect).once.and_return(connection)
-    expect(Marshal).to receive(:dump).with(args, connection)
-    expect(connection).to receive(:wait_readable).with(10.0).and_return(connection)
-    expect(connection).to receive(:eof?).and_return(false)
-    expect(Marshal).to receive(:load).with(connection).and_return(job)
     response = subject.get_and_lock_next_available(*args)
     expect(response).to eq(job)
   end
@@ -54,7 +36,6 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
 
     expect(addrinfo).to receive(:connect).once.and_return(connection)
     expect(Marshal).to receive(:dump).with(args, connection)
-    expect(connection).to receive(:wait_readable).with(10.0).and_return(connection)
     expect(connection).to receive(:eof?).and_return(false)
     expect(Marshal).to receive(:load).with(connection).and_return(job)
     response = subject.get_and_lock_next_available(*args)
@@ -63,7 +44,6 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
 
   it 'returns nil and then reconnects when the socket indicates eof' do
     expect(addrinfo).to receive(:connect).once.and_return(connection)
-    expect(connection).to receive(:wait_readable).with(10.0).and_return(true)
     expect(connection).to receive(:eof?).and_return(true)
     expect(Marshal).to receive(:dump).with(args, connection).ordered
     expect(connection).to receive(:close)
@@ -72,7 +52,6 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
 
     expect(addrinfo).to receive(:connect).once.and_return(connection)
     expect(Marshal).to receive(:dump).with(args, connection)
-    expect(connection).to receive(:wait_readable).with(10.0).and_return(connection)
     expect(connection).to receive(:eof?).and_return(false)
     expect(Marshal).to receive(:load).with(connection).and_return(job)
     response = subject.get_and_lock_next_available(*args)
@@ -83,7 +62,6 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
     expect(addrinfo).to receive(:connect).once.and_return(connection)
     expect(Marshal).to receive(:dump).with(args, connection)
     expect(Marshal).to receive(:load).with(connection).and_return(:not_a_job)
-    expect(connection).to receive(:wait_readable).with(10.0).and_return(connection)
     expect(connection).to receive(:eof?).and_return(false)
 
     expect { subject.get_and_lock_next_available(*args) }.to raise_error(Delayed::WorkQueue::ParentProcess::ProtocolError)
@@ -94,7 +72,6 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
     expect(Marshal).to receive(:dump).with(args, connection)
     job.locked_by = "somebody_else"
     expect(Marshal).to receive(:load).with(connection).and_return(job)
-    expect(connection).to receive(:wait_readable).with(10.0).and_return(connection)
     expect(connection).to receive(:eof?).and_return(false)
 
     expect { subject.get_and_lock_next_available(*args) }.to raise_error(Delayed::WorkQueue::ParentProcess::ProtocolError)
