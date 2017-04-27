@@ -14,6 +14,7 @@
 *.a
 mkmf.log
 /spec/gemfiles/.bundle
+/.byebug_history
 .rbenv-vars
 
 docker-compose.override.yml
