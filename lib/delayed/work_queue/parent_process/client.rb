@@ -18,11 +18,17 @@ class ParentProcess
       # to wait for anything to be available on the 'wire', this is a valid
       # assumption because we control the server and it's a Unix domain socket,
       # not TCP.
-      return reset_connection if socket.eof? # Other end closed gracefully, so should we
+      if socket.eof?
+        # Other end closed gracefully, so should we
+        logger.debug("server closed connection")
+        return reset_connection
+      end
+
       Marshal.load(socket).tap do |response|
         unless response.nil? || (response.is_a?(Delayed::Job) && response.locked_by == worker_name)
           raise(ProtocolError, "response is not a locked job: #{response.inspect}")
         end
+        logger.debug("Received job #{response.id}")
       end
     rescue SystemCallError, IOError => ex
       logger.error("Work queue connection lost, reestablishing on next poll. (#{ex})")

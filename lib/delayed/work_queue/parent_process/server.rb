@@ -82,9 +82,12 @@ class ParentProcess
       # request and then leave the socket open. Doing so would leave us hanging
       # in Marshal.load forever. This is only a reasonable assumption because we
       # control the client.
-      return drop_socket(socket) if socket.eof?
-      worker_name, worker_config = Marshal.load(socket)
       client = @clients[socket]
+      if socket.eof?
+        logger.debug("Client #{client.name} closed connection")
+        return drop_socket(socket)
+      end
+      worker_name, worker_config = Marshal.load(socket)
       client.name = worker_name
       client.working = false
       (@waiting_clients[worker_config] ||= []) << client
@@ -106,6 +109,7 @@ class ParentProcess
             next
           end
           begin
+            logger.debug("Sending prefetched job #{job.id} to #{client.name}")
             client_timeout { Marshal.dump(job, client.socket) }
           rescue SystemCallError, IOError, Timeout::Error => ex
             logger.error("Failed to send pre-fetched job to #{client.name}: #{ex.inspect}")
@@ -136,6 +140,7 @@ class ParentProcess
             client.working = true
             @waiting_clients[worker_config].delete(client)
             begin
+              logger.debug("Sending job #{job.id} to #{client.name}")
               client_timeout { Marshal.dump(job, client.socket) }
             rescue SystemCallError, IOError, Timeout::Error => ex
               logger.error("Failed to send job to #{client.name}: #{ex.inspect}")

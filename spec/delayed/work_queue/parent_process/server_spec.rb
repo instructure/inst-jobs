@@ -1,10 +1,22 @@
 require 'spec_helper'
 
 RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
+  class JobClass
+    attr_reader :id
+
+    def initialize
+      @id = rand
+    end
+
+    def ==(other)
+      self.id == other.id
+    end
+  end
+
   let(:parent) { Delayed::WorkQueue::ParentProcess.new }
   let(:subject) { described_class.new(listen_socket) }
   let(:listen_socket) { Socket.unix_server_socket(parent.server_address) }
-  let(:job) { :a_job }
+  let(:job) { JobClass.new }
   let(:worker_config) { { queue: "queue_name", min_priority: 1, max_priority: 2 } }
   let(:args) { ["worker_name", worker_config] }
   let(:job_args) { [["worker_name"], "queue_name", 1, 2, hash_including(prefetch: 4)] }
@@ -47,15 +59,17 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     client2 = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
 
+    job1 = JobClass.new
+    job2 = JobClass.new
     job_args = [["worker_name1", "worker_name2"], "queue_name", 1, 2, hash_including(prefetch: 3)]
-    jobs = { 'worker_name1' => :job1, 'worker_name2' => :job2 }
+    jobs = { 'worker_name1' => job1, 'worker_name2' => job2 }
 
     expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return(jobs)
     Marshal.dump(["worker_name1", worker_config], client1)
     Marshal.dump(["worker_name2", worker_config], client2)
     subject.run_once
-    expect(Marshal.load(client1)).to eq(:job1)
-    expect(Marshal.load(client2)).to eq(:job2)
+    expect(Marshal.load(client1)).to eq(job1)
+    expect(Marshal.load(client2)).to eq(job2)
   end
 
   it 'will prefetch and use jobs' do
@@ -68,12 +82,12 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     job2.create_and_lock!('work_queue:X')
     job3 = Delayed::Job.new(:tag => 'tag')
     job3.create_and_lock!('work_queue:X')
-    jobs = { 'worker_name1' => :job1, 'work_queue:X' => [job2, job3]}
+    jobs = { 'worker_name1' => job, 'work_queue:X' => [job2, job3]}
 
     expect(Delayed::Job).to receive(:get_and_lock_next_available).once.with(*job_args).and_return(jobs)
     Marshal.dump(["worker_name1", worker_config], client)
     subject.run_once
-    expect(Marshal.load(client)).to eq(:job1)
+    expect(Marshal.load(client)).to eq(job)
     Marshal.dump(["worker_name1", worker_config], client)
     subject.run_once
     expect(Marshal.load(client)).to eq(job2)
