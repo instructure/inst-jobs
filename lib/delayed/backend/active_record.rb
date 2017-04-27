@@ -326,6 +326,11 @@ module Delayed
           end
         end
 
+        def self.unlock_orphaned_pending_jobs
+          horizon = db_time_now - Settings.parent_process[:pending_jobs_idle_timeout] * 4
+          where("locked_by LIKE 'work_queue:%' AND locked_at<?", horizon).update_all(locked_at: nil, locked_by: nil)
+        end
+
         def self.unlock(jobs)
           unlocked = where(id: jobs).update_all(locked_at: nil, locked_by: nil)
           jobs.each(&:unlock)
