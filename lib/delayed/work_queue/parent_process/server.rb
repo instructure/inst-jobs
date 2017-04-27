@@ -171,7 +171,11 @@ class ParentProcess
         socket.close
       rescue IOError
       end
+      client = @clients[socket]
       @clients.delete(socket)
+      @waiting_clients.each do |(_config, workers)|
+        workers.delete(client)
+      end
     end
 
     def exit?

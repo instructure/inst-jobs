@@ -112,11 +112,12 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     subject.run_once
 
     Marshal.dump(args, client)
+    # make sure the server knows the client is waiting for a job
+    subject.run_once
 
-    server_client_socket = subject.clients.keys.first
-
-    expect(server_client_socket).to receive(:eof?).and_return(true)
+    client.close
     expect { subject.run_once }.to change(subject, :connected_clients).by(-1)
+    expect(subject.instance_variable_get(:@waiting_clients).first.last).to eq []
   end
 
   it 'drops the client when a write fails' do
@@ -127,6 +128,10 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     subject.run_once
 
     client.close
+
+    server_client_socket = subject.clients.keys.first
+    # don't let the server see the close and process it there; we want to check a failure later
+    expect(subject).to receive(:handle_request).with(server_client_socket)
 
     expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return('worker_name' => job)
     # the job gets unlocked
