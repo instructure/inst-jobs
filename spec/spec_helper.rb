@@ -41,7 +41,7 @@ Delayed::Backend::Redis::Job.redis.select ENV['TEST_ENV_NUMBER']
 
 connection_config = {
   adapter: :postgresql,
-  host: ENV['TEST_DB_HOST'],
+  host: ENV['TEST_DB_HOST'].presence,
   encoding: 'utf8',
   username: ENV['TEST_DB_USERNAME'],
   database: ENV['TEST_DB_DATABASE'],

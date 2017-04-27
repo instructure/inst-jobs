@@ -20,7 +20,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'after_transaction_commit', '~> 1.0'
   s.add_dependency 'rails',           '>= 4.2'
-  s.add_dependency 'rufus-scheduler', '~> 3.3.2'
+  s.add_dependency 'rufus-scheduler', '~> 3.4'
   s.add_dependency 'redis',           '> 3.0'
   s.add_dependency 'redis-scripting', '~> 1.0.1'
 
