@@ -244,20 +244,20 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
     end
   end
 
-  it "unlocks orphaned jobs from work queue" do
+  it "unlocks orphaned prefetched_jobs" do
     job1 = Delayed::Job.new(:tag => 'tag')
     job2 = Delayed::Job.new(:tag => 'tag')
 
-    job1.create_and_lock!("work_queue:a")
+    job1.create_and_lock!("prefetch:a")
     job1.locked_at = Delayed::Job.db_time_now - 15 * 60
     job1.save!
-    job2.create_and_lock!("work_queue:a")
+    job2.create_and_lock!("prefetch:a")
 
-    expect(Delayed::Job.unlock_orphaned_pending_jobs).to eq 1
-    expect(Delayed::Job.unlock_orphaned_pending_jobs).to eq 0
+    expect(Delayed::Job.unlock_orphaned_prefetched_jobs).to eq 1
+    expect(Delayed::Job.unlock_orphaned_prefetched_jobs).to eq 0
 
     expect(Delayed::Job.find(job1.id).locked_by).to be_nil
-    expect(Delayed::Job.find(job2.id).locked_by).to eq 'work_queue:a'
+    expect(Delayed::Job.find(job2.id).locked_by).to eq 'prefetch:a'
   end
 
   it "allows fetching multiple jobs at once" do
@@ -272,8 +272,8 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
   it "allows fetching extra jobs" do
     jobs = 5.times.map { Delayed::Job.create :payload_object => SimpleJob.new }
     locked_jobs = Delayed::Job.get_and_lock_next_available(['worker1'],
-                                                           extra_jobs: 2,
-                                                           extra_jobs_owner: 'work_queue')
+                                                           prefetch: 2,
+                                                           prefetch_owner: 'work_queue')
     expect(locked_jobs.length).to eq 2
     expect(locked_jobs.keys).to eq ['worker1', 'work_queue']
     expect(locked_jobs['worker1']).to eq jobs[0]

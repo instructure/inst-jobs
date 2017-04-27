@@ -7,7 +7,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
   let(:job) { :a_job }
   let(:worker_config) { { queue: "queue_name", min_priority: 1, max_priority: 2 } }
   let(:args) { ["worker_name", worker_config] }
-  let(:job_args) { [["worker_name"], "queue_name", 1, 2, hash_including(extra_jobs: 4)] }
+  let(:job_args) { [["worker_name"], "queue_name", 1, 2, hash_including(prefetch: 4)] }
 
   before :all do
     Delayed.select_backend(Delayed::Backend::ActiveRecord::Job)
@@ -47,7 +47,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     client2 = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
 
-    job_args = [["worker_name1", "worker_name2"], "queue_name", 1, 2, hash_including(extra_jobs: 3)]
+    job_args = [["worker_name1", "worker_name2"], "queue_name", 1, 2, hash_including(prefetch: 3)]
     jobs = { 'worker_name1' => :job1, 'worker_name2' => :job2 }
 
     expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return(jobs)
@@ -58,12 +58,12 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect(Marshal.load(client2)).to eq(:job2)
   end
 
-  it 'will fetch and use extra jobs' do
+  it 'will prefetch and use jobs' do
     client = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
 
-    allow(subject).to receive(:pending_jobs_owner).and_return('work_queue:X')
-    job_args = [["worker_name1"], "queue_name", 1, 2, extra_jobs: 4, extra_jobs_owner: 'work_queue:X']
+    allow(subject).to receive(:prefetch_owner).and_return('work_queue:X')
+    job_args = [["worker_name1"], "queue_name", 1, 2, prefetch: 4, prefetch_owner: 'work_queue:X']
     job2 = Delayed::Job.new(:tag => 'tag')
     job2.create_and_lock!('work_queue:X')
     job3 = Delayed::Job.new(:tag => 'tag')

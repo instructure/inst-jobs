@@ -118,9 +118,9 @@ module Delayed
           Time.now.utc
         end
 
-        def unlock_orphaned_pending_jobs
-          horizon = db_time_now - Settings.parent_process[:pending_jobs_idle_timeout] * 4
-          orphaned_jobs = running_jobs.select { |job| job.locked_by.start_with?('work_queue:') && job.locked_at < horizon }
+        def unlock_orphaned_prefetched_jobs
+          horizon = db_time_now - Settings.parent_process[:prefetched_jobs_timeout] * 4
+          orphaned_jobs = running_jobs.select { |job| job.locked_by.start_with?('prefetch:') && job.locked_at < horizon }
           return 0 if orphaned_jobs.empty?
           unlock(orphaned_jobs)
         end

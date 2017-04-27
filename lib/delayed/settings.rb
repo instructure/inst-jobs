@@ -34,7 +34,7 @@ module Delayed
 
     PARENT_PROCESS_DEFAULTS = {
       server_socket_timeout: 10.0,
-      pending_jobs_idle_timeout: 30.0,
+      prefetched_jobs_timeout: 30.0,
 
       client_connect_timeout: 2.0,
 

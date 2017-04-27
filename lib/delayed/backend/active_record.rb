@@ -202,8 +202,8 @@ module Delayed
                                              queue = Delayed::Settings.queue,
                                              min_priority = nil,
                                              max_priority = nil,
-                                             extra_jobs: 0,
-                                             extra_jobs_owner: nil)
+                                             prefetch: 0,
+                                             prefetch_owner: nil)
 
           check_queue(queue)
           check_priorities(min_priority, max_priority)
@@ -218,7 +218,7 @@ module Delayed
                 effective_worker_names = Array(worker_names)
 
                 target_jobs = all_available(queue, min_priority, max_priority).
-                    limit(effective_worker_names.length + extra_jobs).
+                    limit(effective_worker_names.length + prefetch).
                     lock
                 jobs_with_row_number = all.from(target_jobs).
                     select("id, ROW_NUMBER() OVER () AS row_number")
@@ -226,8 +226,8 @@ module Delayed
                 effective_worker_names.each_with_index do |worker, i|
                   updates << "WHEN #{i + 1} THEN #{connection.quote(worker)} "
                 end
-                if extra_jobs_owner
-                  updates << "ELSE #{connection.quote(extra_jobs_owner)} "
+                if prefetch_owner
+                  updates << "ELSE #{connection.quote(prefetch_owner)} "
                 end
                 updates << "END, locked_at = #{connection.quote(db_time_now)}"
                 # joins and returning in an update! just bypass AR
@@ -238,8 +238,8 @@ module Delayed
                 # all of the jobs we tried to lock had already been locked by someone else
                 if worker_names.is_a?(Array)
                   result = jobs.index_by(&:locked_by)
-                  # all of the extras can come back as an array
-                  result[extra_jobs_owner] = jobs.select { |j| j.locked_by == extra_jobs_owner } if extra_jobs_owner
+                  # all of the prefetched jobs can come back as an array
+                  result[prefetch_owner] = jobs.select { |j| j.locked_by == prefetch_owner } if prefetch_owner
                   return result
                 else
                   return jobs.first
@@ -326,9 +326,9 @@ module Delayed
           end
         end
 
-        def self.unlock_orphaned_pending_jobs
-          horizon = db_time_now - Settings.parent_process[:pending_jobs_idle_timeout] * 4
-          where("locked_by LIKE 'work_queue:%' AND locked_at<?", horizon).update_all(locked_at: nil, locked_by: nil)
+        def self.unlock_orphaned_prefetched_jobs
+          horizon = db_time_now - Settings.parent_process[:prefetched_jobs_timeout] * 4
+          where("locked_by LIKE 'prefetch:%' AND locked_at<?", horizon).update_all(locked_at: nil, locked_by: nil)
         end
 
         def self.unlock(jobs)

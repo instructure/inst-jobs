@@ -11,7 +11,7 @@ class ParentProcess
       @parent_pid = parent_pid
       @clients = {}
       @waiting_clients = {}
-      @pending_work = {}
+      @prefetched_jobs = {}
 
       @config = config
       @client_timeout = config['server_socket_timeout'] || 10.0 # left for backwards compat
@@ -30,12 +30,12 @@ class ParentProcess
     def run
       logger.debug "Starting work queue process"
 
-      last_orphaned_pending_jobs_purge = Job.db_time_now - rand(15 * 60)
+      last_orphaned_prefetched_jobs_purge = Job.db_time_now - rand(15 * 60)
       while !exit?
         run_once
-        if last_orphaned_pending_jobs_purge + 15 * 60 < Job.db_time_now
-          Job.unlock_orphaned_pending_jobs
-          last_orphaned_pending_jobs_purge = Job.db_time_now
+        if last_orphaned_prefetched_jobs_purge + 15 * 60 < Job.db_time_now
+          Job.unlock_orphaned_prefetched_jobs
+          last_orphaned_prefetched_jobs_purge = Job.db_time_now
         end
       end
 
@@ -43,7 +43,7 @@ class ParentProcess
       logger.debug "WorkQueue Server died: #{e.inspect}", :error
       raise
     ensure
-      purge_all_pending_work
+      unlock_all_prefetched_jobs
     end
 
     def run_once
@@ -54,7 +54,7 @@ class ParentProcess
         readable.each { |s| handle_read(s) }
       end
       check_for_work
-      purge_extra_pending_work
+      unlock_timed_out_prefetched_jobs
     end
 
     def handle_read(socket)
@@ -95,13 +95,13 @@ class ParentProcess
 
     def check_for_work
       @waiting_clients.each do |(worker_config, workers)|
-        pending_work = @pending_work[worker_config] ||= []
-        logger.debug("I have #{pending_work.length} jobs for #{workers.length} waiting workers")
-        while !pending_work.empty? && !workers.empty?
-          job = pending_work.shift
+        prefetched_jobs = @prefetched_jobs[worker_config] ||= []
+        logger.debug("I have #{prefetched_jobs.length} jobs for #{workers.length} waiting workers")
+        while !prefetched_jobs.empty? && !workers.empty?
+          job = prefetched_jobs.shift
           client = workers.shift
           # couldn't re-lock it for some reason
-          unless job.transfer_lock!(from: pending_jobs_owner, to: client.name)
+          unless job.transfer_lock!(from: prefetch_owner, to: client.name)
             workers.unshift(client)
             next
           end
@@ -124,12 +124,12 @@ class ParentProcess
               worker_config[:queue],
               worker_config[:min_priority],
               worker_config[:max_priority],
-              extra_jobs: Settings.fetch_batch_size * (worker_config[:workers] || 1) - recipients.length,
-              extra_jobs_owner: pending_jobs_owner)
+              prefetch: Settings.fetch_batch_size * (worker_config[:workers] || 1) - recipients.length,
+              prefetch_owner: prefetch_owner)
           response.each do |(worker_name, job)|
-            if worker_name == pending_jobs_owner
+            if worker_name == prefetch_owner
               # it's actually an array of all the extra jobs
-              pending_work.concat(job)
+              prefetched_jobs.concat(job)
               next
             end
             client = workers.find { |worker| worker.name == worker_name }
@@ -147,22 +147,22 @@ class ParentProcess
       end
     end
 
-    def purge_extra_pending_work
-      @pending_work.each do |(worker_config, jobs)|
+    def unlock_timed_out_prefetched_jobs
+      @prefetched_jobs.each do |(worker_config, jobs)|
         next if jobs.empty?
-        if jobs.first.locked_at < Time.now.utc - Settings.parent_process[:pending_jobs_idle_timeout]
+        if jobs.first.locked_at < Time.now.utc - Settings.parent_process[:prefetched_jobs_timeout]
           Delayed::Job.unlock(jobs)
-          @pending_work[worker_config] = []
+          @prefetched_jobs[worker_config] = []
         end
       end
     end
 
-    def purge_all_pending_work
-      @pending_work.each do |(_worker_config, jobs)|
+    def unlock_all_prefetched_jobs
+      @prefetched_jobs.each do |(_worker_config, jobs)|
         next if jobs.empty?
         Delayed::Job.unlock(jobs)
       end
-      @pending_work = {}
+      @prefetched_jobs = {}
     end
 
     def drop_socket(socket)
@@ -178,8 +178,8 @@ class ParentProcess
       parent_exited?
     end
 
-    def pending_jobs_owner
-      "work_queue:#{Socket.gethostname rescue 'X'}"
+    def prefetch_owner
+      "prefetch:#{Socket.gethostname rescue 'X'}"
     end
 
     def parent_exited?

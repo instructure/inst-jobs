@@ -222,8 +222,8 @@ class Job
       queue = Delayed::Settings.queue,
       min_priority = Delayed::MIN_PRIORITY,
       max_priority = Delayed::MAX_PRIORITY,
-      extra_jobs: nil,
-      extra_jobs_owner: nil)
+      prefetch: nil,
+      prefetch_owner: nil)
 
     check_queue(queue)
     check_priorities(min_priority, max_priority)
