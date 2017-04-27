@@ -119,6 +119,25 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect { subject.run_once }.to change(subject, :connected_clients).by(-1)
   end
 
+  it 'drops the client when a write fails' do
+    client = Socket.unix(subject.listen_socket.local_address.unix_path)
+    subject.run_once
+
+    Marshal.dump(args, client)
+    subject.run_once
+
+    client.close
+
+    expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return('worker_name' => job)
+    # the job gets unlocked
+    expect(Delayed::Job).to receive(:unlock).with([job])
+    subject.run_once
+
+    # and the server removes the client from both of its internal state arrays
+    expect(subject.connected_clients).to eq 0
+    expect(subject.instance_variable_get(:@waiting_clients).first.last).to eq []
+  end
+
   it 'tracks when clients are idle' do
     expect(subject.all_workers_idle?).to be(true)
 
