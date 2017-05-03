@@ -104,6 +104,7 @@ class ParentProcess
           job = prefetched_jobs.shift
           client = workers.shift
           # couldn't re-lock it for some reason
+          logger.debug("Transferring prefetched job to #{client.name}")
           unless job.transfer_lock!(from: prefetch_owner, to: client.name)
             workers.unshift(client)
             next
@@ -120,6 +121,7 @@ class ParentProcess
 
         next if workers.empty?
 
+        logger.debug("Fetching new work for #{workers.length} workers")
         Delayed::Worker.lifecycle.run_callbacks(:work_queue_pop, self, worker_config) do
           recipients = workers.map(&:name)
 
@@ -130,9 +132,11 @@ class ParentProcess
               worker_config[:max_priority],
               prefetch: Settings.fetch_batch_size * (worker_config[:workers] || 1) - recipients.length,
               prefetch_owner: prefetch_owner)
+          logger.debug("Fetched and locked #{response.values.flatten.size} new jobs for workers (#{response.keys.join(', ')}).")
           response.each do |(worker_name, job)|
             if worker_name == prefetch_owner
               # it's actually an array of all the extra jobs
+              logger.debug("Adding prefetched jobs #{job.length} to prefetched array (size: #{prefetched_jobs.count})")
               prefetched_jobs.concat(job)
               next
             end
