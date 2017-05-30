@@ -40,7 +40,7 @@ class ParentProcess
       end
 
     rescue => e
-      logger.debug "WorkQueue Server died: #{e.inspect}", :error
+      logger.error "WorkQueue Server died: #{e.inspect}"
       raise
     ensure
       unlock_all_prefetched_jobs
