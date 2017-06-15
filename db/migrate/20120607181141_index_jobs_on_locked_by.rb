@@ -1,4 +1,4 @@
-class IndexJobsOnLockedBy < ActiveRecord::Migration
+class IndexJobsOnLockedBy < ActiveRecord::Migration[4.2]
   disable_ddl_transaction! if respond_to?(:disable_ddl_transaction!)
 
   def connection

@@ -39,7 +39,7 @@ module Delayed
         before_create :lock_strand_on_create
         def lock_strand_on_create
           if strand.present?
-            self.class.connection.execute("SELECT pg_advisory_xact_lock(#{self.class.connection.quote_table_name('half_md5_as_bigint')}(#{self.class.sanitize(strand)}))")
+            self.class.connection.execute("SELECT pg_advisory_xact_lock(#{self.class.connection.quote_table_name('half_md5_as_bigint')}(#{self.class.connection.quote(strand)}))")
           end
         end
 

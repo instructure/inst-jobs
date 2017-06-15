@@ -1,4 +1,4 @@
-class AddDelayedJobsNextInStrand < ActiveRecord::Migration
+class AddDelayedJobsNextInStrand < ActiveRecord::Migration[4.2]
   def connection
     Delayed::Backend::ActiveRecord::Job.connection
   end

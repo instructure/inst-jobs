@@ -3,7 +3,7 @@ require 'delayed/testing'
 
 require 'database_cleaner'
 require 'rack/test'
-require 'test_after_commit'
+require 'test_after_commit' if ::Rails.version < '5'
 require 'timecop'
 require 'pry'
 
@@ -46,6 +46,15 @@ connection_config = {
   username: ENV['TEST_DB_USERNAME'],
   database: ENV['TEST_DB_DATABASE'],
 }
+
+if ::Rails.version < '5'
+  class ActiveRecord::Migration
+    class << self
+      def [](_version); self; end
+    end
+  end
+end
+
 # create the test db if it does not exist, to help out wwtd
 ActiveRecord::Base.establish_connection(connection_config.merge(database: 'postgres'))
 begin

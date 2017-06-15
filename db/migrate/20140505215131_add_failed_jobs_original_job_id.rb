@@ -1,4 +1,4 @@
-class AddFailedJobsOriginalJobId < ActiveRecord::Migration
+class AddFailedJobsOriginalJobId < ActiveRecord::Migration[4.2]
   def connection
     Delayed::Backend::ActiveRecord::Job.connection
   end

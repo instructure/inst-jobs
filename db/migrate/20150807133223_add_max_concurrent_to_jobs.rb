@@ -1,4 +1,4 @@
-class AddMaxConcurrentToJobs < ActiveRecord::Migration
+class AddMaxConcurrentToJobs < ActiveRecord::Migration[4.2]
   def connection
     Delayed::Job.connection
   end

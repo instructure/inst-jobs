@@ -1,4 +1,4 @@
-class CleanupDelayedJobsIndexes < ActiveRecord::Migration
+class CleanupDelayedJobsIndexes < ActiveRecord::Migration[4.2]
   def connection
     Delayed::Backend::ActiveRecord::Job.connection
   end

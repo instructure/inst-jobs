@@ -61,6 +61,7 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
   it "should unlock a successfully locked job and persist the job's unlocked state" do
     job = Delayed::Job.create :payload_object => SimpleJob.new
     job.send(:lock_exclusively!, 'worker1').should == true
+    job.reload
     job.unlock
     job.save!
     job.reload

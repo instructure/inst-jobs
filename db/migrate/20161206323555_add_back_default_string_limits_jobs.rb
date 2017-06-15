@@ -1,4 +1,4 @@
-class AddBackDefaultStringLimitsJobs < ActiveRecord::Migration
+class AddBackDefaultStringLimitsJobs < ActiveRecord::Migration[4.2]
   def connection
     Delayed::Job.connection
   end

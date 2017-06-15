@@ -1,4 +1,4 @@
-class DelayedJobsDeleteTriggerLockForUpdate < ActiveRecord::Migration
+class DelayedJobsDeleteTriggerLockForUpdate < ActiveRecord::Migration[4.2]
   def connection
     Delayed::Backend::ActiveRecord::Job.connection
   end
