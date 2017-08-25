@@ -122,6 +122,8 @@ class ParentProcess
         next if workers.empty?
 
         logger.debug("Fetching new work for #{workers.length} workers")
+        jobs_to_send = []
+
         Delayed::Worker.lifecycle.run_callbacks(:work_queue_pop, self, worker_config) do
           recipients = workers.map(&:name)
 
@@ -142,15 +144,19 @@ class ParentProcess
             end
             client = workers.find { |worker| worker.name == worker_name }
             client.working = true
-            @waiting_clients[worker_config].delete(client)
-            begin
-              logger.debug("Sending job #{job.id} to #{client.name}")
-              client_timeout { Marshal.dump(job, client.socket) }
-            rescue SystemCallError, IOError, Timeout::Error => ex
-              logger.error("Failed to send job to #{client.name}: #{ex.inspect}")
-              drop_socket(client.socket)
-              Delayed::Job.unlock([job])
-            end
+            jobs_to_send << [client, job]
+          end
+        end
+
+        jobs_to_send.each do |(client, job)|
+          @waiting_clients[worker_config].delete(client)
+          begin
+            logger.debug("Sending job #{job.id} to #{client.name}")
+            client_timeout { Marshal.dump(job, client.socket) }
+          rescue SystemCallError, IOError, Timeout::Error => ex
+            logger.error("Failed to send job to #{client.name}: #{ex.inspect}")
+            drop_socket(client.socket)
+            Delayed::Job.unlock([job])
           end
         end
       end
