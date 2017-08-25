@@ -2,7 +2,15 @@ require 'optparse'
 
 module Delayed
 class CLI
+  class << self
+    attr_accessor :instance
+  end
+
+  attr_reader :config
+
   def initialize(args = ARGV)
+    self.class.instance = self
+
     @args = args
     # config that will be applied on Settings and passed to the created Pool
     @config = {}
