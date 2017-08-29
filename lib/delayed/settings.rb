@@ -85,7 +85,7 @@ module Delayed
         self.send("#{setting}=", config[setting.to_s]) if config.key?(setting.to_s)
       end
       parent_process.client_timeout = config['parent_process_client_timeout'] if config.key?('parent_process_client_timeout')
-      parent_process = config['parent_process'] if config.key?('parent_process')
+      self.parent_process = config['parent_process'] if config.key?('parent_process')
     end
 
     def self.default_worker_config_name

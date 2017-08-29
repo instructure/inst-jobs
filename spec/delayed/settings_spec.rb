@@ -28,6 +28,12 @@ default:
       expect(described_class).to receive(:last_ditch_logfile=).with(true)
       described_class.apply_worker_config!('last_ditch_logfile' => true)
     end
+
+    it 'merges in parent_process overrides to default config' do
+      described_class.apply_worker_config!('parent_process' => { 'foo' => 'bar' })
+
+      expect(Delayed::Settings.parent_process).to include('foo' => 'bar')
+    end
   end
 
   describe '.parent_process_client_timeout=' do
