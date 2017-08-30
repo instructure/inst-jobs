@@ -6,6 +6,9 @@ require 'tmpdir'
 require 'set'
 
 class Worker
+  include Delayed::Logging
+  SIGNALS = %i{INT TERM QUIT CHLD}
+
   attr_reader :config, :queue_name, :min_priority, :max_priority, :work_queue
 
   # Callback to fire when a delayed job fails max_attempts times. If this
@@ -51,6 +54,9 @@ class Worker
     @config = options
     @job_count = 0
 
+    @self_pipe = IO.pipe
+    @signal_queue = []
+
     app = Rails.application
     if app && !app.config.cache_classes
       Delayed::Worker.lifecycle.around(:perform) do |&block|
@@ -76,27 +82,49 @@ class Worker
   end
 
   def exit?
-    @exit || parent_exited?
+    @exit
   end
 
-  def parent_exited?
-    @parent_pid && @parent_pid != Process.ppid
+  def wake_up
+    @self_pipe[1].write_nonblock('.', exception: false)
+    work_queue.wake_up
   end
 
   def start
-    say "Starting worker", :info
+    logger.info "Starting worker"
     set_process_name("start:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || 'max'}")
 
-    trap('INT') { say 'Exiting'; @exit = true }
+    work_thread = Thread.current
+    SIGNALS.each do |sig|
+      trap(sig) { @signal_queue << sig; wake_up }
+    end
 
-    self.class.lifecycle.run_callbacks(:execute, self) do
+    signal_processor = Thread.new do
       loop do
-        run
-        break if exit?
+        @self_pipe[0].read(1)
+        case @signal_queue.pop
+        when :INT, :TERM
+          @exit = true # get the main thread to bail early if it's waiting for a job
+          work_thread.raise(SystemExit) # Force the main thread to bail out of the current job
+          break
+        when :QUIT, :CHLD
+          @exit = true
+        else
+          logger.error "Unknown signal '#{sig}' received"
+        end
       end
     end
 
-    say "Stopping worker", :info
+    self.class.lifecycle.run_callbacks(:execute, self) do
+      until exit? do
+        run
+      end
+    end
+
+    work_queue.close
+    signal_processor.kill
+    signal_processor.join
+    logger.info "Stopping worker"
   rescue => e
     Rails.logger.fatal("Child process died: #{e.inspect}") rescue nil
     self.class.lifecycle.run_callbacks(:exceptional_exit, self, e) { }
@@ -105,6 +133,7 @@ class Worker
   end
 
   def run
+    return if exit?
     self.class.lifecycle.run_callbacks(:loop, self) do
       set_process_name("pop:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || 'max'}")
       job = self.class.lifecycle.run_callbacks(:pop, self) do
@@ -116,23 +145,23 @@ class Worker
           @job_count += perform(job)
 
           if @max_job_count > 0 && @job_count >= @max_job_count
-            say "Max job count of #{@max_job_count} exceeded, dying"
+            logger.debug "Max job count of #{@max_job_count} exceeded, dying"
             @exit = true
           end
 
           if @max_memory_usage > 0
             memory = sample_memory
             if memory > @max_memory_usage
-              say "Memory usage of #{memory} exceeds max of #{@max_memory_usage}, dying"
+              logger.debug "Memory usage of #{memory} exceeds max of #{@max_memory_usage}, dying"
               @exit = true
             else
-              say "Memory usage: #{memory}"
+              logger.debug "Memory usage: #{memory}"
             end
           end
         end
       else
         set_process_name("wait:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || 'max'}")
-        sleep(Settings.sleep_delay + (rand * Settings.sleep_delay_stagger))
+        sleep(Settings.sleep_delay + (rand * Settings.sleep_delay_stagger)) unless exit?
       end
     end
   end
@@ -142,7 +171,7 @@ class Worker
     raise Delayed::Backend::JobExpired, "job expired at #{job.expires_at}" if job.expired?
     self.class.lifecycle.run_callbacks(:perform, self, job) do
       set_process_name("run:#{Settings.worker_procname_prefix}#{job.id}:#{job.name}")
-      say("Processing #{log_job(job, :long)}", :info)
+      logger.info("Processing #{log_job(job, :long)}")
       runtime = Benchmark.realtime do
         if job.batch?
           # each job in the batch will have perform called on it, so we don't
@@ -153,8 +182,13 @@ class Worker
         end
         job.destroy
       end
-      say("Completed #{log_job(job)} #{"%.0fms" % (runtime * 1000)}", :info)
+      logger.info("Completed #{log_job(job)} #{"%.0fms" % (runtime * 1000)}")
     end
+    count
+  rescue SystemExit
+    # There wasn't really a failure here so no callbacks and whatnot needed,
+    # still reschedule the job though.
+    job.reschedule
     count
   rescue Exception => e
     self.class.lifecycle.run_callbacks(:error, self, job, e) do
@@ -179,16 +213,12 @@ class Worker
 
   def handle_failed_job(job, error)
     job.last_error = "#{error.message}\n#{error.backtrace.join("\n")}"
-    say("Failed with #{error.class} [#{error.message}] (#{job.attempts} attempts)", :error)
+    logger.error("Failed with #{error.class} [#{error.message}] (#{job.attempts} attempts)")
     job.reschedule(error)
   end
 
   def id
     Process.pid
-  end
-
-  def say(msg, level = :debug)
-    Rails.logger.send(level, msg)
   end
 
   def log_job(job, format = :short)

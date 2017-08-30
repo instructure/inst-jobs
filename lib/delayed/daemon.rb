@@ -56,15 +56,7 @@ class Daemon
     alive = status(pid: pid, print: false)
     if alive == :running || (kill && alive == :draining)
       puts "Stopping pool #{pid}..."
-      signal = 'INT'
-      if kill
-        pid = -pid # send to the whole group
-        if kill == 9
-          signal = 'KILL'
-        else
-          signal = 'TERM'
-        end
-      end
+      signal = kill ? 'TERM' : 'QUIT'
       begin
         Process.kill(signal, pid)
       rescue Errno::ESRCH

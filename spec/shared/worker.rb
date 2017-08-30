@@ -373,7 +373,6 @@ shared_examples_for 'Delayed::Worker' do
   describe "#start" do
     it "fires off an execute callback on the processing jobs loop" do
       fired = false
-      expect(@worker).to receive(:run)
       expect(@worker).to receive(:exit?).and_return(true)
       Delayed::Worker.lifecycle.before(:execute) { |w| w == @worker && fired = true }
       @worker.start

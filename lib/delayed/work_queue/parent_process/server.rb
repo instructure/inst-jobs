@@ -5,6 +5,7 @@ class ParentProcess
     attr_reader :clients, :listen_socket
 
     include Delayed::Logging
+    SIGNALS = %i{INT TERM QUIT CHLD}
 
     def initialize(listen_socket, parent_pid: nil, config: Settings.parent_process)
       @listen_socket = listen_socket
@@ -15,6 +16,9 @@ class ParentProcess
 
       @config = config
       @client_timeout = config['server_socket_timeout'] || 10.0 # left for backwards compat
+
+      @exit = false
+      @self_pipe = IO.pipe
     end
 
     def connected_clients
@@ -29,6 +33,13 @@ class ParentProcess
     # this method does not return, only exits or raises an exception
     def run
       logger.debug "Starting work queue process"
+
+      SIGNALS.each do |sig|
+        # We're not doing any aggressive exiting here since we really want
+        # prefetched jobs to be unlocked and we're going to wake up the process
+        # from the IO.select we're using to wait on clients.
+        trap(sig) { @exit = true; @self_pipe[1].write_nonblock('.', exception: false) }
+      end
 
       last_orphaned_prefetched_jobs_purge = Job.db_time_now - rand(15 * 60)
       while !exit?
@@ -47,7 +58,7 @@ class ParentProcess
     end
 
     def run_once
-      handles = @clients.keys + [@listen_socket]
+      handles = @clients.keys + [@listen_socket, @self_pipe[0]]
       timeout = Settings.sleep_delay + (rand * Settings.sleep_delay_stagger)
       readable, _, _ = IO.select(handles, nil, nil, timeout)
       if readable
@@ -60,6 +71,10 @@ class ParentProcess
     def handle_read(socket)
       if socket == @listen_socket
         handle_accept
+      elsif socket == @self_pipe[0]
+        # We really don't care about the contents of the pipe, we just need to
+        # wake up.
+        @self_pipe[0].read_nonblock(11, exception: false)
       else
         handle_request(socket)
       end
@@ -194,7 +209,7 @@ class ParentProcess
     end
 
     def exit?
-      parent_exited?
+      !!@exit || parent_exited?
     end
 
     def prefetch_owner

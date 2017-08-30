@@ -1,7 +1,12 @@
 module Delayed
 class Pool
+  include Delayed::Logging
+
   mattr_accessor :on_fork
   self.on_fork = ->{ }
+
+  SIGNALS = %i{INT TERM QUIT}
+  POOL_SLEEP_PERIOD = 5
 
   attr_reader :workers
 
@@ -12,6 +17,8 @@ class Pool
       warn "Calling Delayed::Pool.new directly is deprecated. Use `Delayed::CLI.new.run()` instead."
     end
     @workers = {}
+    @signal_queue = []
+    @self_pipe = IO.pipe
   end
 
   def run
@@ -21,6 +28,7 @@ class Pool
 
   def start
     say "Started job master", :info
+    SIGNALS.each { |sig| trap(sig) { @signal_queue << sig; wake_up } }
     $0 = procname
     # fork to handle unlocking (to prevent polluting the parent with worker objects)
     unlock_pid = fork_with_reconnects do
@@ -33,8 +41,8 @@ class Pool
     say "Workers spawned"
     join
     say "Shutting down"
-  rescue Interrupt => e
-    say "Signal received, exiting", :info
+    stop
+    reap_all_children
   rescue Exception => e
     say "Job master died with error: #{e.inspect}\n#{e.backtrace.join("\n")}", :fatal
     raise
@@ -44,14 +52,6 @@ class Pool
 
   def procname
     "delayed_jobs_pool#{Settings.pool_procname_suffix}"
-  end
-
-  def say(msg, level = :debug)
-    if defined?(Rails.logger) && Rails.logger
-      Rails.logger.send(level, "[#{Process.pid}]P #{msg}")
-    else
-      puts(msg)
-    end
   end
 
   def unlock_orphaned_jobs(worker = nil, pid = nil)
@@ -136,26 +136,102 @@ class Pool
 
   def join
     loop do
-      child = Process.wait
-      if workers.include?(child)
-        worker = workers.delete(child)
-        case worker
-        when :periodic_audit
-          say "ran auditor: #{worker}"
-        when :work_queue
-          say "work queue exited, restarting", :info
-          spawn_work_queue
-        else
-          say "child exited: #{child}, restarting", :info
-          # fork to handle unlocking (to prevent polluting the parent with worker objects)
-          unlock_pid = fork_with_reconnects do
-            unlock_orphaned_jobs(worker, child)
-          end
-          Process.wait unlock_pid
-          spawn_worker(worker.config)
-        end
+      maintain_children
+      case sig = @signal_queue.shift
+      when nil
+        pool_sleep
+      when :QUIT
+        break
+      when :TERM, :INT
+        stop(graceful: false) if Settings.kill_workers_on_exit
+        break
+      else
+        logger.warn("Unexpected signal received: #{sig}")
       end
     end
+  end
+
+  def pool_sleep
+    IO.select([@self_pipe[0]], nil, nil, POOL_SLEEP_PERIOD)
+    @self_pipe[0].read_nonblock(11, exception: false)
+  end
+
+  def stop(graceful: true, timeout: Settings.slow_exit_timeout)
+    signal_for_children = graceful ? :QUIT : :TERM
+    if Settings.kill_workers_on_exit
+      limit = Time.now + timeout
+      until @workers.empty? || Time.now >= limit
+        signal_all_children(signal_for_children)
+        # Give our children some time to process the signal before checking if
+        # they've exited
+        sleep(0.5)
+        reap_all_children.each { |pid| @workers.delete(pid) }
+      end
+
+      # We really want to give the workers every oportunity to clean up after
+      # themselves before murdering them.
+      stop(graceful: false, timeout: 2) if graceful
+      signal_all_children(:KILL)
+    else
+      signal_all_children(signal_for_children)
+    end
+  end
+
+  def signal_all_children(signal)
+    workers.keys.each { |pid| signal_child(signal, pid) }
+  end
+
+  def signal_child(signal, pid)
+    Process.kill(signal, pid)
+  rescue Erron::ESRCH
+    workers.delete(pid)
+  end
+
+  # Respawn all children that have exited since we last checked
+  def maintain_children
+    reap_all_children.each do |pid|
+      respawn_child(pid)
+    end
+  end
+
+  # Reaps processes that have exited or just returns if none have exited
+  #
+  # @return Array An array of child pids that have exited
+  def reap_all_children
+    exited_pids = []
+    begin
+      pid = Process.wait(-1, Process::WNOHANG)
+      break unless pid
+      exited_pids << pid
+    rescue Errno::ECHILD
+      break
+    end while true # I hate doing loops this way but it's the only way to make the rescue work
+    exited_pids
+  end
+
+  def respawn_child(child)
+    if workers.include?(child)
+      worker = workers.delete(child)
+      case worker
+      when :periodic_audit
+        say "ran auditor: #{worker}"
+      when :work_queue
+        say "work queue exited, restarting", :info
+        spawn_work_queue
+      else
+        say "child exited: #{child}, restarting", :info
+        # fork to handle unlocking (to prevent polluting the parent with worker objects)
+        unlock_pid = fork_with_reconnects do
+          unlock_orphaned_jobs(worker, child)
+        end
+        Process.wait unlock_pid
+        spawn_worker(worker.config)
+      end
+    end
+  end
+
+  def wake_up
+    @self_pipe[1].write_nonblock('.', exception: false)
   end
 end
 end

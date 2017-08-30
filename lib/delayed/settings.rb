@@ -5,19 +5,21 @@ require 'active_support/core_ext/hash/indifferent_access'
 module Delayed
   module Settings
     SETTINGS = [
-      :queue,
-      :max_attempts,
-      :sleep_delay,
-      :sleep_delay_stagger,
-      :fetch_batch_size,
-      :select_random_from_batch,
-      :worker_procname_prefix,
-      :pool_procname_suffix,
       :default_job_options,
-      :silence_periodic_log,
       :disable_periodic_jobs,
       :disable_automatic_orphan_unlocking,
+      :fetch_batch_size,
+      :kill_workers_on_exit,
       :last_ditch_logfile,
+      :max_attempts,
+      :pool_procname_suffix,
+      :queue,
+      :select_random_from_batch,
+      :silence_periodic_log,
+      :sleep_delay,
+      :sleep_delay_stagger,
+      :slow_exit_timeout,
+      :worker_procname_prefix,
     ]
     SETTINGS_WITH_ARGS = [ :num_strands ]
 
@@ -61,6 +63,11 @@ module Delayed
 
     self.num_strands = ->(strand_name){ nil }
     self.default_job_options = ->{ Hash.new }
+
+    # Send workers KILL after QUIT if they haven't exited within the
+    # slow_exit_timeout
+    self.kill_workers_on_exit = true
+    self.slow_exit_timeout = 20
 
     def self.worker_config(config_filename = nil)
       config_filename ||= default_worker_config_name

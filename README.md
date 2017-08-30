@@ -110,6 +110,23 @@ production:
 
 ## Usage
 
+### Signal Handling
+
+Inst-jobs makes an attempt at being well behaved with respect to how child
+processes are handled. When the pool receives SIGQUIT it will pass that on
+and wait `Settings.slow_exit_timeout` seconds (default 20) for all children
+to finish their currently active task and exit. If they take longer than
+this a SIGTERM will be sent telling them to clean up and bail quickly, if
+that doesn't happen within 2 seconds SIGKILL is then sent. This graceful exit
+can be expedited by sending SIGTERM/SIGINT to the pool, this will still allow
+the `slow_exit_timeout` period for the workers to exit but they should exit
+almost immediately.
+
+The old behavior of the pool exiting and leaving the child processes orphaned
+can be preserved by setting `kill_workers_on_exit` to false. This will cause
+the first signal sent to the pool to be propagated to all of the child
+processes after which the pool will exit.
+
 ### Running Workers
 
     $ inst_jobs # display help

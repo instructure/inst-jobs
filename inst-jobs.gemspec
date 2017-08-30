@@ -12,6 +12,7 @@ Gem::Specification.new do |s|
   s.homepage    = "https://github.com/instructure/inst-jobs"
   s.summary     = "Instructure-maintained fork of delayed_job"
 
+  s.bindir = "exe"
   s.executables = ['inst_jobs']
   s.files = Dir["{app,config,db,lib}/**/*"]
   s.test_files = Dir["spec/**/*"]

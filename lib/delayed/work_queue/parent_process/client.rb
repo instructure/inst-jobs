@@ -9,6 +9,11 @@ class ParentProcess
     def initialize(addrinfo, config: Settings.parent_process)
       @addrinfo = addrinfo
       @connect_timeout = config['client_connect_timeout'] || 2
+      @self_pipe = IO.pipe
+    end
+
+    def close
+      reset_connection
     end
 
     def get_and_lock_next_available(worker_name, worker_config)
@@ -24,17 +29,28 @@ class ParentProcess
         return reset_connection
       end
 
-      Marshal.load(socket).tap do |response|
-        unless response.nil? || (response.is_a?(Delayed::Job) && response.locked_by == worker_name)
-          raise(ProtocolError, "response is not a locked job: #{response.inspect}")
+      readers, _, _ = IO.select([socket, @self_pipe[0]])
+
+      if readers.include?(@self_pipe[0])
+        # we're probably exiting so we just want to break out of the blocking read
+        logger.debug("Broke out of select due to being awakened, exiting")
+      else
+        Marshal.load(socket).tap do |response|
+          unless response.nil? || (response.is_a?(Delayed::Job) && response.locked_by == worker_name)
+            raise(ProtocolError, "response is not a locked job: #{response.inspect}")
+          end
+          logger.debug("Received job #{response.id}")
         end
-        logger.debug("Received job #{response.id}")
       end
     rescue SystemCallError, IOError => ex
       logger.error("Work queue connection lost, reestablishing on next poll. (#{ex})")
       # The work queue process died. Return nil to signal the worker
       # process should sleep as if no job was found, and then retry.
       reset_connection
+    end
+
+    def wake_up
+      @self_pipe[1].write_nonblock('.', exception: false)
     end
 
     private

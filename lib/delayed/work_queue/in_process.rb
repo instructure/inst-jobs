@@ -12,6 +12,10 @@ class InProcess
         worker_config[:max_priority])
     end
   end
+
+  # intentional nops for compatibility w/ parent process
+  def close; end
+  def wake_up; end
 end
 end
 end

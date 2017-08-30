@@ -21,6 +21,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
   it 'marshals the given arguments to the server and returns the response' do
     expect(addrinfo).to receive(:connect).once.and_return(connection)
     expect(connection).to receive(:eof?).and_return(false)
+    expect(IO).to receive(:select).and_return([[connection], nil, nil])
     expect(Marshal).to receive(:dump).with(args, connection).ordered
     expect(Marshal).to receive(:load).with(connection).and_return(job).ordered
     response = subject.get_and_lock_next_available(*args)
@@ -30,6 +31,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
   it 'returns nil and then reconnects on socket write error' do
     expect(addrinfo).to receive(:connect).once.and_return(connection)
     expect(Marshal).to receive(:dump).and_raise(SystemCallError.new("failure"))
+    expect(IO).to receive(:select).and_return([[connection], nil, nil])
     expect(connection).to receive(:close)
     response = subject.get_and_lock_next_available(*args)
     expect(response).to be_nil
@@ -46,6 +48,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
     expect(addrinfo).to receive(:connect).once.and_return(connection)
     expect(connection).to receive(:eof?).and_return(true)
     expect(Marshal).to receive(:dump).with(args, connection).ordered
+    expect(IO).to receive(:select).and_return([[connection], nil, nil])
     expect(connection).to receive(:close)
     response = subject.get_and_lock_next_available(*args)
     expect(response).to be_nil
@@ -61,6 +64,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
   it 'errors if the response is not a locked job' do
     expect(addrinfo).to receive(:connect).once.and_return(connection)
     expect(Marshal).to receive(:dump).with(args, connection)
+    expect(IO).to receive(:select).and_return([[connection], nil, nil])
     expect(Marshal).to receive(:load).with(connection).and_return(:not_a_job)
     expect(connection).to receive(:eof?).and_return(false)
 
@@ -71,6 +75,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
     expect(addrinfo).to receive(:connect).once.and_return(connection)
     expect(Marshal).to receive(:dump).with(args, connection)
     job.locked_by = "somebody_else"
+    expect(IO).to receive(:select).and_return([[connection], nil, nil])
     expect(Marshal).to receive(:load).with(connection).and_return(job)
     expect(connection).to receive(:eof?).and_return(false)
 

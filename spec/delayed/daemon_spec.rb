@@ -24,10 +24,10 @@ RSpec.describe Delayed::Daemon do
       subject.stop
     end
 
-    it 'sends INT by default' do
+    it 'sends QUIT by default' do
       expect(subject).to receive(:status).with(print: false, pid: pid).and_return(:running)
       expect(subject).to receive(:puts).with(/Stopping pool/)
-      expect(Process).to receive(:kill).with('INT', pid)
+      expect(Process).to receive(:kill).with('QUIT', pid)
       expect(subject).to receive(:wait).with(false)
       subject.stop
     end
