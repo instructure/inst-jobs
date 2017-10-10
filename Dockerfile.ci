@@ -2,7 +2,7 @@ FROM instructure/rvm
 
 WORKDIR /usr/src/app
 
-RUN /bin/bash -lc "rvm use --default 2.3"
+RUN /bin/bash -lc "rvm use --default 2.4"
 
 COPY inst-jobs.gemspec Gemfile* /usr/src/app/
 COPY lib/delayed/version.rb /usr/src/app/lib/delayed/version.rb

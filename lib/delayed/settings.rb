@@ -19,6 +19,8 @@ module Delayed
       :sleep_delay,
       :sleep_delay_stagger,
       :slow_exit_timeout,
+      :worker_health_check_type,
+      :worker_health_check_config,
       :worker_procname_prefix,
     ]
     SETTINGS_WITH_ARGS = [ :num_strands ]
@@ -69,6 +71,9 @@ module Delayed
     self.kill_workers_on_exit = true
     self.slow_exit_timeout = 20
 
+    self.worker_health_check_type = :none
+    self.worker_health_check_config = {}
+
     def self.worker_config(config_filename = nil)
       config_filename ||= default_worker_config_name
       config = YAML.load(ERB.new(File.read(config_filename)).result)
@@ -116,6 +121,10 @@ module Delayed
     def self.parent_process=(new_config)
       raise 'Parent process configurations must be a hash!' unless Hash === new_config
       @@parent_process = PARENT_PROCESS_DEFAULTS.merge(new_config)
+    end
+
+    def self.worker_health_check_config=(new_config)
+      @@worker_health_check_config = (new_config || {}).with_indifferent_access
     end
   end
 end

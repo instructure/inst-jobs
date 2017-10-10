@@ -20,8 +20,6 @@ class Periodic
     self.overrides.merge!(overrides)
   end
 
-  STRAND = 'periodic scheduling'
-
   def self.cron(job_name, cron_line, job_args = {}, &block)
     raise ArgumentError, "job #{job_name} already scheduled!" if self.scheduled[job_name]
     cron_line = overrides[job_name] || cron_line

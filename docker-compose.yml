@@ -7,12 +7,22 @@ services:
     environment:
       TEST_DB_HOST: postgres
       TEST_REDIS_CONNECTION: redis://redis:6379/
+      TEST_CONSUL_URL: http://consul:8500
     links:
       - postgres
       - redis
+      - consul
 
   postgres:
     image: postgres:9.3
 
   redis:
     image: redis:2.6
+
+  consul:
+    image: consul:0.7.5
+    command: agent -dev -client 0.0.0.0 -datacenter inst-jobs-dev -node inst-jobs-consul -bootstrap
+    environment:
+      GOMAXPROCS: "2"
+      VIRTUAL_PORT: 8500
+

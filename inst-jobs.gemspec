@@ -37,4 +37,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'sinatra'
   s.add_development_dependency 'sinatra-contrib'
   s.add_development_dependency 'rack-test'
+  s.add_development_dependency 'imperium', '>= 0.2.3'
 end

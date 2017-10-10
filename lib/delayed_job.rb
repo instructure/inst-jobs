@@ -36,6 +36,11 @@ require 'delayed/periodic'
 require 'delayed/plugin'
 require 'delayed/pool'
 require 'delayed/worker'
+
+require 'delayed/worker/health_check'
+require 'delayed/worker/consul_health_check'
+require 'delayed/worker/null_health_check'
+
 require 'delayed/work_queue/in_process'
 require 'delayed/work_queue/parent_process'
 

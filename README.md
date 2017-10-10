@@ -320,6 +320,38 @@ other raven-ruby configuration:
 require 'raven/integrations/delayed_job'
 ```
 
+### Worker Health Checking and Unlocking Orphaned Jobs
+
+Occasionally a worker will unexpectedly terminate without being allowed to run
+any cleanup code, when this happens it causes any jobs that process had locked
+to remain locked indefinitely. To alleviate this each worker can register itself
+with a locally running consul agent which will watch that each process is still
+alive, when a process is found to be dead it will automatically be deregistered
+from the agent causing another process to come along and reschedule the locked job.
+
+
+#### Configuring the Consul health check
+
+In order to use the Consul health check you must include the `imperium` gem,
+version 0.2.3 or newer, in your application's Gemfile. It is not included in the
+default dependencies because it is an optional feature.
+
+```ruby
+# Enable the consul health check
+Setting.worker_health_check_type = :consul
+
+# Configure the health check
+Setting.worker_health_check = {
+  service_name: 'canvas-worker', # Optional, defaults to 'inst-jobs_worker'
+  check_interval: '7m', # Optional, defaults to 5m
+}
+
+# Schedule a periodic job to clean up abandoned jobs
+Delayed::Periodic.cron 'abandoned job cleanup', '*/10 * * * *' do
+  Delayed::Worker::HealthCheck.reschedule_abandoned_jobs
+end
+```
+
 ## Testing
 
 To write tests that interact with inst-jobs, you'll need to configure

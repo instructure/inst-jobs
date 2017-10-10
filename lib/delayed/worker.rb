@@ -51,6 +51,8 @@ class Worker
     @max_job_count = options[:worker_max_job_count].to_i
     @max_memory_usage = options[:worker_max_memory_usage].to_i
     @work_queue = options.delete(:work_queue) || WorkQueue::InProcess.new
+    @health_check_type = Settings.worker_health_check_type
+    @health_check_config = Settings.worker_health_check_config
     @config = options
     @job_count = 0
 
@@ -99,6 +101,8 @@ class Worker
       trap(sig) { @signal_queue << sig; wake_up }
     end
 
+    health_check.start
+
     signal_processor = Thread.new do
       loop do
         @self_pipe[0].read(1)
@@ -121,14 +125,17 @@ class Worker
       end
     end
 
-    work_queue.close
-    signal_processor.kill
-    signal_processor.join
     logger.info "Stopping worker"
   rescue => e
     Rails.logger.fatal("Child process died: #{e.inspect}") rescue nil
     self.class.lifecycle.run_callbacks(:exceptional_exit, self, e) { }
   ensure
+    health_check.stop
+    work_queue.close
+    if signal_processor
+      signal_processor.kill
+      signal_processor.join
+    end
     Delayed::Job.clear_locks!(name)
   end
 
@@ -246,6 +253,14 @@ class Worker
     end
   ensure
     ENV['TMPDIR'] = previous_tmpdir
+  end
+
+  def health_check
+    @health_check ||= HealthCheck.build(
+      type: @health_check_type,
+      worker_name: name,
+      config: @health_check_config
+    )
   end
 
   # `sample` reports KB, not B
