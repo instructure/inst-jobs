@@ -356,6 +356,19 @@ shared_examples_for 'a backend' do
         # it should be scheduled to run immediately
         Delayed::Job.get_and_lock_next_available('w1').should == job1
       end
+
+      it "should update existing job to a later date if requested" do
+        t1 = 1.hour.from_now
+        t2 = 2.hours.from_now
+        job1 = create_job(singleton: 'myjobs', run_at: t1)
+        job2 = create_job(singleton: 'myjobs', run_at: t2)
+        job2.should == job1
+        job2.run_at.to_i.should == t1.to_i
+
+        job3 = create_job(singleton: 'myjobs', run_at: t2, on_conflict: :overwrite)
+        job3.should == job1
+        job3.run_at.to_i.should == t2.to_i
+      end
     end
   end
 

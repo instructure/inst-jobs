@@ -360,7 +360,7 @@ class Job
   end
 
   # not saved, just used as a marker when creating
-  attr_accessor :singleton
+  attr_accessor :singleton, :on_conflict
 
   def transfer_lock!(from:, to:)
     lock_in_redis!(to)
@@ -442,7 +442,15 @@ class Job
       # replace this job with the other for returning.
       if job_id != self.id
         singleton = self.class.find(job_id)
-        singleton.run_at = [singleton.run_at, run_at].min
+
+        self.on_conflict ||= :use_earliest
+        singleton.run_at =
+          case self.on_conflict
+          when :use_earliest
+            [singleton.run_at, run_at].min
+          when :overwrite
+            run_at
+          end
         singleton.save! if singleton.changed?
         COLUMNS.each { |c| send("#{c}=", singleton.send(c)) }
       end

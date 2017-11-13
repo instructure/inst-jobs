@@ -312,12 +312,19 @@ module Delayed
         # on the strand but it's already running)
         def self.create_singleton(options)
           strand = options[:strand]
+          on_conflict = options.delete(:on_conflict) || :use_earliest
           transaction_for_singleton(strand) do
             job = self.where(:strand => strand, :locked_at => nil).order(:id).first
             new_job = new(options)
             if job
               new_job.initialize_defaults
-              job.run_at = [job.run_at, new_job.run_at].min
+              job.run_at =
+                case on_conflict
+                when :use_earliest
+                  [job.run_at, new_job.run_at].min
+                when :overwrite
+                  new_job.run_at
+                end
               job.save! if job.changed?
             else
               new_job.save!
