@@ -7,7 +7,7 @@ require 'set'
 
 class Worker
   include Delayed::Logging
-  SIGNALS = %i{INT TERM QUIT CHLD}
+  SIGNALS = %i{INT TERM QUIT}
 
   attr_reader :config, :queue_name, :min_priority, :max_priority, :work_queue
 
@@ -111,7 +111,7 @@ class Worker
           @exit = true # get the main thread to bail early if it's waiting for a job
           work_thread.raise(SystemExit) # Force the main thread to bail out of the current job
           break
-        when :QUIT, :CHLD
+        when :QUIT
           @exit = true
         else
           logger.error "Unknown signal '#{sig}' received"
