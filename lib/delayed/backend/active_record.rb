@@ -230,8 +230,18 @@ module Delayed
                   updates << "ELSE #{connection.quote(prefetch_owner)} "
                 end
                 updates << "END, locked_at = #{connection.quote(db_time_now)}"
-                # joins and returning in an update! just bypass AR
-                query = "UPDATE #{quoted_table_name} SET #{updates} FROM (#{jobs_with_row_number.to_sql}) j2 WHERE j2.id=delayed_jobs.id RETURNING delayed_jobs.*"
+
+                # Originally this was done with a subquery, but this allows the query planner to
+                # side-step the LIMIT. We use a CTE here to force the subquery to be materialized
+                # before running the UPDATE.
+                #
+                # For more details, see:
+                #  * https://dba.stackexchange.com/a/69497/55285
+                #  * https://github.com/feikesteenbergen/demos/blob/b7ecee8b2a79bf04cbcd74972e6bfb81903aee5d/bugs/update_limit_bug.txt
+                query = "WITH limited_jobs AS (#{jobs_with_row_number.to_sql}) " \
+                        "UPDATE #{quoted_table_name} SET #{updates} FROM limited_jobs WHERE limited_jobs.id=#{quoted_table_name}.id " \
+                        "RETURNING #{quoted_table_name}.*"
+
                 jobs = find_by_sql(query)
                 # because this is an atomic query, we don't have to return more jobs than we needed
                 # to try and lock them, nor is there a possibility we need to try again because
