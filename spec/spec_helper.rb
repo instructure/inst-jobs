@@ -1,5 +1,3 @@
-require 'rails' # This is a prerequisite for some of our testing
-
 require 'delayed_job'
 require 'delayed/testing'
 

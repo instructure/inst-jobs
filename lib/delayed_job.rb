@@ -12,6 +12,7 @@ module Delayed
   end
 end
 
+require 'rails'
 require 'active_support/core_ext/module/attribute_accessors'
 require 'active_record'
 require 'after_transaction_commit'
