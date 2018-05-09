@@ -10,18 +10,24 @@ module Delayed
       DEFAULT_SERVICE_NAME = 'inst-jobs_worker'.freeze
       attr_reader :agent_client, :catalog_client
 
+      STAT_LINUX = 'stat -f %%Y /proc/$WORKER_PID'
+      STAT_MAC = 'ps -o lstart -p $WORKER_PID'
+      STAT = RUBY_PLATFORM =~ /darwin/ ? STAT_MAC : STAT_LINUX
+      ALIVE_CHECK_LINUX = '[ -d "/proc/$WORKER_PID" ]'
+      ALIVE_CHECK_MAC = 'ps -p $WORKER_PID > /dev/null'
+      ALIVE_CHECK = RUBY_PLATFORM =~ /darwin/ ? ALIVE_CHECK_MAC : ALIVE_CHECK_LINUX
       SCRIPT_TEMPLATE = <<-BASH.freeze
         WORKER_PID="%<pid>d" # an example, filled from ruby when the check is created
-        ORIGINAL_MTIME="%<mtime>d" # an example, filled from ruby when the check is created
+        ORIGINAL_MTIME="%<mtime>s" # an example, filled from ruby when the check is created
 
-        if [ -d "/proc/$WORKER_PID" ]; then
-            CURRENT_MTIME=$(stat -f %%Y /proc/$WORKER_PID)
+        if #{ALIVE_CHECK}; then
+            CURRENT_MTIME=$(#{STAT})
 
             if [ "$ORIGINAL_MTIME" = "$CURRENT_MTIME" ]; then
                 exit 0 # Happy day
             else
                 echo "PID still exists but procfs entry has changed, current command:"
-                ps -p $PID -o 'command='
+                ps -p $WORKER_PID -o 'command='
                 exit 1 # Something is wrong, trigger a "warning" state
             fi
         else
@@ -88,8 +94,12 @@ module Delayed
 
       def check_script
         return @check_script if @check_script
-        stat = File::Stat.new("/proc/#{Process.pid}")
-        @check_script = sprintf(SCRIPT_TEMPLATE, {pid: Process.pid, mtime: stat.mtime.to_i})
+        if RUBY_PLATFORM =~ /darwin/
+          mtime = `ps -o lstart -p #{Process.pid}`.sub(/\n$/, '')
+        else
+          mtime = File::Stat.new("/proc/#{Process.pid}").mtime.to_i.to_s
+        end
+        @check_script = sprintf(SCRIPT_TEMPLATE, {pid: Process.pid, mtime: mtime})
       end
 
       # This method is horrible, it takes advantage of the fact that docker uses
