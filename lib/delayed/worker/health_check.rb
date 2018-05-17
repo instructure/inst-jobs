@@ -19,6 +19,8 @@ module Delayed
         end
 
         def reschedule_abandoned_jobs
+          return if Settings.worker_health_check_type == :none
+
           checker = Worker::HealthCheck.build(
             type: Settings.worker_health_check_type,
             config: Settings.worker_health_check_config,
