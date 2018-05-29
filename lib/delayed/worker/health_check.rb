@@ -30,7 +30,12 @@ module Delayed
 
           Delayed::Job.running_jobs.each do |job|
             unless live_workers.include?(job.locked_by)
-              job.reschedule
+              Delayed::Job.transaction do
+                # double check that the job is still there. locked_by will immediately be reset
+                # to nil in this transaction by Job#reschedule
+                next unless Delayed::Job.where(id: job, locked_by: job.locked_by).update_all(locked_by: "abandoned job cleanup") == 1
+                job.reschedule
+              end
             end
           end
         end
