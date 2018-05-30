@@ -157,6 +157,12 @@ shared_examples_for 'Delayed::Worker' do
       @job.run_at.should < Delayed::Job.db_time_now + 10.minutes
     end
 
+    it "should accept :unlock return value from on_failure during reschedule and unlock the job" do
+      expect_any_instance_of(Delayed::Job).to receive(:unlock).once
+      @job = Delayed::Job.enqueue(UnlockJob.new(1))
+      @worker.perform(@job)
+    end
+
     it "should notify jobs on failure" do
       ErrorJob.failure_runs = 0
       @worker.perform(@job)

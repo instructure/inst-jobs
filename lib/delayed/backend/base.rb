@@ -169,12 +169,13 @@ module Delayed
       def reschedule(error = nil, time = nil)
         begin
           obj = payload_object
-          obj.on_failure(error) if obj && obj.respond_to?(:on_failure)
+          return_code = obj.on_failure(error) if obj && obj.respond_to?(:on_failure)
         rescue
           # don't allow a failed deserialization to prevent rescheduling
         end
 
-        self.attempts += 1
+        self.attempts += 1 unless return_code == :unlock
+
         if self.attempts >= (self.max_attempts || Delayed::Settings.max_attempts)
           permanent_failure error || "max attempts reached"
         elsif expired?

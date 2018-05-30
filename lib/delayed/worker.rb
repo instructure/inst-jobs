@@ -192,10 +192,10 @@ class Worker
       logger.info("Completed #{log_job(job)} #{"%.0fms" % (runtime * 1000)}")
     end
     count
-  rescue SystemExit
+  rescue SystemExit => se
     # There wasn't really a failure here so no callbacks and whatnot needed,
     # still reschedule the job though.
-    job.reschedule
+    job.reschedule(se)
     count
   rescue Exception => e
     self.class.lifecycle.run_callbacks(:error, self, job, e) do

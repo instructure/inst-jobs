@@ -16,6 +16,20 @@ class ErrorJob
   def on_permanent_failure(error); @@last_error = error; @@permanent_failure_runs += 1; end
 end
 
+class UnlockJob
+  attr_accessor :times_to_unlock
+  def initialize(times_to_unlock)
+    @times_to_unlock = times_to_unlock
+  end
+
+  def perform; raise SystemExit, 'raising to trigger on_failure'; end
+
+  def on_failure(error)
+    times_to_unlock -= 1
+    :unlock if times_to_unlock <= 0
+  end
+end
+
 class LongRunningJob
   def perform; sleep 250; end
 end
