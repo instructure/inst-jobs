@@ -6,6 +6,7 @@ require 'rack/test'
 require 'test_after_commit' if ::Rails.version < '5'
 require 'timecop'
 require 'pry'
+require 'byebug'
 
 RSpec.configure do |config|
 
@@ -55,6 +56,14 @@ if ::Rails.version < '5'
   end
 end
 
+def migrate(file)
+  if ::Rails.version < '5.2'
+    ActiveRecord::Migrator.migrate(file)
+  else
+    ActiveRecord::MigrationContext.new(file).migrate
+  end
+end
+
 # create the test db if it does not exist, to help out wwtd
 ActiveRecord::Base.establish_connection(connection_config.merge(database: 'postgres'))
 begin
@@ -64,8 +73,8 @@ end
 ActiveRecord::Base.establish_connection(connection_config)
 # TODO reset db and migrate again, to test migrations
 
-ActiveRecord::Migrator.migrate("db/migrate")
-ActiveRecord::Migrator.migrate("spec/migrate")
+migrate("db/migrate")
+migrate("spec/migrate")
 Delayed::Backend::ActiveRecord::Job.reset_column_information
 Delayed::Backend::ActiveRecord::Job::Failed.reset_column_information
 

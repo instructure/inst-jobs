@@ -2,8 +2,8 @@ version: "2"
 services:
   app:
     volumes:
-      - "gems:/home/docker/.gem"
+      - "rvm:/home/docker/.rvm"
       - ".:/usr/src/app"
 
 volumes:
-  gems: {}
+  rvm: {}

@@ -380,8 +380,36 @@ build, which spins up the necessary services in docker:
 
 ```
 $> ./build.sh
-# or to run individual tests:
-$> docker-compose build && docker-compose run --rm app rspec spec/delayed/cli_spec.rb
+```
+
+#### Running individual tests in Docker
+
+This repo uses `rvm` to run specs under a variety of ruby versions. For local
+testing, you probably just want to get things tested under _some_ ruby version.
+Here's how.
+
+First, you'll want a persistent gems volume, which you can get by:
+
+```
+$> cp docker-compose.override.yml.example docker-compose.override.yml
+```
+
+Then you can install gems with:
+
+```
+$> docker-compose run --rm app bash -lc "rvm-exec 2.3 bundle"
+```
+
+Now, to run an individual spec:
+
+```
+$> docker-compose run --rm app bash -lc "rvm-exec 2.3 bundle exec rspec spec/delayed/worker_spec.rb"
+```
+
+You can also run the whole suite, but under just one rvm context, with:
+
+```
+$> docker-compose run --rm app bash -lc "rvm-exec 2.3 bundle exec rake spec"
 ```
 
 ### Writing Tests
