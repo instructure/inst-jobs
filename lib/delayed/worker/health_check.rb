@@ -29,6 +29,8 @@ module Delayed
           live_workers = checker.live_workers
 
           Delayed::Job.running_jobs.each do |job|
+            # prefetched jobs have their own way of automatically unlocking themselves
+            next if job.locked_by.start_with?("prefetch:")
             unless live_workers.include?(job.locked_by)
               Delayed::Job.transaction do
                 # double check that the job is still there. locked_by will immediately be reset

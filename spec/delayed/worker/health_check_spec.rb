@@ -97,6 +97,14 @@ RSpec.describe Delayed::Worker::HealthCheck do
       @dead_job.reload
       expect(@dead_job.locked_by).to eq 'someone_else'
     end
+
+    it 'ignores jobs that are prefetched' do
+      Delayed::Job.where(id: @dead_job).update_all(locked_by: 'prefetch:some_node')
+      allow(Delayed::Job).to receive(:running_jobs).and_return([@dead_job])
+      Delayed::Worker::HealthCheck.reschedule_abandoned_jobs
+      @dead_job.reload
+      expect(@dead_job.locked_by).to eq 'prefetch:some_node'
+    end
   end
 
   describe '#initialize' do
