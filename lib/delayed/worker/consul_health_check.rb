@@ -10,7 +10,7 @@ module Delayed
       DEFAULT_SERVICE_NAME = 'inst-jobs_worker'.freeze
       attr_reader :agent_client, :catalog_client
 
-      STAT_LINUX = 'stat -f %%Y /proc/$WORKER_PID'
+      STAT_LINUX = 'stat --format=%%Y /proc/$WORKER_PID'
       STAT_MAC = 'ps -o lstart -p $WORKER_PID'
       STAT = RUBY_PLATFORM =~ /darwin/ ? STAT_MAC : STAT_LINUX
       ALIVE_CHECK_LINUX = '[ -d "/proc/$WORKER_PID" ]'
