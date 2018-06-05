@@ -118,6 +118,11 @@ module Delayed
           Time.now.utc
         end
 
+        def processes_locked_locally(name: nil)
+          name ||= Socket.gethostname rescue x
+          running_jobs.select{|job| job.locked_by.start_with?("#{name}:")}.map{|job| job.locked_by.split(':').last.to_i}
+        end
+
         def unlock_orphaned_prefetched_jobs
           horizon = db_time_now - Settings.parent_process[:prefetched_jobs_timeout] * 4
           orphaned_jobs = running_jobs.select { |job| job.locked_by.start_with?('prefetch:') && job.locked_at < horizon }

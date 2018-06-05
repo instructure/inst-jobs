@@ -343,6 +343,11 @@ module Delayed
           end
         end
 
+        def self.processes_locked_locally(name: nil)
+          name ||= Socket.gethostname rescue x
+          where("locked_by LIKE ?", "#{name}:%").pluck(:locked_by).map{|locked_by| locked_by.split(":").last.to_i}
+        end
+
         def self.unlock_orphaned_prefetched_jobs
           horizon = db_time_now - Settings.parent_process[:prefetched_jobs_timeout] * 4
           where("locked_by LIKE 'prefetch:%' AND locked_at<?", horizon).update_all(locked_at: nil, locked_by: nil)
