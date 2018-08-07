@@ -187,7 +187,7 @@ module Delayed
             end
 
           scope = scope.group(:tag).offset(offset).limit(limit)
-          scope.order("COUNT(tag) DESC").count.map { |t,c| { :tag => t, :count => c } }
+          scope.order(Arel.sql("COUNT(tag) DESC")).count.map { |t,c| { :tag => t, :count => c } }
         end
 
         def self.maybe_silence_periodic_log(&block)
