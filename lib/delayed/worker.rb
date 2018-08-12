@@ -63,11 +63,19 @@ class Worker
     if app && !app.config.cache_classes
       Delayed::Worker.lifecycle.around(:perform) do |worker, job, &block|
         reload = app.config.reload_classes_only_on_change != true || app.reloaders.map(&:updated?).any?
-        ActionDispatch::Reloader.prepare! if reload
+
+        if reload
+          if defined?(ActiveSupport::Reloader)
+            Rails.application.reloader.reload!
+          else
+            ActionDispatch::Reloader.prepare!
+          end
+        end
+
         begin
           block.call(worker, job)
         ensure
-          ActionDispatch::Reloader.cleanup! if reload
+          ActionDispatch::Reloader.cleanup! if reload && !defined?(ActiveSupport::Reloader)
         end
       end
     end
