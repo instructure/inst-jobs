@@ -16,10 +16,16 @@ module Delayed
       if using_active_record? && !ActiveRecord::Base.connected?
         ActiveRecord::Base.establish_connection(ENV['DATABASE_URL'])
       end
+
+      @allow_update = args.length > 0 && args[0][:update]
     end
 
     def using_active_record?
       Delayed::Job == Delayed::Backend::ActiveRecord::Job
+    end
+
+    def allow_update
+      @allow_update
     end
 
     # Ensure we're connected to the DB before processing the request
@@ -97,6 +103,19 @@ module Delayed
         recordsTotal: total_records,
         recordsFiltered: jobs.size,
         data: build_jobs_json(jobs),
+      })
+    end
+
+    post '/bulk_update' do
+      content_type :json
+
+      halt 403 unless @allow_update
+
+      payload = JSON.parse(request.body.read).symbolize_keys
+      Delayed::Job.bulk_update(payload[:action], { ids: payload[:ids] })
+
+      json({
+        success: true
       })
     end
 

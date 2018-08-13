@@ -20,6 +20,7 @@ module Delayed
             running: url_path('running'),
             tags: url_path('tags'),
             jobs: url_path('jobs'),
+            bulkUpdate: url_path('bulk_update'),
           }
         }.to_json
       end

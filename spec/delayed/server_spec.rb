@@ -4,8 +4,10 @@ require 'delayed/server'
 RSpec.describe Delayed::Server, sinatra: true do
   include Rack::Test::Methods
 
+  @update = false
+
   def app
-    described_class.new
+    described_class.new(update: @update)
   end
 
   def parsed_body
@@ -57,6 +59,46 @@ RSpec.describe Delayed::Server, sinatra: true do
 
       it 'must set recordsFiltered in the response to 1' do
         expect(parsed_body['recordsFiltered']).to eq 1
+      end
+    end
+  end
+
+  describe "post '/bulk_update'" do
+    let!(:job_1) { Delayed::Job.enqueue(SimpleJob.new, strand: 'strand-1') }
+    let!(:job_2) { Delayed::Job.enqueue(SimpleJob.new, strand: 'strand-2') }
+    let!(:job_3) { Delayed::Job.enqueue(SimpleJob.new, strand: 'strand-3') }
+
+    context 'with update enabled' do
+      before do
+        @update = true
+        post "/bulk_update", params=JSON.generate(action: 'destroy', ids: [job_1.id])
+      end
+
+      it 'must remove job_1' do
+        expect{ Delayed::Job.find(job_1.id) }.to raise_error(ActiveRecord::RecordNotFound)
+        expect(Delayed::Job.find(job_2.id)).to_not be_nil
+        expect(Delayed::Job.find(job_3.id)).to_not be_nil
+      end
+
+      it 'must return ok' do
+        expect(last_response.ok?).to be true
+      end
+    end
+
+    context 'with update disabled' do
+      before do
+        @update = false
+        post "/bulk_update", params=JSON.generate(action: 'destroy', ids: [job_1.id])
+      end
+
+      it 'must not remove job_1' do
+        expect(Delayed::Job.find(job_1.id)).to_not be_nil
+        expect(Delayed::Job.find(job_2.id)).to_not be_nil
+        expect(Delayed::Job.find(job_3.id)).to_not be_nil
+      end
+
+      it 'must return forbidden' do
+        expect(last_response.forbidden?).to be true
       end
     end
   end

@@ -429,6 +429,13 @@ end
 
 ## Web UI
 
+inst-jobs has a built-in web ui that allows users to view running jobs.
+Optionally, this web ui can support basic job management as well (hold, unhold,
+and delete operations are supported).  To enable this feature, pass a hash
+containing `update: true` into the `Delayed::Server` constructor.  You probably
+want to ensure that the jobs endpoint requires authentication before enabling
+this feature.
+
 ### For Rails Apps
 To use the web UI in your existing Rails application there are two options,
 first "The Rails Way" as shown just below this text or the Rack way shown

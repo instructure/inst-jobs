@@ -60,13 +60,28 @@
         </span>
       </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-<%= allow_update ? 2 : 6 %>">
     </div>
     <div class="col-md-1">
       <a href="" class="btn btn-default pull-right refresh_jobs_link" aria-label="Refresh Jobs Table">
         <span class="glyphicon glyphicon-refresh"></span> Refresh
       </a>
     </div>
+    <% if allow_update %>
+    <div class="col-md-4">
+      <span>With selection: </span>
+      <br/>
+      <a href="" class="btn btn-default hold_selection_link" aria-label="Hold Selected Jobs">
+        <span class="glyphicon glyphicon-pause"></span> Hold
+      </a>
+      <a href="" class="btn btn-default unhold_selection_link" aria-label="Un-hold Selected Jobs">
+        <span class="glyphicon glyphicon-play"></span> Un-Hold
+      </a>
+      <a href="" class="btn btn-default delete_selection_link" aria-label="Delete Selected Jobs">
+        <span class="glyphicon glyphicon-trash"></span> Delete
+      </a>
+    </div>
+    <% end %>
   </div>
 </div>
 
