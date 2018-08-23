@@ -13,6 +13,10 @@ shared_examples_for 'Delayed::Worker' do
     Delayed::Settings.sleep_delay = ->{ 0.01 }
   end
 
+  after do
+    Delayed::Settings.sleep_delay = 2.0
+  end
+
   describe "running a job" do
     it "should not fail when running a job with a % in the name" do
       @job = "Some % Name here".send_later_enqueue_args(:starts_with?, { no_delay: true }, "Some % Name")

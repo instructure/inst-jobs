@@ -223,7 +223,8 @@ class Job
       min_priority = Delayed::MIN_PRIORITY,
       max_priority = Delayed::MAX_PRIORITY,
       prefetch: nil,
-      prefetch_owner: nil)
+      prefetch_owner: nil,
+      forced_latency: nil)
 
     check_queue(queue)
     check_priorities(min_priority, max_priority)
@@ -234,7 +235,9 @@ class Job
 
     # as an optimization this lua function returns the hash of job attributes,
     # rather than just a job id, saving a round trip
-    job_attrs = functions.get_and_lock_next_available(worker_name, queue, min_priority, max_priority, db_time_now)
+    now = db_time_now
+    now -= forced_latency if forced_latency
+    job_attrs = functions.get_and_lock_next_available(worker_name, queue, min_priority, max_priority, now)
     job = instantiate_from_attrs(job_attrs) # will return nil if the attrs are blank
     if multiple_workers
       if job.nil?

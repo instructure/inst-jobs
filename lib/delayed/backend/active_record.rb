@@ -71,8 +71,10 @@ module Delayed
         # 500.times { |i| "ohai".send_later_enqueue_args(:reverse, { :run_at => (12.hours.ago + (rand(24.hours.to_i))) }) }
         # then fire up your workers
         # you can check out strand correctness: diff test1.txt <(sort -n test1.txt)
-         def self.ready_to_run
-           where("run_at<=? AND locked_at IS NULL AND next_in_strand=?", db_time_now, true)
+         def self.ready_to_run(forced_latency: nil)
+           now = db_time_now
+           now -= forced_latency if forced_latency
+           where("run_at<=? AND locked_at IS NULL AND next_in_strand=?", now, true)
          end
         def self.by_priority
           order(:priority, :run_at, :id)
@@ -203,7 +205,8 @@ module Delayed
                                              min_priority = nil,
                                              max_priority = nil,
                                              prefetch: 0,
-                                             prefetch_owner: nil)
+                                             prefetch_owner: nil,
+                                             forced_latency: nil)
 
           check_queue(queue)
           check_priorities(min_priority, max_priority)
@@ -217,7 +220,10 @@ module Delayed
                 # jobs in a single query.
                 effective_worker_names = Array(worker_names)
 
-                target_jobs = all_available(queue, min_priority, max_priority).
+                target_jobs = all_available(queue,
+                                            min_priority,
+                                            max_priority,
+                                            forced_latency: forced_latency).
                     limit(effective_worker_names.length + prefetch).
                     lock
                 jobs_with_row_number = all.from(target_jobs).
@@ -295,14 +301,15 @@ module Delayed
 
         def self.all_available(queue = Delayed::Settings.queue,
                                min_priority = nil,
-                               max_priority = nil)
+                               max_priority = nil,
+                               forced_latency: nil)
           min_priority ||= Delayed::MIN_PRIORITY
           max_priority ||= Delayed::MAX_PRIORITY
 
           check_queue(queue)
           check_priorities(min_priority, max_priority)
 
-          self.ready_to_run.
+          self.ready_to_run(forced_latency: forced_latency).
               where(:priority => min_priority..max_priority, :queue => queue).
               by_priority
         end

@@ -59,12 +59,18 @@ class ParentProcess
 
     def run_once
       handles = @clients.keys + [@listen_socket, @self_pipe[0]]
+      # if we're currently idle, then force a "latency" to job fetching - don't
+      # fetch recently queued jobs, allowing busier workers to fetch them first.
+      # if they're not keeping up, the jobs will slip back in time, and suddenly we'll become
+      # active and quickly pick up all the jobs we can. The latency is calculated to ensure that
+      # an active worker is guaranteed to have attempted to fetch new jobs in the meantime
+      forced_latency = Settings.sleep_delay + Settings.sleep_delay_stagger * 2 if all_workers_idle?
       timeout = Settings.sleep_delay + (rand * Settings.sleep_delay_stagger)
       readable, _, _ = IO.select(handles, nil, nil, timeout)
       if readable
         readable.each { |s| handle_read(s) }
       end
-      check_for_work
+      check_for_work(forced_latency: forced_latency)
       unlock_timed_out_prefetched_jobs
     end
 
@@ -111,7 +117,7 @@ class ParentProcess
       drop_socket(socket)
     end
 
-    def check_for_work
+    def check_for_work(forced_latency: nil)
       @waiting_clients.each do |(worker_config, workers)|
         prefetched_jobs = @prefetched_jobs[worker_config] ||= []
         logger.debug("I have #{prefetched_jobs.length} jobs for #{workers.length} waiting workers")
@@ -148,7 +154,8 @@ class ParentProcess
               worker_config[:min_priority],
               worker_config[:max_priority],
               prefetch: Settings.fetch_batch_size * (worker_config[:workers] || 1) - recipients.length,
-              prefetch_owner: prefetch_owner)
+              prefetch_owner: prefetch_owner,
+              forced_latency: forced_latency)
           logger.debug("Fetched and locked #{response.values.flatten.size} new jobs for workers (#{response.keys.join(', ')}).")
           response.each do |(worker_name, job)|
             if worker_name == prefetch_owner

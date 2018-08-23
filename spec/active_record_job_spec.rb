@@ -288,4 +288,11 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
     expect(locked_jobs['work_queue']).to eq jobs[1..2]
     jobs.map(&:reload).map(&:locked_by).should == ['worker1', 'work_queue', 'work_queue', nil, nil]
   end
+
+
+  it "should not find jobs scheduled for now when we have forced latency" do
+    job = create_job
+    Delayed::Job.get_and_lock_next_available('worker', forced_latency: 60.0).should be_nil
+    Delayed::Job.get_and_lock_next_available('worker').should eq job
+  end
 end
