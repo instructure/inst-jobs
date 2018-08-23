@@ -70,7 +70,9 @@ class ParentProcess
       if readable
         readable.each { |s| handle_read(s) }
       end
-      check_for_work(forced_latency: forced_latency)
+      Delayed::Worker.lifecycle.run_callbacks(:check_for_work, self) do
+        check_for_work(forced_latency: forced_latency)
+      end
       unlock_timed_out_prefetched_jobs
     end
 

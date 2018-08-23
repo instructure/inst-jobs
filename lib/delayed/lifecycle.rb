@@ -11,6 +11,7 @@ module Delayed
       :perform          => [:worker, :job],
       :pop              => [:worker],
       :work_queue_pop   => [:work_queue, :worker_config],
+      :check_for_work   => [:work_queue],
     }
 
     def initialize
