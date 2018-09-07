@@ -132,6 +132,7 @@ class ParentProcess
             workers.unshift(client)
             next
           end
+          client.working = true
           begin
             logger.debug("Sending prefetched job #{job.id} to #{client.name}")
             client_timeout { Marshal.dump(job, client.socket) }
