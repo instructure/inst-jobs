@@ -4,13 +4,15 @@ gemfile:
   - spec/gemfiles/42.gemfile
   - spec/gemfiles/50.gemfile
   - spec/gemfiles/51.gemfile
+  - spec/gemfiles/52.gemfile
 rvm:
   - "2.3"
   - "2.4"
+  - "2.5"
 script: bundle exec rake spec
 
 addons:
-  postgresql: "9.3"
+  postgresql: "9.6"
 
 services:
   - redis-server
