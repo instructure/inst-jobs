@@ -81,5 +81,16 @@ shared_examples_for 'Delayed::Batch' do
       Delayed::Job.find_available(1).first.tag.should == "String#size"
       Delayed::Job.find_available(1).first.priority.should == 11
     end
+
+    it "should list a job only once when the same call is made multiple times" do
+      Delayed::Batch.serial_batch(:priority => 11) {
+        "string".send_later_enqueue_args(:size, no_delay: true)
+        "string".send_later_enqueue_args(:gsub, { no_delay: true }, /./, "!")
+        "string".send_later_enqueue_args(:size, no_delay: true)
+      }
+      batch_job = Delayed::Job.find_available(1).first
+      jobs = batch_job.payload_object.jobs
+      jobs.size.should == 2
+    end
   end
 end

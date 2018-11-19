@@ -30,7 +30,7 @@ module Delayed
       private
       def prepare_batches(mode, opts)
         raise "nested batching is not supported" if Delayed::Job.batches
-        Delayed::Job.batches = Hash.new { |h,k| h[k] = [] }
+        Delayed::Job.batches = Hash.new { |h,k| h[k] = Set.new }
         batch_enqueue_args = [:queue]
         batch_enqueue_args << :priority unless opts[:priority]
         Delayed::Job.batch_enqueue_args = batch_enqueue_args
