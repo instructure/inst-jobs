@@ -32,11 +32,15 @@ module Delayed
             # prefetched jobs have their own way of automatically unlocking themselves
             next if job.locked_by.start_with?("prefetch:")
             unless live_workers.include?(job.locked_by)
-              Delayed::Job.transaction do
-                # double check that the job is still there. locked_by will immediately be reset
-                # to nil in this transaction by Job#reschedule
-                next unless Delayed::Job.where(id: job, locked_by: job.locked_by).update_all(locked_by: "abandoned job cleanup") == 1
-                job.reschedule
+              begin
+                Delayed::Job.transaction do
+                  # double check that the job is still there. locked_by will immediately be reset
+                  # to nil in this transaction by Job#reschedule
+                  next unless Delayed::Job.where(id: job, locked_by: job.locked_by).update_all(locked_by: "abandoned job cleanup") == 1
+                  job.reschedule
+                end
+              rescue
+                ::Rails.logger.error "Failure rescheduling abandoned job #{job.id} #{$!.inspect}"
               end
             end
           end
