@@ -45,7 +45,7 @@ module Delayed
             # > Multiple queries sent in a single PQexec call are processed in a single transaction,
             # unless there are explicit BEGIN/COMMIT commands included in the query string to divide
             # it into multiple transactions.
-            sql = "SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(#{connection.quote(values['strand'])})); #{sql}" if attributes["strand"]
+            sql = "SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(#{connection.quote(values['strand'])})); #{sql}" if values["strand"]
             result = connection.execute(sql, "#{self} Create")
             job.id = result.values.first.first
             result.clear
