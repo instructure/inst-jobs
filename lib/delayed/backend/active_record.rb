@@ -21,6 +21,40 @@ module Delayed
           clear_all_connections!
         end
 
+        class << self
+          def create(attributes, &block)
+            return super if connection.prepared_statements || Rails.version < '5.2'
+
+            # modified from ActiveRecord::Persistence.create and ActiveRecord::Persistence#_insert_record
+            job = new(attributes, &block)
+
+            current_time = current_time_from_proper_timezone
+
+            job.send(:all_timestamp_attributes_in_model).each do |column|
+              if !job.attribute_present?(column)
+                job._write_attribute(column, current_time)
+              end
+            end
+
+            values = job.send(:attributes_with_values_for_create, attribute_names)
+            im = arel_table.compile_insert(_substitute_values(values))
+            sql, _binds = connection.send(:to_sql_and_binds, im, [])
+
+            # https://www.postgresql.org/docs/9.5/libpq-exec.html
+            sql = "#{sql} RETURNING id"
+            # > Multiple queries sent in a single PQexec call are processed in a single transaction,
+            # unless there are explicit BEGIN/COMMIT commands included in the query string to divide
+            # it into multiple transactions.
+            sql = "SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(#{connection.quote(values['strand'])})); #{sql}" if attributes["strand"]
+            result = connection.execute(sql, "#{self} Create")
+            job.id = result.values.first.first
+            result.clear
+            job.instance_variable_set(:@new_record, false)
+
+            job
+          end
+        end
+
         # be aware that some strand functionality is controlled by triggers on
         # the database. see
         # db/migrate/20110831210257_add_delayed_jobs_next_in_strand.rb

@@ -23,7 +23,8 @@ RSpec.configure do |config|
     if Delayed::Backend::Redis::Job.redis
       Delayed::Backend::Redis::Job.redis.flushdb
     end
-    DatabaseCleaner.strategy = (example.metadata[:sinatra] ? :truncation : :transaction)
+    DatabaseCleaner.strategy = (example.metadata[:sinatra] || example.metadata[:non_transactional]) ?
+        :truncation : :transaction
     DatabaseCleaner.start
   end
 

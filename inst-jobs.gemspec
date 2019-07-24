@@ -36,7 +36,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'rack-test'
   s.add_development_dependency 'rails'
   s.add_development_dependency 'rake'
-  s.add_development_dependency 'rspec', '3.4.0'
+  s.add_development_dependency 'rspec', '~> 3.8.0'
   s.add_development_dependency 'sinatra'
   s.add_development_dependency 'sinatra-contrib'
   s.add_development_dependency 'timecop', '0.7.1'

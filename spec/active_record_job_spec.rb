@@ -261,4 +261,17 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
     Delayed::Job.get_and_lock_next_available('worker', forced_latency: 60.0).should be_nil
     Delayed::Job.get_and_lock_next_available('worker').should eq job
   end
+
+  context "non-transactional", non_transactional: true do
+    it "creates a stranded job in a single statement" do
+      skip "Requires Rails 5.2 or greater" unless Rails.version >= '5.2'
+
+      allow(Delayed::Job.connection).to receive(:prepared_statements).and_return(false)
+      allow(Delayed::Job.connection).to receive(:execute).and_call_original.once
+      allow(Delayed::Job.connection).to receive(:insert).never
+      j = create_job(strand: "test1")
+      allow(Delayed::Job.connection).to receive(:execute).and_call_original
+      expect(Delayed::Job.find(j.id)).to eq j
+    end
+  end
 end
