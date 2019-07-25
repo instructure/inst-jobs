@@ -118,6 +118,7 @@ class Worker
         when :INT, :TERM
           @exit = true # get the main thread to bail early if it's waiting for a job
           work_thread.raise(SystemExit) # Force the main thread to bail out of the current job
+          cleanup! # we're going to get SIGKILL'd in a moment, so clean up asap
           break
         when :QUIT
           @exit = true
@@ -138,13 +139,26 @@ class Worker
     Rails.logger.fatal("Child process died: #{e.inspect}") rescue nil
     self.class.lifecycle.run_callbacks(:exceptional_exit, self, e) { }
   ensure
-    health_check.stop
-    work_queue.close
+    cleanup!
+
     if signal_processor
       signal_processor.kill
       signal_processor.join
     end
+  end
+
+  def cleanup!
+    return if cleaned?
+
+    health_check.stop
+    work_queue.close
     Delayed::Job.clear_locks!(name)
+
+    @cleaned = true
+  end
+
+  def cleaned?
+    @cleaned
   end
 
   def run
