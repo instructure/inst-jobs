@@ -27,6 +27,8 @@ module Delayed
 
             # modified from ActiveRecord::Persistence.create and ActiveRecord::Persistence#_insert_record
             job = new(attributes, &block)
+            # a before_save callback that we're skipping
+            job.initialize_defaults
 
             current_time = current_time_from_proper_timezone
 
