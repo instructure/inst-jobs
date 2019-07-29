@@ -52,6 +52,7 @@ module Delayed
             job.id = result.values.first.first
             result.clear
             job.instance_variable_set(:@new_record, false)
+            job.changes_applied
 
             job
           end
