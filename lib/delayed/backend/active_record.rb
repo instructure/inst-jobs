@@ -38,6 +38,7 @@ module Delayed
               end
             end
 
+            attribute_names = job.partial_writes? ? job.send(:keys_for_partial_write) : self.attribute_names
             values = job.send(:attributes_with_values_for_create, attribute_names)
             im = arel_table.compile_insert(_substitute_values(values))
             sql, _binds = connection.send(:to_sql_and_binds, im, [])
