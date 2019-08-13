@@ -60,6 +60,8 @@ end
 def migrate(file)
   if ::Rails.version < '5.2'
     ActiveRecord::Migrator.migrate(file)
+  elsif ::Rails.version >= '6'
+    ActiveRecord::MigrationContext.new(file, ActiveRecord::SchemaMigration).migrate
   else
     ActiveRecord::MigrationContext.new(file).migrate
   end
