@@ -1,3 +1,3 @@
 module Delayed
-  VERSION = "0.15.12"
+  VERSION = "0.15.13"
 end
