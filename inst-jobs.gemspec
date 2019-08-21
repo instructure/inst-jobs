@@ -40,5 +40,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'sinatra'
   s.add_development_dependency 'sinatra-contrib'
   s.add_development_dependency 'timecop', '0.7.1'
-  s.add_development_dependency 'wwtd', '~> 1.3.0'
+  s.add_development_dependency 'wwtd', '~> 1.4.0'
 end

@@ -14,12 +14,8 @@ matrix:
   exclude:
     - rvm: "2.3"
       gemfile: spec/gemfiles/60.gemfile
-      # wwtd isn't smart enough to matrix exclude without specifying all dimensions,
-      # so we have to list this here
-      env: TEST_DB_USERNAME=postgres
     - rvm: "2.4"
       gemfile: spec/gemfiles/60.gemfile
-      env: TEST_DB_USERNAME=postgres
 
 script: bundle exec rake spec
 
