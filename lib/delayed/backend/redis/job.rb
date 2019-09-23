@@ -454,6 +454,7 @@ class Job
           when :overwrite
             run_at
           end
+        singleton.handler = self.handler if self.on_conflict == :overwrite
         singleton.save! if singleton.changed?
         COLUMNS.each { |c| send("#{c}=", singleton.send(c)) }
       end

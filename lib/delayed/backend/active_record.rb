@@ -386,6 +386,7 @@ module Delayed
                 when :overwrite
                   new_job.run_at
                 end
+              job.handler = new_job.handler if on_conflict == :overwrite
               job.save! if job.changed?
             else
               new_job.save!

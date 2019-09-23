@@ -369,6 +369,13 @@ shared_examples_for 'a backend' do
         job3.should == job1
         job3.run_at.to_i.should == t2.to_i
       end
+
+      it "should update existing singleton job handler if requested" do
+        job1 = Delayed::Job.enqueue(SimpleJob.new, { :queue => nil, :singleton => 'myjobs', :on_conflict => :overwrite})
+        job2 = Delayed::Job.enqueue(ErrorJob.new, { :queue => nil, :singleton => 'myjobs', :on_conflict => :overwrite})
+        job2.should == job1
+        expect(job2.handler).to include("ErrorJob")
+      end
     end
   end
 
