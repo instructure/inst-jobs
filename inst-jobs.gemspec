@@ -25,7 +25,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'railties',                 '>= 4.2'
   s.add_dependency 'redis',                    '> 3.0'
   s.add_dependency 'redis-scripting',          '~> 1.0.1'
-  s.add_dependency 'rufus-scheduler',          '~> 3.4', '< 3.5'
+  s.add_dependency 'fugit',                    '~> 1.3'
 
   s.add_development_dependency 'bump'
   s.add_development_dependency 'byebug'
