@@ -18,4 +18,4 @@ USER docker
 
 ENV TEST_DB_USERNAME postgres
 
-CMD /bin/bash -l -c "bundle exec wwtd --parallel"
+CMD /bin/bash -l -c "bundle exec wwtd"

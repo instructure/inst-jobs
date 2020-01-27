@@ -37,11 +37,11 @@ RSpec.describe Delayed::Worker::ConsulHealthCheck do
     end
 
 
-    it 'must supply a script style check' do
+    it 'must supply a args style check' do
       allow(response).to receive(:ok?).and_return(true)
       allow(agent_client).to receive(:register_service) { |service|
         check = service.checks.first
-        expect(check.script).to_not be_nil
+        expect(check.args).to_not be_nil
         response
       }
       health_check.start

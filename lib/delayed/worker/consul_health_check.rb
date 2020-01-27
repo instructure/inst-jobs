@@ -59,7 +59,7 @@ module Delayed
 
       def check_attributes
         {
-          script: check_script,
+          args: ['bash', '-c', check_script],
           status: 'passing',
           interval: @config.fetch(:check_interval, '5m'),
           deregister_critical_service_after: @config.fetch(:deregister_service_delay, '10m'),

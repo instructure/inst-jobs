@@ -109,7 +109,7 @@ class Worker
       trap(sig) { @signal_queue << sig; wake_up }
     end
 
-    health_check.start
+    raise 'Could not register health_check' unless health_check.start
 
     signal_processor = Thread.new do
       loop do

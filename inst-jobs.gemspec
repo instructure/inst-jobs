@@ -30,7 +30,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'bump'
   s.add_development_dependency 'byebug'
   s.add_development_dependency 'database_cleaner', '1.6.1'
-  s.add_development_dependency 'imperium', '>= 0.2.3'
+  s.add_development_dependency 'imperium', '>= 0.5.2'
   s.add_development_dependency 'pg', '< 1.0'
   s.add_development_dependency 'pry'
   s.add_development_dependency 'rack-test'

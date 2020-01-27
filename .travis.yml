@@ -1,19 +1,14 @@
 language: ruby
 gemfile:
-  - spec/gemfiles/42.gemfile
-  - spec/gemfiles/50.gemfile
   - spec/gemfiles/51.gemfile
   - spec/gemfiles/52.gemfile
   - spec/gemfiles/60.gemfile
 rvm:
-  - "2.3"
   - "2.4"
   - "2.5"
 
 matrix:
   exclude:
-    - rvm: "2.3"
-      gemfile: spec/gemfiles/60.gemfile
     - rvm: "2.4"
       gemfile: spec/gemfiles/60.gemfile
 
