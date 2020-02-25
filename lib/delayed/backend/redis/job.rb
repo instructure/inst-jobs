@@ -453,6 +453,8 @@ class Job
             [singleton.run_at, run_at].min
           when :overwrite
             run_at
+          when :loose
+            singleton.run_at
           end
         singleton.handler = self.handler if self.on_conflict == :overwrite
         singleton.save! if singleton.changed?

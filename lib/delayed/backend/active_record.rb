@@ -360,7 +360,8 @@ module Delayed
 
         # used internally by create_singleton to take the appropriate lock
         # depending on the db driver
-        def self.transaction_for_singleton(strand)
+        def self.transaction_for_singleton(strand, on_conflict)
+          return yield if on_conflict == :loose
           self.transaction do
             connection.execute(sanitize_sql(["SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(?))", strand]))
             yield
@@ -374,7 +375,7 @@ module Delayed
         def self.create_singleton(options)
           strand = options[:strand]
           on_conflict = options.delete(:on_conflict) || :use_earliest
-          transaction_for_singleton(strand) do
+          transaction_for_singleton(strand, on_conflict) do
             job = self.where(:strand => strand, :locked_at => nil).order(:id).first
             new_job = new(options)
             if job
@@ -385,6 +386,8 @@ module Delayed
                   [job.run_at, new_job.run_at].min
                 when :overwrite
                   new_job.run_at
+                when :loose
+                  job.run_at
                 end
               job.handler = new_job.handler if on_conflict == :overwrite
               job.save! if job.changed?

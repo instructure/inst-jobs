@@ -376,6 +376,14 @@ shared_examples_for 'a backend' do
         job2.should == job1
         expect(job2.handler).to include("ErrorJob")
       end
+
+      it "does not create even if it's earlier when in loose mode" do
+        t1 = 1.hour.from_now
+        job1 = create_job(singleton: 'myjobs', run_at: t1)
+        job2 = create_job(singleton: 'myjobs', on_conflict: :loose)
+        job1.should == job2
+        job2.run_at.to_i.should == t1.to_i
+      end
     end
   end
 
