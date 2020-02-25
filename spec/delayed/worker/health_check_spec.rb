@@ -55,12 +55,12 @@ RSpec.describe Delayed::Worker::HealthCheck do
 
       2.times { Delayed::Job.enqueue(SimpleJob.new, run_at: initial_run_at, max_attempts: 4) }
       @alive_job = Delayed::Job.first
-      @alive_job.update_attributes!({
+      @alive_job.update!({
         locked_by: 'alive',
         locked_at: initial_run_at
       })
       @dead_job = Delayed::Job.last
-      @dead_job.update_attributes!({
+      @dead_job.update!({
         locked_by: 'dead',
         locked_at: initial_run_at
       })
