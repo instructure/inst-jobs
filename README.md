@@ -187,6 +187,8 @@ If you also need to pass parameters to the called method, they go at the end:
   none.
 - `:singleton` (string): [singleton strand](#singleton-jobs) to assign this job
   to; default is none.
+- `:on_conflict` (:use_earliest|:overwrite|:loose): option for how to handle the
+  new job if a singleton[#singleton-jobs] job of the same type already exists.
 
 ## Features
 
@@ -255,6 +257,32 @@ grader.send_later_enqueue_args(:grade_student, { singleton: "grade_student:#{stu
 If a job is currently running, it doesn't count as being in the queue for the
 purposes of singleton jobs. This is usually the desired behavior to avoid race
 conditions.
+
+You can also pass an `on_conflict` option. The default of `:use_earliest` means
+that the queued job will be updated to the earliest `run_at` of the existing and
+the new job. Assuming you're using the default `run_at` of now, that means the
+new job will simply be dropped. It can also be used if you run the singleton on
+a schedule (like a periodic job), but occasionally want it to run now.
+
+The second option is `:overwrite` and will always update the pending job to
+use the `run_at` of the new job. This is useful for "debouncing" - you have some
+cleanup that needs to run after a trigger action, but there are many of that
+trigger action and it's not useful to run the single cleanup job until the
+trigger action calms down. This is also useful if the arguments to the job
+might change, and you want it to run with the latest version of those
+arguments.
+
+The final option is `:loose`. This is similar to the default use with a
+`run_at` of now, but does _not_ lock the strand in order to guarantee exactly
+one of the singleton is in queue. It does the query to see if a job is already
+in queue, and if it is, does nothing. This means there is a race condition
+that multiple processes might see no queued job, and each enqueue one,
+meaning it's not a true singleton. But it also reduces locking on the queue
+itself, and is useful for a singleton that is triggered with high frequency,
+and low impact if it happens to run a couple extra times. Because it is
+less sure about the state of the queue, it cannot implement the
+`:use_earliest` logic and update the already queued job. Therefore it is not
+viable if you want to mix on-demand and periodic singletons.
 
 ### Periodic Jobs
 
