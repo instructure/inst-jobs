@@ -264,12 +264,14 @@ module Delayed
                 # jobs in a single query.
                 effective_worker_names = Array(worker_names)
 
+                lock = nil
+                lock = "FOR UPDATE SKIP LOCKED" if connection.postgresql_version >= 90500
                 target_jobs = all_available(queue,
                                             min_priority,
                                             max_priority,
                                             forced_latency: forced_latency).
                     limit(effective_worker_names.length + prefetch).
-                    lock
+                    lock(lock)
                 jobs_with_row_number = all.from(target_jobs).
                     select("id, ROW_NUMBER() OVER () AS row_number")
                 updates = "locked_by = CASE row_number "
