@@ -27,44 +27,50 @@ module Delayed
 
             # modified from ActiveRecord::Persistence.create and ActiveRecord::Persistence#_insert_record
             job = new(attributes, &block)
-            # a before_save callback that we're skipping
-            job.initialize_defaults
-
-            current_time = current_time_from_proper_timezone
-
-            job.send(:all_timestamp_attributes_in_model).each do |column|
-              if !job.attribute_present?(column)
-                job._write_attribute(column, current_time)
-              end
-            end
-
-            if Rails.version >= '6'
-              attribute_names = job.send(:attribute_names_for_partial_writes)
-              attribute_names = job.send(:attributes_for_create, attribute_names)
-              values = job.send(:attributes_with_values, attribute_names)
-            else
-              attribute_names = job.partial_writes? ? job.send(:keys_for_partial_write) : self.attribute_names
-              values = job.send(:attributes_with_values_for_create, attribute_names)
-            end
-            im = arel_table.compile_insert(_substitute_values(values))
-            sql, _binds = connection.send(:to_sql_and_binds, im, [])
-
-            # https://www.postgresql.org/docs/9.5/libpq-exec.html
-            sql = "#{sql} RETURNING id"
-            # > Multiple queries sent in a single PQexec call are processed in a single transaction,
-            # unless there are explicit BEGIN/COMMIT commands included in the query string to divide
-            # it into multiple transactions.
-            sql = "SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(#{connection.quote(values['strand'])})); #{sql}" if values["strand"]
-            result = connection.execute(sql, "#{self} Create")
-            job.id = result.values.first.first
-            result.clear
-            job.instance_variable_set(:@new_record, false)
-            job.changes_applied
-
-            job
+            job.single_step_create
           end
         end
 
+        def single_step_create
+          connection = self.class.connection
+          return save if connection.prepared_statements || Rails.version < '5.2'
+
+          # a before_save callback that we're skipping
+          initialize_defaults
+
+          current_time = current_time_from_proper_timezone
+
+          all_timestamp_attributes_in_model.each do |column|
+            if !attribute_present?(column)
+              _write_attribute(column, current_time)
+            end
+          end
+
+          if Rails.version >= '6'
+            attribute_names = attribute_names_for_partial_writes
+            attribute_names = attributes_for_create(attribute_names)
+            values = attributes_with_values(attribute_names)
+          else
+            attribute_names = partial_writes? ? keys_for_partial_write : self.attribute_names
+            values = attributes_with_values_for_create(attribute_names)
+          end
+          im = self.class.arel_table.compile_insert(self.class.send(:_substitute_values, values))
+          sql, _binds = connection.send(:to_sql_and_binds, im, [])
+
+          # https://www.postgresql.org/docs/9.5/libpq-exec.html
+          sql = "#{sql} RETURNING id"
+          # > Multiple queries sent in a single PQexec call are processed in a single transaction,
+          # unless there are explicit BEGIN/COMMIT commands included in the query string to divide
+          # it into multiple transactions.
+          sql = "SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(#{connection.quote(values['strand'])})); #{sql}" if values["strand"]
+          result = connection.execute(sql, "#{self} Create")
+          self.id = result.values.first.first
+          result.clear
+          @new_record = false
+          changes_applied
+
+          self
+        end
         # be aware that some strand functionality is controlled by triggers on
         # the database. see
         # db/migrate/20110831210257_add_delayed_jobs_next_in_strand.rb
@@ -464,7 +470,7 @@ module Delayed
           raise "job already exists" unless new_record?
           self.locked_at = Delayed::Job.db_time_now
           self.locked_by = worker
-          save!
+          single_step_create
         end
 
         def fail!
