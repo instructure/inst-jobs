@@ -272,7 +272,7 @@ trigger action calms down. This is also useful if the arguments to the job
 might change, and you want it to run with the latest version of those
 arguments.
 
-The final option is `:loose`. This is similar to the default use with a
+The third option is `:loose`. This is similar to the default use with a
 `run_at` of now, but does _not_ lock the strand in order to guarantee exactly
 one of the singleton is in queue. It does the query to see if a job is already
 in queue, and if it is, does nothing. This means there is a race condition

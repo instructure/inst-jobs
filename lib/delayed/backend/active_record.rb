@@ -377,7 +377,9 @@ module Delayed
         def self.transaction_for_singleton(strand, on_conflict)
           return yield if on_conflict == :loose
           self.transaction do
-            connection.execute(sanitize_sql(["SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(?))", strand]))
+            function = on_conflict == :patient ? 'pg_try_advisory_xact_lock' : 'pg_advisory_xact_lock'
+            result = connection.select_value(sanitize_sql(["SELECT #{function}(#{connection.quote_table_name('half_md5_as_bigint')}(?))", strand]))
+            return if result == false && on_conflict == :patient
             yield
           end
         end
@@ -396,7 +398,7 @@ module Delayed
               new_job.initialize_defaults
               job.run_at =
                 case on_conflict
-                when :use_earliest
+                when :use_earliest, :patient
                   [job.run_at, new_job.run_at].min
                 when :overwrite
                   new_job.run_at
