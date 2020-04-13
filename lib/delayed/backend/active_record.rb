@@ -71,6 +71,12 @@ module Delayed
 
           self
         end
+
+        def destroy
+          # skip transaction and callbacks
+          destroy_row
+        end
+
         # be aware that some strand functionality is controlled by triggers on
         # the database. see
         # db/migrate/20110831210257_add_delayed_jobs_next_in_strand.rb
