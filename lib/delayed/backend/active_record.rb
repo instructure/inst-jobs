@@ -377,8 +377,14 @@ module Delayed
         def self.transaction_for_singleton(strand, on_conflict)
           return yield if on_conflict == :loose
           self.transaction do
-            function = on_conflict == :patient ? 'pg_try_advisory_xact_lock' : 'pg_advisory_xact_lock'
-            result = connection.select_value(sanitize_sql(["SELECT #{function}(#{connection.quote_table_name('half_md5_as_bigint')}(?))", strand]))
+            if on_conflict == :patient
+              pg_function = 'pg_try_advisory_xact_lock'
+              execute_method = :select_value
+            else
+              pg_function = 'pg_advisory_xact_lock'
+              execute_method = :execute
+            end
+            result = connection.send(execute_method, sanitize_sql(["SELECT #{pg_function}(#{connection.quote_table_name('half_md5_as_bigint')}(?))", strand]))
             return if result == false && on_conflict == :patient
             yield
           end
