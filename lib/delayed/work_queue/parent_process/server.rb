@@ -5,7 +5,7 @@ class ParentProcess
     attr_reader :clients, :listen_socket
 
     include Delayed::Logging
-    SIGNALS = %i{INT TERM QUIT CHLD}
+    SIGNALS = %i{INT TERM QUIT}
 
     def initialize(listen_socket, parent_pid: nil, config: Settings.parent_process)
       @listen_socket = listen_socket
