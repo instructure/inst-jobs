@@ -38,6 +38,33 @@ describe Delayed::Worker do
     end
   end
 
+  describe "#log_job" do
+    around(:each) do |block|
+      prev_logger = Delayed::Settings.job_detailed_log_format
+      block.call
+      Delayed::Settings.job_detailed_log_format = prev_logger
+    end
+
+    it "has a reasonable default format" do
+      payload = double(perform: nil)
+      job = Delayed::Job.new(payload_object: payload, priority: 25, strand: "test_jobs")
+      short_log_format = subject.log_job(job, :short)
+      expect(short_log_format).to eq("RSpec::Mocks::Double")
+      long_format = subject.log_job(job, :long)
+      expect(long_format).to eq("RSpec::Mocks::Double {\"priority\":25,\"attempts\":0,\"created_at\":null,\"tag\":\"RSpec::Mocks::Double#perform\",\"max_attempts\":null,\"strand\":\"test_jobs\",\"source\":null}")
+    end
+
+    it "logging format can be changed with settings" do
+      Delayed::Settings.job_detailed_log_format = ->(job){ "override format #{job.strand}"}
+      payload = double(perform: nil)
+      job = Delayed::Job.new(payload_object: payload, priority: 25, strand: "test_jobs")
+      short_log_format = subject.log_job(job, :short)
+      expect(short_log_format).to eq("RSpec::Mocks::Double")
+      long_format = subject.log_job(job, :long)
+      expect(long_format).to eq("RSpec::Mocks::Double override format test_jobs")
+    end
+  end
+
   describe "#run" do
     it "passes extra config options through to the WorkQueue" do
       expect(subject.work_queue).to receive(:get_and_lock_next_available).

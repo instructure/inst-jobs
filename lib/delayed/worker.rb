@@ -253,7 +253,7 @@ class Worker
   def log_job(job, format = :short)
     case format
     when :long
-      "#{job.full_name} #{ job.to_json(:include_root => false, :only => %w(tag strand priority attempts created_at max_attempts source)) }"
+      "#{job.full_name} #{ Settings.job_detailed_log_format.call(job) }"
     else
       job.full_name
     end

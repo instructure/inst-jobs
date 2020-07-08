@@ -108,6 +108,17 @@ production:
   - workers: 10
 ```
 
+An initializer can also be used to set preferred values for any
+settings that control specific interal delayed job behavior:
+
+```ruby
+Delayed::Settings.max_attempts              = 1
+Delayed::Settings.queue                     = "canvas_queue"
+Delayed::Settings.sleep_delay               = ->{ 2.0 }
+```
+
+You can find a list of available settings in `lib/delayed_job/settings.rb`.
+
 ## Usage
 
 ### Signal Handling
@@ -425,19 +436,19 @@ $> cp docker-compose.override.yml.example docker-compose.override.yml
 Then you can install gems with:
 
 ```
-$> docker-compose run --rm app bash -lc "rvm-exec 2.3 bundle"
+$> docker-compose run --rm app bash -lc "bundle"
 ```
 
 Now, to run an individual spec:
 
 ```
-$> docker-compose run --rm app bash -lc "rvm-exec 2.3 bundle exec rspec spec/delayed/worker_spec.rb"
+$> docker-compose run --rm app bash -lc "bundle exec rspec spec/delayed/worker_spec.rb"
 ```
 
 You can also run the whole suite, but under just one rvm context, with:
 
 ```
-$> docker-compose run --rm app bash -lc "rvm-exec 2.3 bundle exec rake spec"
+$> docker-compose run --rm app bash -lc "bundle exec rake spec"
 ```
 
 ### Writing Tests

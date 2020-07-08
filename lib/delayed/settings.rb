@@ -23,7 +23,10 @@ module Delayed
       :worker_health_check_config,
       :worker_procname_prefix,
     ]
-    SETTINGS_WITH_ARGS = [ :num_strands ]
+    SETTINGS_WITH_ARGS = [
+      :job_detailed_log_format,
+      :num_strands
+    ]
 
     SETTINGS.each do |setting|
       mattr_writer(setting)
@@ -65,6 +68,7 @@ module Delayed
 
     self.num_strands = ->(strand_name){ nil }
     self.default_job_options = ->{ Hash.new }
+    self.job_detailed_log_format = ->(job){ job.to_json(include_root: false, only: %w(tag strand priority attempts created_at max_attempts source)) }
 
     # Send workers KILL after QUIT if they haven't exited within the
     # slow_exit_timeout
