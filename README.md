@@ -527,3 +527,25 @@ run MyApp
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create a new Pull Request
+
+
+## Publishing
+
+Ready to release a new version of inst-jobs?
+Make sure you're an owner (https://rubygems.org/gems/inst-jobs)
+
+If your rubygems credentials are already set in `~/.gem/credentials`,
+you can just run the release task:
+`bundle exec rake release`
+
+If they are not, you can do this manually for now, and it will
+cache your credentials as part of the process:
+
+```bash
+bundle exec rake build
+# -> inst-jobs VERSION built to pkg/inst-jobs-VERSION.gem
+gem push pkg/inst-jobs-VERSION.gem
+# -> follow prompts to enter your login information
+```
+
+Future releases you can now just use the release rake task for
