@@ -17,6 +17,8 @@ module Delayed
         include Delayed::Backend::Base
         self.table_name = :delayed_jobs
 
+        scope :next_in_strand_order, -> { order(:strand_order_override, :id) }
+
         def self.reconnect!
           clear_all_connections!
         end
@@ -398,7 +400,7 @@ module Delayed
           strand = options[:strand]
           on_conflict = options.delete(:on_conflict) || :use_earliest
           transaction_for_singleton(strand, on_conflict) do
-            job = self.where(:strand => strand, :locked_at => nil).order(:id).first
+            job = self.where(:strand => strand, :locked_at => nil).next_in_strand_order.first
             new_job = new(options)
             if job
               new_job.initialize_defaults
