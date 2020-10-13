@@ -28,19 +28,31 @@ module Delayed
         # The first argument should be an object that respond_to?(:perform)
         # The rest should be named arguments, these keys are expected:
         # :priority, :run_at, :queue, :strand, :singleton
-        # Example: Delayed::Job.enqueue(object, :priority => 0, :run_at => time, :queue => queue)
-        def enqueue(*args)
-          object = args.shift
+        # Example: Delayed::Job.enqueue(object, priority: 0, run_at: time, queue: queue)
+        def enqueue(object,
+          priority: default_priority,
+          run_at: nil,
+          expires_at: nil,
+          queue: Delayed::Settings.queue,
+          strand: nil,
+          singleton: nil,
+          n_strand: nil,
+          max_attempts: Delayed::Settings.max_attempts,
+          **kwargs)
+
           unless object.respond_to?(:perform)
             raise ArgumentError, 'Cannot enqueue items which do not respond to perform'
           end
 
-          options = Settings.default_job_options.merge(args.first || {})
-          options[:priority] ||= self.default_priority
-          options[:payload_object] = object
-          options[:queue] = Delayed::Settings.queue unless options.key?(:queue)
-          options[:max_attempts] ||= Delayed::Settings.max_attempts
-          options[:source] = Marginalia::Comment.construct_comment if defined?(Marginalia) && Marginalia::Comment.components
+          kwargs = Settings.default_job_options.merge(kwargs)
+          kwargs[:payload_object] = object
+          kwargs[:priority] = priority
+          kwargs[:run_at] = run_at if run_at
+          kwargs[:strand] = strand
+          kwargs[:max_attempts] = max_attempts
+          kwargs[:source] = Marginalia::Comment.construct_comment if defined?(Marginalia) && Marginalia::Comment.components
+          kwargs[:expires_at] = expires_at
+          kwargs[:queue] = queue
 
           # If two parameters are given to n_strand, the first param is used
           # as the strand name for looking up the Setting, while the second
@@ -49,8 +61,8 @@ module Delayed
           # For instance, you can pass ["my_job_type", # root_account.global_id]
           # to get a set of n strands per root account, and you can apply the
           # same default to all.
-          if options[:n_strand]
-            strand_name, ext = options.delete(:n_strand)
+          if n_strand
+            strand_name, ext = n_strand
 
             if ext
               full_strand_name = "#{strand_name}/#{ext}"
@@ -62,18 +74,18 @@ module Delayed
             num_strands ||= Delayed::Settings.num_strands.call(strand_name)
             num_strands = num_strands ? num_strands.to_i : 1
 
-            options.merge!(n_strand_options(full_strand_name, num_strands))
+            kwargs.merge!(n_strand_options(full_strand_name, num_strands))
           end
 
-          if options[:singleton]
-            options[:strand] = options.delete :singleton
-            job = self.create_singleton(options)
-          elsif batches && options.slice(:strand, :run_at).empty?
-            batch_enqueue_args = options.slice(*self.batch_enqueue_args)
-            batches[batch_enqueue_args] << options
+          if singleton
+            kwargs[:strand] = singleton
+            job = self.create_singleton(**kwargs)
+          elsif batches && strand.nil? && run_at.nil?
+            batch_enqueue_args = kwargs.slice(*self.batch_enqueue_args)
+            batches[batch_enqueue_args] << kwargs
             return true
           else
-            job = self.create(options)
+            job = self.create(**kwargs)
           end
 
           JobTracking.job_created(job)
@@ -87,7 +99,7 @@ module Delayed
         def n_strand_options(strand_name, num_strands)
           strand_num = num_strands > 1 ? rand(num_strands) + 1 : 1
           strand_name += ":#{strand_num}" if strand_num > 1
-          {:strand => strand_name}
+          { strand: strand_name }
         end
 
         def in_delayed_job?

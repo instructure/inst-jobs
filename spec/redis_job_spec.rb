@@ -18,8 +18,8 @@ describe 'Delayed::Backend::Redis::Job' do
   describe "tickle_strand" do
     it "should continue trying to tickle until the strand is empty" do
       jobs = []
-      3.times { jobs << "test".send_later_enqueue_args(:to_s, :strand => "s1", :no_delay => true) }
-      job = "test".send_later_enqueue_args(:to_s, :strand => "s1", :no_delay => true)
+      3.times { jobs << "test".delay(ignore_transaction: true, strand: "s1").to_s }
+      job = "test".delay(strand: "s1", ignore_transaction: true).to_s
       # manually delete the first jobs, bypassing the strand book-keeping
       jobs.each { |j| Delayed::Job.redis.del(Delayed::Job::Keys::JOB[j.id]) }
       Delayed::Job.redis.llen(Delayed::Job::Keys::STRAND['s1']).should == 4
@@ -29,8 +29,8 @@ describe 'Delayed::Backend::Redis::Job' do
 
     it "should tickle until it finds an existing job" do
       jobs = []
-      3.times { jobs << "test".send_later_enqueue_args(:to_s, :strand => "s1", :no_delay => true) }
-      job = "test".send_later_enqueue_args(:to_s, :strand => "s1", :no_delay => true)
+      3.times { jobs << "test".delay(strand: "s1", ignore_transaction: true).to_s }
+      job = "test".delay(strand: "s1", ignore_transaction: true).to_s
       # manually delete the first jobs, bypassing the strand book-keeping
       jobs[0...-1].each { |j| Delayed::Job.redis.del(Delayed::Job::Keys::JOB[j.id]) }
       Delayed::Job.redis.llen(Delayed::Job::Keys::STRAND['s1']).should == 4
@@ -44,8 +44,8 @@ describe 'Delayed::Backend::Redis::Job' do
 
   describe "missing jobs in queues" do
     before do
-      @job = "test".send_later_enqueue_args(:to_s, :no_delay => true)
-      @job2 = "test".send_later_enqueue_args(:to_s, :no_delay => true)
+      @job = "test".delay(ignore_transaction: true).to_s
+      @job2 = "test".delay(ignore_transaction: true).to_s
       # manually delete the job from redis
       Delayed::Job.redis.del(Delayed::Job::Keys::JOB[@job.id])
     end
@@ -63,11 +63,11 @@ describe 'Delayed::Backend::Redis::Job' do
     end
   end
 
-  describe "send_later" do
+  describe "delay" do
     it "should schedule job on transaction commit" do
       before_count = Delayed::Job.jobs_count(:current)
       ActiveRecord::Base.transaction do
-        job = "string".send_later :reverse
+        job = "string".delay.reverse
         job.should be_nil
         Delayed::Job.jobs_count(:current).should == before_count
       end

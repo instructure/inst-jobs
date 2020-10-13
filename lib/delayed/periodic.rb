@@ -47,10 +47,10 @@ class Periodic
   end
 
   def enqueue
-    Delayed::Job.enqueue(self, @job_args.merge(:max_attempts => 1,
-                                               :run_at => @cron.next_time(Delayed::Periodic.now).utc.to_time,
-                                               :singleton => tag,
-                                               on_conflict: :patient))
+    Delayed::Job.enqueue(self, **@job_args.merge(:max_attempts => 1,
+                                                 :run_at => @cron.next_time(Delayed::Periodic.now).utc.to_time,
+                                                 :singleton => tag,
+                                                 on_conflict: :patient))
   end
 
   def perform

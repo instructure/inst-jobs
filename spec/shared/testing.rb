@@ -13,7 +13,7 @@ shared_examples_for 'Delayed::Testing' do
 
   describe '.run_job' do
     it 'should run a single queued job' do
-      job = TestingWorker.send_later_enqueue_args(:run, no_delay: true)
+      job = TestingWorker.delay(ignore_transaction: true).run
       Delayed::Testing.run_job(job)
       expect(TestingWorker.runs).to eq 1
     end
@@ -21,7 +21,7 @@ shared_examples_for 'Delayed::Testing' do
 
   describe '.drain' do
     it 'should run all queued jobs' do
-      3.times { TestingWorker.send_later(:run) }
+      3.times { TestingWorker.delay.run }
       YAML.dump(TestingWorker)
       Delayed::Testing.drain
       expect(TestingWorker.runs).to eq 3
@@ -30,8 +30,8 @@ shared_examples_for 'Delayed::Testing' do
 
   describe 'track_created' do
     it 'should return the list of jobs created in the block' do
-      3.times { TestingWorker.send_later(:run) }
-      jobs = Delayed::Testing.track_created { 2.times { TestingWorker.send_later(:run) } }
+      3.times { TestingWorker.delay.run }
+      jobs = Delayed::Testing.track_created { 2.times { TestingWorker.delay.run } }
       expect(jobs.size).to eq 2
       expect(jobs.first.tag).to eq "TestingWorker.run"
     end
@@ -39,7 +39,7 @@ shared_examples_for 'Delayed::Testing' do
 
   describe 'clear_all!' do
     it 'should delete all queued jobs' do
-      3.times { TestingWorker.send_later(:run) }
+      3.times { TestingWorker.delay.run }
       Delayed::Testing.clear_all!
       Delayed::Testing.drain
       expect(TestingWorker.runs).to eq 0

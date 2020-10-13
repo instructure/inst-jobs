@@ -105,7 +105,7 @@ module Delayed
         # so rather than changing the strand and balancing at queue time,
         # this keeps the strand intact and uses triggers to limit the number running
         def self.n_strand_options(strand_name, num_strands)
-          {:strand => strand_name, :max_concurrent => num_strands}
+          { strand: strand_name, max_concurrent: num_strands }
         end
 
         def self.current
@@ -125,8 +125,8 @@ module Delayed
         end
 
         # a nice stress test:
-        # 10_000.times { |i| Kernel.send_later_enqueue_args(:system, { :strand => 's1', :run_at => (24.hours.ago + (rand(24.hours.to_i))) }, "echo #{i} >> test1.txt") }
-        # 500.times { |i| "ohai".send_later_enqueue_args(:reverse, { :run_at => (12.hours.ago + (rand(24.hours.to_i))) }) }
+        # 10_000.times { |i| Kernel.delay(strand: 's1', run_at: (24.hours.ago + (rand(24.hours.to_i))).system("echo #{i} >> test1.txt") }
+        # 500.times { |i| "ohai".delay(run_at: (12.hours.ago + (rand(24.hours.to_i))).reverse }
         # then fire up your workers
         # you can check out strand correctness: diff test1.txt <(sort -n test1.txt)
          def self.ready_to_run(forced_latency: nil)

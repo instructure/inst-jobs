@@ -146,18 +146,11 @@ processes after which the pool will exit.
 
 ### Queueing Jobs
 
-`inst-jobs` currently still uses the old `delayed_job` syntax for adding jobs to
-the queue. In its simplest form, this means just calling `send_later` on any
-object:
+In the simplest form, this means just calling `delay` on any
+object before calling the actual method:
 
 ```ruby
-@user.send_later(:activate!)
-```
-
-To pass parameters to the called method, add them to the `send_later` call:
-
-```ruby
-@user.send_later(:follow, other_user)
+@user.delay.activate!
 ```
 
 If a method should always be run in the background, you can call
@@ -177,14 +170,13 @@ device.deliver
 
 #### Job Parameters
 
-To pass parameters to the jobs engine, use the `send_later_enqueue_args` method.
-If you also need to pass parameters to the called method, they go at the end:
+To pass parameters to the jobs engine, send them to the  `delay` method:
 
 ```ruby
-@user.send_later_enqueue_args(:activate!, { max_attempts: 1, priority: 50 }, other_user)
+@user.delay(max_attempts: 1, priority: 50).activate!(other_user)
 ```
 
-`handle_asynchronously` and `send_later_enqueue_args` take these parameters:
+`handle_asynchronously` and `delay` take these parameters:
 
 - `:priority` (number): lower numbers run first; default is 0 but can be
   reconfigured.
@@ -221,7 +213,7 @@ Strands make this simple. We simply use the course's unique identifier as part
 of the strand name, and we get the desired behavior. The (simplified) code is:
 
 ```ruby
-zip_file_import.send_later_enqueue_args(:process, { strand: "zip_file_import:#{course.uuid}" })
+zip_file_import.delay(strand: "zip_file_import:#{course.uuid}").process
 ```
 
 Strand names are just freeform strings, and don't need to be created in advance.
@@ -250,7 +242,7 @@ Delayed::Settings.num_strands = proc do |strand_name|
   end
 end
 
-my_api.send_later_enqueue_args(:make_call, { n_strand: "external_api_call" })
+my_api.delay(n_strand: "external_api_call").make_call
 ```
 
 ### Singleton Jobs
@@ -262,7 +254,7 @@ given strand name:
 # If a job is already queued on the strand with this name, this job will not be
 # queued. It doesn't matter if previous jobs were queued on this strand but have
 # already completed, it only matters what is currently on the queue.
-grader.send_later_enqueue_args(:grade_student, { singleton: "grade_student:#{student.uuid}" })
+grader.delay(singleton: "grade_student:#{student.uuid}").grade_student
 ```
 
 If a job is currently running, it doesn't count as being in the queue for the

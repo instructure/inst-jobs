@@ -19,7 +19,7 @@ shared_examples_for 'Delayed::Worker' do
 
   describe "running a job" do
     it "should not fail when running a job with a % in the name" do
-      @job = "Some % Name here".send_later_enqueue_args(:starts_with?, { no_delay: true }, "Some % Name")
+      @job = "Some % Name here".delay(ignore_transaction: true).starts_with?("Some % Name")
       @worker.perform(@job)
     end
   end
@@ -41,9 +41,9 @@ shared_examples_for 'Delayed::Worker' do
         expect(bar).to receive(:scan).with("a").ordered
         expect(bar).to receive(:scan).with("r").ordered
         batch = Delayed::Batch::PerformableBatch.new(:serial, [
-          { :payload_object => Delayed::PerformableMethod.new(bar, :scan, ["b"]) },
-          { :payload_object => Delayed::PerformableMethod.new(bar, :scan, ["a"]) },
-          { :payload_object => Delayed::PerformableMethod.new(bar, :scan, ["r"]) },
+          { :payload_object => Delayed::PerformableMethod.new(bar, :scan, args: ["b"]) },
+          { :payload_object => Delayed::PerformableMethod.new(bar, :scan, args: ["a"]) },
+          { :payload_object => Delayed::PerformableMethod.new(bar, :scan, args: ["r"]) },
         ])
 
         batch_job = Delayed::Job.create :payload_object => batch
@@ -54,9 +54,9 @@ shared_examples_for 'Delayed::Worker' do
       it "should succeed regardless of the success/failure of its component jobs" do
         change_setting(Delayed::Settings, :max_attempts, 2) do
           batch = Delayed::Batch::PerformableBatch.new(:serial, [
-            { :payload_object => Delayed::PerformableMethod.new("foo", :reverse, []) },
-            { :payload_object => Delayed::PerformableMethod.new(1, :/, [0]) },
-            { :payload_object => Delayed::PerformableMethod.new("bar", :scan, ["r"]) },
+            { :payload_object => Delayed::PerformableMethod.new("foo", :reverse) },
+            { :payload_object => Delayed::PerformableMethod.new(1, :/, args: [0]) },
+            { :payload_object => Delayed::PerformableMethod.new("bar", :scan, args: ["r"]) },
           ])
           batch_job = Delayed::Job.create :payload_object => batch
 
@@ -73,7 +73,7 @@ shared_examples_for 'Delayed::Worker' do
 
       it "should retry a failed individual job" do
         batch = Delayed::Batch::PerformableBatch.new(:serial, [
-          { :payload_object => Delayed::PerformableMethod.new(1, :/, [0]) },
+          { :payload_object => Delayed::PerformableMethod.new(1, :/, args: [0]) },
         ])
         batch_job = Delayed::Job.create :payload_object => batch
 
@@ -348,17 +348,17 @@ shared_examples_for 'Delayed::Worker' do
     end
   end
 
-  describe "send_later_enqueue_args failure callbacks" do
+  describe "delay failure callbacks" do
     it "should call the on_failure callback" do
       ErrorJob.last_error = nil
-      ErrorJob.new.send_later_enqueue_args(:perform, :max_attempts => 2, :on_failure => :on_failure)
+      ErrorJob.new.delay(max_attempts: 2, on_failure: :on_failure).perform
       expect { @worker.run }.to change { ErrorJob.failure_runs }.by(1)
       expect(ErrorJob.last_error.to_s).to eq 'did not work'
     end
 
     it "should call the on_permanent_failure callback" do
       ErrorJob.last_error = nil
-      ErrorJob.new.send_later_enqueue_args(:perform, :max_attempts => 1, :on_permanent_failure => :on_failure)
+      ErrorJob.new.delay(max_attempts: 1, on_permanent_failure: :on_failure).perform
       expect { @worker.run }.to change { ErrorJob.failure_runs }.by(1)
       expect(ErrorJob.last_error.to_s).to eq 'did not work'
     end

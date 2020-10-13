@@ -91,7 +91,7 @@ class Story < ActiveRecord::Base
   def whatever_else(n, _); tell*n; end
 
   handle_asynchronously :whatever
-  handle_asynchronously_with_queue :whatever_else, "testqueue"
+  handle_asynchronously :whatever_else, queue: "testqueue"
 end
 
 class StoryReader

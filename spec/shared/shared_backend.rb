@@ -1,6 +1,6 @@
 shared_examples_for 'a backend' do
   def create_job(opts = {})
-    Delayed::Job.enqueue(SimpleJob.new, { :queue => nil }.merge(opts))
+    Delayed::Job.enqueue(SimpleJob.new, **{ :queue => nil }.merge(opts))
   end
 
   before do
@@ -139,12 +139,12 @@ shared_examples_for 'a backend' do
     end
 
     it "should be the method that will be called if its a performable method object" do
-      @job = Story.send_later_enqueue_args(:create, no_delay: true)
+      @job = Story.delay(ignore_transaction: true).create
       @job.name.should == "Story.create"
     end
 
     it "should be the instance method that will be called if its a performable method object" do
-      @job = Story.create(:text => "...").send_later_enqueue_args(:save, no_delay: true)
+      @job = Story.create(:text => "...").delay(ignore_transaction: true).save
       @job.name.should == 'Story#save'
     end
   end
@@ -371,8 +371,8 @@ shared_examples_for 'a backend' do
       end
 
       it "should update existing singleton job handler if requested" do
-        job1 = Delayed::Job.enqueue(SimpleJob.new, { :queue => nil, :singleton => 'myjobs', :on_conflict => :overwrite})
-        job2 = Delayed::Job.enqueue(ErrorJob.new, { :queue => nil, :singleton => 'myjobs', :on_conflict => :overwrite})
+        job1 = Delayed::Job.enqueue(SimpleJob.new, queue: nil, singleton: 'myjobs', on_conflict: :overwrite)
+        job2 = Delayed::Job.enqueue(ErrorJob.new, queue: nil, singleton: 'myjobs', on_conflict: :overwrite)
         job2.should == job1
         expect(job2.handler).to include("ErrorJob")
       end
@@ -498,7 +498,7 @@ shared_examples_for 'a backend' do
   end
 
   it "should set in_delayed_job?" do
-    job = InDelayedJobTest.send_later_enqueue_args(:check_in_job, no_delay: true)
+    job = InDelayedJobTest.delay(ignore_transaction: true).check_in_job
     Delayed::Job.in_delayed_job?.should == false
     job.invoke_job
     Delayed::Job.in_delayed_job?.should == false
@@ -506,12 +506,12 @@ shared_examples_for 'a backend' do
 
   it "should fail on job creation if an unsaved AR object is used" do
     story = Story.new :text => "Once upon..."
-    lambda { story.send_later(:text) }.should raise_error(RuntimeError)
+    lambda { story.delay.text }.should raise_error(RuntimeError)
 
     reader = StoryReader.new
-    lambda { reader.send_later(:read, story) }.should raise_error(RuntimeError)
+    lambda { reader.delay.read(story) }.should raise_error(RuntimeError)
 
-    lambda { [story, 1, story, false].send_later(:first) }.should raise_error(RuntimeError)
+    lambda { [story, 1, story, false].delay.first }.should raise_error(RuntimeError)
   end
 
   # the sort order of current_jobs and list_jobs depends on the back-end
@@ -576,11 +576,11 @@ shared_examples_for 'a backend' do
 
   it "should return the jobs for a tag" do
     tag_jobs = []
-    3.times { tag_jobs << "test".send_later_enqueue_args(:to_s, :no_delay => true) }
-    2.times { "test".send_later(:to_i) }
-    tag_jobs << "test".send_later_enqueue_args(:to_s, :run_at => 5.hours.from_now, :no_delay => true)
-    tag_jobs << "test".send_later_enqueue_args(:to_s, :strand => "test1", :no_delay => true)
-    "test".send_later_enqueue_args(:to_i, :strand => "test1")
+    3.times { tag_jobs << "test".delay(ignore_transaction: true).to_s }
+    2.times { "test".delay.to_i }
+    tag_jobs << "test".delay(ignore_transaction: true, run_at: 5.hours.from_now).to_s
+    tag_jobs << "test".delay(ignore_transaction: true, strand: "test1").to_s
+    "test".delay(strand: "test1").to_i
     create_job
 
     jobs = Delayed::Job.list_jobs(:tag, 3, 0, "String#to_s")
@@ -719,9 +719,9 @@ shared_examples_for 'a backend' do
         @flavor = 'tag'
         @query = 'String#to_i'
         Timecop.freeze(5.minutes.ago) do
-          @affected_jobs << "test".send_later_enqueue_args(:to_i, :no_delay => true)
-          @affected_jobs << "test".send_later_enqueue_args(:to_i, :strand => 's1', :no_delay => true)
-          @affected_jobs << "test".send_later_enqueue_args(:to_i, :run_at => 2.hours.from_now, :no_delay => true)
+          @affected_jobs << "test".delay(ignore_transaction: true).to_i
+          @affected_jobs << "test".delay(strand: 's1', ignore_transaction: true).to_i
+          @affected_jobs << "test".delay(run_at: 2.hours.from_now, ignore_transaction: true).to_i
           @ignored_jobs << create_job
           @ignored_jobs << create_job(:run_at => 1.hour.from_now)
         end
@@ -729,9 +729,9 @@ shared_examples_for 'a backend' do
     end
 
     it "should hold and un-hold given job ids" do
-      j1 = "test".send_later_enqueue_args(:to_i, :no_delay => true)
+      j1 = "test".delay(ignore_transaction: true).to_i
       j2 = create_job(:run_at => 2.hours.from_now)
-      j3 = "test".send_later_enqueue_args(:to_i, :strand => 's1', :no_delay => true)
+      j3 = "test".delay(strand: 's1', ignore_transaction: true).to_i
       Delayed::Job.bulk_update('hold', :ids => [j1.id, j2.id]).should == 2
       Delayed::Job.find(j1.id).on_hold?.should be true
       Delayed::Job.find(j2.id).on_hold?.should be true
@@ -776,13 +776,13 @@ shared_examples_for 'a backend' do
   describe "tag_counts" do
     before do
       @cur = []
-      3.times { @cur << "test".send_later_enqueue_args(:to_s, no_delay: true) }
-      5.times { @cur << "test".send_later_enqueue_args(:to_i, no_delay: true) }
-      2.times { @cur << "test".send_later_enqueue_args(:upcase, no_delay: true) }
-      ("test".send_later_enqueue_args :downcase, no_delay: true).fail!
+      3.times { @cur << "test".delay(ignore_transaction: true).to_s }
+      5.times { @cur << "test".delay(ignore_transaction: true).to_i}
+      2.times { @cur << "test".delay(ignore_transaction: true).upcase }
+      "test".delay(ignore_transaction: true).downcase.fail!
       @future = []
-      5.times { @future << "test".send_later_enqueue_args(:downcase, run_at: 3.hours.from_now, no_delay: true) }
-      @cur << "test".send_later_enqueue_args(:downcase, no_delay: true)
+      5.times { @future << "test".delay(run_at: 3.hours.from_now, ignore_transaction: true).downcase }
+      @cur << "test".delay(ignore_transaction: true).downcase
     end
 
     it "should return a sorted list of popular current tags" do

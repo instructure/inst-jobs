@@ -1,13 +1,14 @@
 module Delayed
-  class PerformableMethod < Struct.new(:object, :method, :args, :fail_cb, :permanent_fail_cb)
-    def initialize(object, method, args = [], fail_cb = nil, permanent_fail_cb = nil)
+  class PerformableMethod < Struct.new(:object, :method, :args, :kwargs, :fail_cb, :permanent_fail_cb)
+    def initialize(object, method, args: [], kwargs: {}, on_failure: nil, on_permanent_failure: nil)
       raise NoMethodError, "undefined method `#{method}' for #{object.inspect}" unless object.respond_to?(method, true)
 
       self.object = object
       self.args   = args
+      self.kwargs = kwargs
       self.method = method.to_sym
-      self.fail_cb           = fail_cb
-      self.permanent_fail_cb = permanent_fail_cb
+      self.fail_cb           = on_failure
+      self.permanent_fail_cb = on_permanent_failure
     end
 
     def display_name
@@ -20,7 +21,12 @@ module Delayed
     alias_method :tag, :display_name
 
     def perform
-      object.send(method, *args)
+      kwargs = self.kwargs || {}
+      if kwargs.empty?
+        object.send(method, *args)
+      else
+        object.send(method, *args, **kwargs)
+      end
     end
 
     def on_failure(error)
@@ -46,7 +52,8 @@ module Delayed
 
     def full_name
       obj_name = object.is_a?(ActiveRecord::Base) ? "#{object.class}.find(#{object.id}).#{method}" : display_name
-      "#{obj_name}(#{args.map { |a| deep_de_ar_ize(a) }.join(', ')})"
+      kwargs_str = kwargs.map { |(k, v)| ", #{k}: #{deep_de_ar_ize(v)}"}.join("")
+      "#{obj_name}(#{args.map { |a| deep_de_ar_ize(a) }.join(', ')}#{kwargs_str})"
     end
   end
 end
