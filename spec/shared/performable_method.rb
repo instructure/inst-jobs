@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 shared_examples_for 'Delayed::PerformableMethod' do
 
   it "should not ignore ActiveRecord::RecordNotFound errors because they are not always permanent" do

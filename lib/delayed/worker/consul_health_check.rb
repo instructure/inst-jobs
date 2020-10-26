@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'health_check'
 require_relative 'process_helper'
 require 'socket'

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 shared_examples_for 'a backend' do
   def create_job(opts = {})
     Delayed::Job.enqueue(SimpleJob.new, **{ :queue => nil }.merge(opts))

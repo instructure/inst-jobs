@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require File.expand_path("../spec_helper", __FILE__)
 
 describe 'Delayed::Backed::ActiveRecord::Job' do

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddMaxConcurrentToJobs < ActiveRecord::Migration[4.2]
   def connection
     Delayed::Job.connection

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'redis/scripting'
 
 # This module handles loading the Lua functions into Redis and running them

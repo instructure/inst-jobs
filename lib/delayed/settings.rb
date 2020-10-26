@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'yaml'
 require 'erb'
 require 'active_support/core_ext/hash/indifferent_access'

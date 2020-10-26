@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require File.expand_path('../shared/delayed_batch', __FILE__)
 require File.expand_path('../shared/delayed_method', __FILE__)
 require File.expand_path('../shared/performable_method', __FILE__)

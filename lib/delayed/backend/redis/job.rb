@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # This can't currently be made compatible with redis cluster, because the Lua functions
 # access keys that aren't in their keys argument list (since they pop jobs off
 # a queue and then update the job with that id).

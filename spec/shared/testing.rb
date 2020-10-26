@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 shared_examples_for 'Delayed::Testing' do
   class TestingWorker
     cattr_accessor :runs

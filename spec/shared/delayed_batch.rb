@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 shared_examples_for 'Delayed::Batch' do
   context "batching" do
     it "should batch up all deferrable delayed methods" do

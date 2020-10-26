@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Delayed
   class PerformableMethod < Struct.new(:object, :method, :args, :kwargs, :fail_cb, :permanent_fail_cb)
     def initialize(object, method, args: [], kwargs: {}, on_failure: nil, on_permanent_failure: nil)

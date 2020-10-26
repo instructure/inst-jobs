@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 shared_examples_for 'Delayed::Worker' do
   def job_create(opts = {})
     Delayed::Job.create({:payload_object => SimpleJob.new, :queue => Delayed::Settings.queue}.merge(opts))
@@ -36,7 +38,7 @@ shared_examples_for 'Delayed::Worker' do
       end
 
       it "should run each job in order" do
-        bar = "bar"
+        bar = +"bar"
         expect(bar).to receive(:scan).with("b").ordered
         expect(bar).to receive(:scan).with("a").ordered
         expect(bar).to receive(:scan).with("r").ordered
@@ -155,7 +157,7 @@ shared_examples_for 'Delayed::Worker' do
       @worker.perform(@job)
       @job = Delayed::Job.find(@job.id)
       @job.last_error.should =~ /did not work/
-      @job.last_error.should =~ /sample_jobs.rb:8:in `perform'/
+      @job.last_error.should =~ /sample_jobs.rb:10:in `perform'/
       @job.attempts.should == 1
       @job.run_at.should > Delayed::Job.db_time_now - 10.minutes
       @job.run_at.should < Delayed::Job.db_time_now + 10.minutes

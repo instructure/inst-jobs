@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class SimpleJob
   cattr_accessor :runs; self.runs = 0
   def perform; @@runs += 1; end

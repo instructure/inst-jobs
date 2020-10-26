@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CopyFailedJobsOriginalId < ActiveRecord::Migration[4.2]
   def connection
     Delayed::Backend::ActiveRecord::Job.connection

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 shared_examples_for 'random ruby objects' do
   def set_queue(name)
     old_name = Delayed::Settings.queue

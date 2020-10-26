@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Delayed
 module WorkQueue
 # The simplest possible implementation of a WorkQueue -- just turns around and

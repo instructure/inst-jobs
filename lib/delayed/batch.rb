@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Delayed
   module Batch
     class PerformableBatch < Struct.new(:mode, :items)

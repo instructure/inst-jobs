@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Delayed
 # Used when a block of code wants to track what jobs are created,
 # for instance in tests.

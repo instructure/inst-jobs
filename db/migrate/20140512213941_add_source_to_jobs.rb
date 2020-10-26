@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddSourceToJobs < ActiveRecord::Migration[4.2]
   def connection
     Delayed::Job.connection

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddIdToGetDelayedJobsIndex < ActiveRecord::Migration[4.2]
   disable_ddl_transaction! if respond_to?(:disable_ddl_transaction!)
 

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # New definitions for YAML to aid in serialization and deserialization of delayed jobs.
 
 require 'yaml'

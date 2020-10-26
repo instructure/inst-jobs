@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Delayed
   MIN_PRIORITY = 0
   HIGH_PRIORITY = 0

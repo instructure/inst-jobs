@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ActiveRecord::Base
   def self.load_for_delayed_job(id)
     if id
@@ -288,7 +290,7 @@ module Delayed
                     lock(lock)
                 jobs_with_row_number = all.from(target_jobs).
                     select("id, ROW_NUMBER() OVER () AS row_number")
-                updates = "locked_by = CASE row_number "
+                updates = +"locked_by = CASE row_number "
                 effective_worker_names.each_with_index do |worker, i|
                   updates << "WHEN #{i + 1} THEN #{connection.quote(worker)} "
                 end
