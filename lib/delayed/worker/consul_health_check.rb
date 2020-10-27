@@ -13,7 +13,7 @@ module Delayed
       DEFAULT_SERVICE_NAME = 'inst-jobs_worker'.freeze
       attr_reader :agent_client, :catalog_client
 
-      def initialize(*args)
+      def initialize(*, **)
         super
         # Because we don't want the consul client to be a hard dependency we're
         # only requiring it once it's absolutely needed

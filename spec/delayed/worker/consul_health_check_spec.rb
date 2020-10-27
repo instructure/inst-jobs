@@ -17,7 +17,7 @@ RSpec.describe Delayed::Worker::ConsulHealthCheck do
 
   describe '#initialize' do
     it 'must use the default agent client when the config is mostly empty' do
-      check = Delayed::Worker::ConsulHealthCheck.new({worker_name: 'foobar'})
+      check = Delayed::Worker::ConsulHealthCheck.new(worker_name: 'foobar')
       expect(check.agent_client).to eq Imperium::Agent.default_client
     end
 
