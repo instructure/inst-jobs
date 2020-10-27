@@ -21,7 +21,7 @@ shared_examples_for 'Delayed::Worker' do
 
   describe "running a job" do
     it "should not fail when running a job with a % in the name" do
-      @job = "Some % Name here".delay(ignore_transaction: true).starts_with?("Some % Name")
+      @job = "Some % Name here".delay(ignore_transaction: true).start_with?("Some % Name")
       @worker.perform(@job)
     end
   end

@@ -1,13 +1,13 @@
 FROM instructure/rvm
 
 RUN bash -lc "rvm use --default 2.6"
-RUN bash -lc "rvm-exec 2.6 gem install bundler -v 2.1.4"
+RUN bash -lc "rvm 2.6,2.7,3.0 do gem install bundler -v 2.2.15"
 
 COPY --chown=docker:docker inst-jobs.gemspec Gemfile ./
 COPY --chown=docker:docker exe exe
 COPY --chown=docker:docker lib/delayed/version.rb lib/delayed/version.rb
 
-RUN bash -lc "rvm 2.6,2.7 do bundle install --jobs 6"
+RUN bash -lc "rvm 2.6,2.7,3.0 do bundle install --jobs 6"
 
 COPY --chown=docker:docker . /usr/src/app
 
