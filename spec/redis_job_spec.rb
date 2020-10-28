@@ -7,10 +7,6 @@ describe 'Delayed::Backend::Redis::Job' do
     Delayed.select_backend(Delayed::Backend::Redis::Job)
   end
 
-  after :all do
-    Delayed.send(:remove_const, :Job)
-  end
-
   before do
     Delayed::Testing.clear_all!
   end

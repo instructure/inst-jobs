@@ -7,10 +7,6 @@ RSpec.describe Delayed::WorkQueue::InProcess do
     Delayed.select_backend(Delayed::Backend::ActiveRecord::Job)
   end
 
-  after :all do
-    Delayed.send(:remove_const, :Job)
-  end
-
   after :each do
     Delayed::Worker.lifecycle.reset!
   end

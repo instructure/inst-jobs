@@ -31,7 +31,6 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
   end
 
   after :all do
-    Delayed.send(:remove_const, :Job)
     Delayed::Settings.parent_process = {}
   end
 

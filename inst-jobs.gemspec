@@ -26,6 +26,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'redis',                    '> 3.0'
   s.add_dependency 'redis-scripting',          '~> 1.0.1'
   s.add_dependency 'fugit',                    '~> 1.3'
+  s.add_dependency 'debug_inspector',          '~> 0.0.3'
 
   s.add_development_dependency 'bump'
   s.add_development_dependency 'byebug'

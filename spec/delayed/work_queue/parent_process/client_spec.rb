@@ -16,10 +16,6 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
     Delayed.select_backend(Delayed::Backend::ActiveRecord::Job)
   end
 
-  after :all do
-    Delayed.send(:remove_const, :Job)
-  end
-
   it 'marshals the given arguments to the server and returns the response' do
     expect(addrinfo).to receive(:connect).once.and_return(connection)
     expect(connection).to receive(:eof?).and_return(false)

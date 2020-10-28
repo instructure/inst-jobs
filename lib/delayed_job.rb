@@ -19,6 +19,8 @@ require 'active_support/core_ext/module/attribute_accessors'
 require 'active_record'
 require 'after_transaction_commit'
 
+require 'delayed/core_ext/kernel'
+
 require 'delayed/settings'
 require 'delayed/yaml_extensions'
 

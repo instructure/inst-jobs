@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Delayed
-  class PerformableMethod < Struct.new(:object, :method, :args, :kwargs, :fail_cb, :permanent_fail_cb)
-    def initialize(object, method, args: [], kwargs: {}, on_failure: nil, on_permanent_failure: nil)
+  class PerformableMethod < Struct.new(:object, :method, :args, :kwargs, :fail_cb, :permanent_fail_cb, :public_send)
+    def initialize(object, method, args: [], kwargs: {}, on_failure: nil, on_permanent_failure: nil, public_send: true)
       raise NoMethodError, "undefined method `#{method}' for #{object.inspect}" unless object.respond_to?(method, true)
 
       self.object = object
@@ -11,6 +11,7 @@ module Delayed
       self.method = method.to_sym
       self.fail_cb           = on_failure
       self.permanent_fail_cb = on_permanent_failure
+      self.public_send = public_send
     end
 
     def display_name
@@ -24,10 +25,18 @@ module Delayed
 
     def perform
       kwargs = self.kwargs || {}
-      if kwargs.empty?
-        object.send(method, *args)
+      if public_send
+        if kwargs.empty?
+          object.public_send(method, *args)
+        else
+          object.public_send(method, *args, **kwargs)
+        end
       else
-        object.send(method, *args, **kwargs)
+        if kwargs.empty?
+          object.send(method, *args)
+        else
+          object.send(method, *args, **kwargs)
+        end
       end
     end
 

@@ -20,10 +20,6 @@ RSpec.describe Delayed::Server, sinatra: true do
     Delayed.select_backend(Delayed::Backend::ActiveRecord::Job)
   end
 
-  after :all do
-    Delayed.send(:remove_const, :Job)
-  end
-
   describe "get '/running'" do
     before do
       3.times do |i|

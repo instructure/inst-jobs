@@ -1,14 +1,40 @@
 # frozen_string_literal: true
 
+if ::Rails.env.test? || ::Rails.env.development?
+  require 'debug_inspector'
+end
+
 module Delayed
   module MessageSending
     class DelayProxy < BasicObject
-      def initialize(object, enqueue_args)
+      def initialize(object, synchronous: false, public_send: false, **enqueue_args)
         @object = object
         @enqueue_args = enqueue_args
+        @synchronous = synchronous
+        @public_send = public_send
       end
 
       def method_missing(method, *args, **kwargs)
+        if @synchronous
+          if @public_send
+            if kwargs.empty?
+              return @object.public_send(method, *args)
+            else
+              return @object.public_send(method, *args, **kwargs)
+            end
+          else
+            if kwargs.empty?
+              return @object.send(method, *args)
+            else
+              return @object.send(method, *args, **kwargs)
+            end
+          end
+        end
+
+        if @public_send && @object.private_methods.include?(method)
+          ::Kernel.raise ::NoMethodError.new("undefined method `#{method}' for #{@object}", method)
+        end
+
         ignore_transaction = @enqueue_args.delete(:ignore_transaction)
         on_failure = @enqueue_args.delete(:on_failure)
         on_permanent_failure = @enqueue_args.delete(:on_permanent_failure)
@@ -42,17 +68,29 @@ module Delayed
       end
     end
 
-    def delay(**enqueue_args)
+    def delay(public_send: nil, **enqueue_args)
       # support procs/methods as enqueue arguments
       enqueue_args.each do |k,v|
         if v.respond_to?(:call)
           enqueue_args[k] = v.call(self)
         end
       end
-      if enqueue_args.delete(:synchronous)
-        return self
+
+      public_send ||= __calculate_public_send_for_delay
+
+      DelayProxy.new(self, public_send: public_send, **enqueue_args)
+    end
+
+    def __calculate_public_send_for_delay
+      # enforce public send in dev and test, but not prod (since it uses
+      # debug APIs, it's expensive)
+      public_send = if ::Rails.env.test? || ::Rails.env.development?
+        sender = self.sender(1)
+        # if the caller isn't self, use public_send; i.e. enforce method visibility
+        sender != self
+      else
+        false
       end
-      DelayProxy.new(self, enqueue_args)
     end
 
     module ClassMethods
