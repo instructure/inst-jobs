@@ -35,6 +35,15 @@ RSpec.configure do |config|
   end
 end
 
+module NoYamlDump
+  def encode_with(coder)
+  end
+end
+# example groups are often the sender, and if we try to serialize them,
+# the resultant object is then encoded in the sender, and then we serialize
+# again, and it just keeps getting bigger and bigger and bigger...
+RSpec::Core::ExampleGroup.include(NoYamlDump)
+
 ENV['TEST_ENV_NUMBER'] ||= '1'
 ENV['TEST_DB_HOST'] ||= 'localhost'
 ENV['TEST_DB_DATABASE'] ||= "inst-jobs-test-#{ENV['TEST_ENV_NUMBER']}"

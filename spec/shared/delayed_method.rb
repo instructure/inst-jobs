@@ -82,11 +82,11 @@ shared_examples_for 'random ruby objects' do
         obj = klass.new
         method = double()
 
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method, args: [1,2,3], kwargs: {synchronous: true}, on_failure: nil, on_permanent_failure: nil).and_return(method)
+        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method, args: [1,2,3], kwargs: {synchronous: true}, on_failure: nil, on_permanent_failure: nil, sender: obj).and_return(method)
         expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
         obj.test_method(1,2,3)
 
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method, args: [4], kwargs: {:synchronous=>true}, on_failure: nil, on_permanent_failure: nil).and_return(method)
+        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method, args: [4], kwargs: {:synchronous=>true}, on_failure: nil, on_permanent_failure: nil, sender: obj).and_return(method)
         expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
         obj.test_method(4)
 

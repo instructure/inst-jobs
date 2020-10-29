@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Delayed
-  class PerformableMethod < Struct.new(:object, :method, :args, :kwargs, :fail_cb, :permanent_fail_cb, :public_send)
-    def initialize(object, method, args: [], kwargs: {}, on_failure: nil, on_permanent_failure: nil, public_send: true)
+  class PerformableMethod < Struct.new(:object, :method, :args, :kwargs, :fail_cb, :permanent_fail_cb, :sender)
+    def initialize(object, method, args: [], kwargs: {}, on_failure: nil, on_permanent_failure: nil, sender: nil)
       raise NoMethodError, "undefined method `#{method}' for #{object.inspect}" unless object.respond_to?(method, true)
 
       self.object = object
@@ -11,7 +11,13 @@ module Delayed
       self.method = method.to_sym
       self.fail_cb           = on_failure
       self.permanent_fail_cb = on_permanent_failure
-      self.public_send = public_send
+      self.sender = sender
+      begin
+        YAML.dump(sender)
+      rescue
+        # if for some reason you can't dump the sender, just drop it
+        self.sender = nil
+      end
     end
 
     def display_name
@@ -25,17 +31,21 @@ module Delayed
 
     def perform
       kwargs = self.kwargs || {}
-      if public_send
-        if kwargs.empty?
-          object.public_send(method, *args)
-        else
-          object.public_send(method, *args, **kwargs)
-        end
-      else
+
+      sender_is_object = sender == object
+      sender_is_class = sender.is_a?(object.class)
+
+      if sender.nil? || sender_is_object || sender_is_class && object.protected_methods.include?(method)
         if kwargs.empty?
           object.send(method, *args)
         else
           object.send(method, *args, **kwargs)
+        end
+      else
+        if kwargs.empty?
+          object.public_send(method, *args)
+        else
+          object.public_send(method, *args, **kwargs)
         end
       end
     end

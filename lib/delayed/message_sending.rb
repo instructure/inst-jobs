@@ -7,32 +7,45 @@ end
 module Delayed
   module MessageSending
     class DelayProxy < BasicObject
-      def initialize(object, synchronous: false, public_send: false, **enqueue_args)
+      def initialize(object, synchronous: false, sender: nil, **enqueue_args)
         @object = object
         @enqueue_args = enqueue_args
         @synchronous = synchronous
-        @public_send = public_send
+        @sender = sender
       end
 
       def method_missing(method, *args, **kwargs)
+        # method doesn't exist? must be method_missing; assume private access
+        @sender = nil if !@sender.nil? &&
+         !@object.methods.include?(method) &&
+         !@object.protected_methods.include?(method) &&
+         !@object.private_methods.include?(method)
+
+        sender_is_object = @sender == @object
+        sender_is_class = @sender.is_a?(@object.class)
+
+        # even if the call is async, if the call is _going_ to generate an error, we make it synchronous
+        # so that the error is generated immediately, instead of waiting for it to fail in a job,
+        # which might go unnoticed
+        if !@sender.nil? && !@synchronous
+          @synchronous = true if !sender_is_object && @object.private_methods.include?(method)
+          @synchronous = true if !sender_is_class && @object.protected_methods.include?(method)
+        end
+
         if @synchronous
-          if @public_send
-            if kwargs.empty?
-              return @object.public_send(method, *args)
-            else
-              return @object.public_send(method, *args, **kwargs)
-            end
-          else
+          if @sender.nil? || sender_is_object || sender_is_class && @object.protected_methods.include?(method)
             if kwargs.empty?
               return @object.send(method, *args)
             else
               return @object.send(method, *args, **kwargs)
             end
           end
-        end
-
-        if @public_send && @object.private_methods.include?(method)
-          ::Kernel.raise ::NoMethodError.new("undefined method `#{method}' for #{@object}", method)
+          
+          if kwargs.empty?
+            return @object.public_send(method, *args)
+          else
+            return @object.public_send(method, *args, **kwargs)
+          end
         end
 
         ignore_transaction = @enqueue_args.delete(:ignore_transaction)
@@ -50,7 +63,8 @@ module Delayed
               ::Delayed::Job.enqueue(::Delayed::PerformableMethod.new(@object, method,
                                                                   args: args, kwargs: kwargs,
                                                                   on_failure: on_failure,
-                                                                  on_permanent_failure: on_permanent_failure),
+                                                                  on_permanent_failure: on_permanent_failure,
+                                                                  sender: @sender),
                                                                   **@enqueue_args)
             end
             return nil
@@ -61,14 +75,15 @@ module Delayed
                                                                     args: args,
                                                                     kwargs: kwargs,
                                                                     on_failure: on_failure,
-                                                                    on_permanent_failure: on_permanent_failure),
+                                                                    on_permanent_failure: on_permanent_failure,
+                                                                    sender: @sender),
                                                                     **@enqueue_args)
         result = nil unless ignore_transaction
         result
       end
     end
 
-    def delay(public_send: nil, **enqueue_args)
+    def delay(sender: nil, **enqueue_args)
       # support procs/methods as enqueue arguments
       enqueue_args.each do |k,v|
         if v.respond_to?(:call)
@@ -76,21 +91,15 @@ module Delayed
         end
       end
 
-      public_send ||= __calculate_public_send_for_delay
+      sender ||= __calculate_sender_for_delay
 
-      DelayProxy.new(self, public_send: public_send, **enqueue_args)
+      DelayProxy.new(self, sender: sender, **enqueue_args)
     end
 
-    def __calculate_public_send_for_delay
+    def __calculate_sender_for_delay
       # enforce public send in dev and test, but not prod (since it uses
       # debug APIs, it's expensive)
-      public_send = if ::Rails.env.test? || ::Rails.env.development?
-        sender = self.sender(1)
-        # if the caller isn't self, use public_send; i.e. enforce method visibility
-        sender != self
-      else
-        false
-      end
+      return sender(1) if ::Rails.env.test? || ::Rails.env.development?
     end
 
     module ClassMethods
@@ -114,7 +123,7 @@ module Delayed
               if synchronous
                 super(*args, **kwargs)
               else
-                delay(**enqueue_args).method_missing(method_name, *args, synchronous: true, **kwargs)
+                delay(sender: __calculate_sender_for_delay, **enqueue_args).method_missing(method_name, *args, synchronous: true, **kwargs)
               end
             end)
           end
