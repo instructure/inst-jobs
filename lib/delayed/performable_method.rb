@@ -13,7 +13,7 @@ module Delayed
       self.permanent_fail_cb = on_permanent_failure
       self.sender = sender
       begin
-        YAML.dump(sender)
+        YAML.load(YAML.dump(sender))
       rescue
         # if for some reason you can't dump the sender, just drop it
         self.sender = nil
