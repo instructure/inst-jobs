@@ -73,7 +73,8 @@ module Delayed
 
     def full_name
       obj_name = object.is_a?(ActiveRecord::Base) ? "#{object.class}.find(#{object.id}).#{method}" : display_name
-      kwargs_str = kwargs.map { |(k, v)| ", #{k}: #{deep_de_ar_ize(v)}"}.join("")
+      kgs = kwargs || {}
+      kwargs_str = kgs.map { |(k, v)| ", #{k}: #{deep_de_ar_ize(v)}"}.join("")
       "#{obj_name}(#{args.map { |a| deep_de_ar_ize(a) }.join(', ')}#{kwargs_str})"
     end
   end

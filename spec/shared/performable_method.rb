@@ -65,4 +65,10 @@ shared_examples_for 'Delayed::PerformableMethod' do
     p.send(:on_permanent_failure, 'fail_frd')
     story.text.should == 'fail_frd'
   end
+
+  it "can still generate a name with no kwargs" do
+    story = Story.create :text => 'wat'
+    p = Delayed::PerformableMethod.new(story, :tell, kwargs: nil)
+    expect(p.full_name).to eq("Story.find(#{story.id}).tell()")
+  end
 end
