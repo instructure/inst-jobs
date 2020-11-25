@@ -540,4 +540,7 @@ gem push pkg/inst-jobs-VERSION.gem
 # -> follow prompts to enter your login information
 ```
 
-Future releases you can now just use the release rake task for
+Future releases you can now just use the release rake task,
+although if you have MFA enabled (and you should!) and your
+MFA valid period expires, you'll have to do the gem push
+manually to enter a new MFA code.
