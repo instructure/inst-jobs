@@ -308,6 +308,19 @@ Periodic Jobs are queued just like normal jobs, and run by your same pool of
 workers. Jobs are configured with `max_attempts` set to 1, so if the job fails,
 it will not run again until the next scheduled interval.
 
+This works by storing a registry of periodic jobs with their intervals,
+enqueueing each job immediately for the next time it should be run
+at, and then having an extra step after the job is performed
+that re-enqueues it for the NEXT time it will run.  It's expected
+that every periodic job will be in the queue all the time (either executing
+or queued for the next time it will execute).
+
+By default, Periodic jobs are singletons (see docs above on singleton jobs).
+If you really don't want a periodic job to be a singleton, you can pass
+{ singleton: false } as a job arg.  This makes it _possible_ for multiple
+versions of this job to run at the same time in the rare cases where that's
+appropriate.
+
 ### Lifecycle Events
 
 There are several callbacks you can hook into from outside
@@ -378,10 +391,17 @@ Setting.worker_health_check = {
 }
 
 # Schedule a periodic job to clean up abandoned jobs
-Delayed::Periodic.cron 'abandoned job cleanup', '*/10 * * * *' do
+Delayed::Periodic.cron 'abandoned job cleanup', '*/10 * * * *', {singleton: false} do
   Delayed::Worker::HealthCheck.reschedule_abandoned_jobs
 end
 ```
+
+Notice that the abandoned job cleanup should be scheduled with "singleton: false".
+Remember back in the Periodic Jobs docs where we talked about this being possible
+in the rare cases you didn't want a periodic job to be a singleton?  This is one
+of those times.  If the rescheduling job dies while running, there is no other
+cleanup job to cleanup itself.  Therefore the "reschedule_abandoned_jobs"
+method takes care of it's own concurrency control with postgres advisory locks.
 
 ## Testing
 
@@ -415,8 +435,9 @@ $> ./build.sh
 
 #### Running individual tests in Docker
 
-This repo uses `rvm` to run specs under a variety of ruby versions. For local
-testing, you probably just want to get things tested under _some_ ruby version.
+This repo uses `rvm` to run specs under a variety of ruby versions (specifically by following the matrix
+defined in .travis.yml using the gem "wwtd").
+For local testing, you probably just want to get things tested under _some_ ruby version.
 Here's how.
 
 First, you'll want a persistent gems volume, which you can get by:
@@ -425,22 +446,23 @@ First, you'll want a persistent gems volume, which you can get by:
 $> cp docker-compose.override.yml.example docker-compose.override.yml
 ```
 
-Then you can install gems with:
+Then you can install bundler and gems, which you'll want to do in your ruby version of choice:
 
 ```
-$> docker-compose run --rm app bash -lc "bundle"
+$> docker-compose run --rm app bash -lc "rvm-exec 2.7 gem install bundler -v 1.17.3"
+$> docker-compose run --rm app bash -lc "rvm-exec 2.7 bundle"
 ```
 
 Now, to run an individual spec:
 
 ```
-$> docker-compose run --rm app bash -lc "bundle exec rspec spec/delayed/worker_spec.rb"
+$> docker-compose run --rm app bash -lc "rvm-exec 2.7 bundle exec rspec spec/delayed/worker_spec.rb"
 ```
 
 You can also run the whole suite, but under just one rvm context, with:
 
 ```
-$> docker-compose run --rm app bash -lc "bundle exec rake spec"
+$> docker-compose run --rm app bash -lc "rvm-exec 2.7 bundle exec rake spec"
 ```
 
 ### Writing Tests

@@ -2,7 +2,7 @@ FROM instructure/rvm
 
 WORKDIR /usr/src/app
 
-RUN /bin/bash -lc "rvm use --default 2.5"
+RUN /bin/bash -lc "rvm use --default 2.6"
 RUN /bin/bash -lc "rvm-exec 2.7 gem install bundler -v 1.17.3"
 
 COPY inst-jobs.gemspec Gemfile* /usr/src/app/

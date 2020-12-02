@@ -49,10 +49,20 @@ class Periodic
   end
 
   def enqueue
-    Delayed::Job.enqueue(self, **@job_args.merge(:max_attempts => 1,
-                                                 :run_at => @cron.next_time(Delayed::Periodic.now).utc.to_time,
-                                                 :singleton => tag,
-                                                 on_conflict: :patient))
+    Delayed::Job.enqueue(self, **enqueue_args)
+  end
+
+  def enqueue_args
+    inferred_args = {
+      max_attempts: 1,
+      run_at: @cron.next_time(Delayed::Periodic.now).utc.to_time,
+      singleton: (@job_args[:singleton] == false ? nil : tag),
+      # yes, checking for whether it is actually the boolean literal false,
+      # which means the consuming code really does not want this job to be
+      # a singleton at all.
+      on_conflict: :patient
+    }
+    @job_args.merge(inferred_args)
   end
 
   def perform

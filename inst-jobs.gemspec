@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.files = Dir['{app,config,db,lib}/**/*']
   s.test_files = Dir['spec/**/*']
 
-  s.required_ruby_version = '>= 2.3'
+  s.required_ruby_version = '>= 2.6'
 
   s.add_dependency 'activerecord',             '>= 4.2'
   s.add_dependency 'activesupport',            '>= 4.2'

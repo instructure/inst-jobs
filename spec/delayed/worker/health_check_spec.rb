@@ -107,6 +107,15 @@ RSpec.describe Delayed::Worker::HealthCheck do
       @dead_job.reload
       expect(@dead_job.locked_by).to eq 'prefetch:some_node'
     end
+
+    it "bails immediately if advisory lock already taken" do
+      allow(Delayed::Worker::HealthCheck).to receive(:attempt_advisory_lock).and_return(false)
+      Delayed::Worker::HealthCheck.reschedule_abandoned_jobs
+      @dead_job.reload
+      expect(@dead_job.run_at.to_i).to eq(initial_run_at.to_i)
+      expect(@dead_job.locked_at).to_not be_nil
+      expect(@dead_job.locked_by).to_not be_nil
+    end
   end
 
   describe '#initialize' do
