@@ -335,6 +335,18 @@ Delayed::Worker.lifecycle.before(:error) do |worker, exception|
 end
 ```
 
+#### :error
+runs whenever a job throws an exception during invocation
+
+#### :retry
+runs when a job throws a Delayed::RetriableError during invocation
+(usually within the rescue block of an "expected" exception so
+the proximate cause is the inner exception).  If the job
+CAN retry/reschedule, it will attempt to do so, otherwise
+it will run the :error callback instead.  Think of this as a way
+to handle infrastructural or other "transient" exceptions without
+firing your error notification process.
+
 ### Work Queue
 
 By default, each Worker process will independently query and lock jobs in the

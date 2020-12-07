@@ -178,6 +178,10 @@ module Delayed
         expires_at && (self.class.db_time_now >= expires_at)
       end
 
+      def inferred_max_attempts
+        self.max_attempts || Delayed::Settings.max_attempts
+      end
+
       # Reschedule the job in the future (when a job fails).
       # Uses an exponential scale depending on the number of failed attempts.
       def reschedule(error = nil, time = nil)
@@ -190,7 +194,7 @@ module Delayed
 
         self.attempts += 1 unless return_code == :unlock
 
-        if self.attempts >= (self.max_attempts || Delayed::Settings.max_attempts)
+        if self.attempts >= self.inferred_max_attempts
           permanent_failure error || "max attempts reached"
         elsif expired?
           permanent_failure error || "job has expired"

@@ -3,6 +3,17 @@
 module Delayed
 
 class TimeoutError < RuntimeError; end
+class RetriableError < RuntimeError
+  # this error is a special case.  You _should_ raise
+  # it from inside the rescue block for another error, 
+  # because it indicates: "something made this job fail
+  # but we're pretty sure it's transient and it's safe to try again".
+  # the workflow is still the same (retry will happen unless
+  # retries are exhausted), but it won't call the :error
+  # callback unless it can't retry anymore.  It WILL call the
+  # separate ":retry" callback, which is ONLY activated
+  # for this kind of error.
+end
 
 require 'tmpdir'
 require 'set'
@@ -216,6 +227,12 @@ class Worker
       logger.info("Completed #{log_job(job)} #{"%.0fms" % (runtime * 1000)}")
     end
     count
+  rescue ::Delayed::RetriableError => re
+    can_retry = job.attempts + 1 < job.inferred_max_attempts
+    callback_type = can_retry ? :retry : :error
+    self.class.lifecycle.run_callbacks(callback_type, self, job, re) do
+      handle_failed_job(job, re)
+    end
   rescue SystemExit => se
     # There wasn't really a failure here so no callbacks and whatnot needed,
     # still reschedule the job though.

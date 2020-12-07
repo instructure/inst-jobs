@@ -19,6 +19,19 @@ describe Delayed::Worker do
       expect(fired).to be_truthy
     end
 
+    it "uses the retry callback for a retriable exception" do
+      error_fired = retry_fired = false
+      Delayed::Worker.lifecycle.before(:error) {|worker, exception| error_fired = true }
+      Delayed::Worker.lifecycle.before(:retry) {|worker, exception| retry_fired = true}
+      job = Delayed::Job.new(payload_object: {}, priority: 25, strand: "test_jobs", max_attempts: 3)
+      expect(job).to receive(:invoke_job) do
+        raise Delayed::RetriableError, "that's all this job does"
+      end
+      subject.perform(job)
+      expect(error_fired).to be_falsey
+      expect(retry_fired).to be_truthy
+    end
+
     it "reloads" do
       fakeApplication = double('Rails.application',
           config: double('Rails.application.config',
