@@ -6,6 +6,11 @@ describe Delayed::Worker do
   let(:worker_config) { {
       queue: "test", min_priority: 1, max_priority: 2, stuff: "stuff",
   }.freeze }
+  let(:job_attrs) { {
+    id: 42, name: "testjob", full_name: "testfullname", :last_error= => nil,
+    attempts: 1, reschedule: nil, :expired? => false,
+    payload_object: {}, priority: 25
+  }.freeze }
   subject { described_class.new(worker_config.dup) }
 
   after { Delayed::Worker.lifecycle.reset! }
@@ -14,9 +19,10 @@ describe Delayed::Worker do
     it "fires off an error callback when a job raises an exception" do
       fired = false
       Delayed::Worker.lifecycle.before(:error) {|worker, exception| fired = true}
-      job = double(:last_error= => nil, attempts: 1, reschedule: nil)
-      subject.perform(job)
+      job = double(job_attrs)
+      output_count = subject.perform(job)
       expect(fired).to be_truthy
+      expect(output_count).to eq(1)
     end
 
     it "uses the retry callback for a retriable exception" do
@@ -27,9 +33,10 @@ describe Delayed::Worker do
       expect(job).to receive(:invoke_job) do
         raise Delayed::RetriableError, "that's all this job does"
       end
-      subject.perform(job)
+      output_count = subject.perform(job)
       expect(error_fired).to be_falsey
       expect(retry_fired).to be_truthy
+      expect(output_count).to eq(1)
     end
 
     it "reloads" do
@@ -48,7 +55,7 @@ describe Delayed::Worker do
         expect(ActionDispatch::Reloader).to receive(:prepare!).once
         expect(ActionDispatch::Reloader).to receive(:cleanup!).once
       end
-      job = double(:last_error= => nil, attempts: 0, reschedule: nil, expired?: false)
+      job = double(job_attrs)
       subject.perform(job)
     end
   end

@@ -209,38 +209,38 @@ class Worker
   end
 
   def perform(job)
-    count = 1
-    raise Delayed::Backend::JobExpired, "job expired at #{job.expires_at}" if job.expired?
-    self.class.lifecycle.run_callbacks(:perform, self, job) do
-      set_process_name("run:#{Settings.worker_procname_prefix}#{job.id}:#{job.name}")
-      logger.info("Processing #{log_job(job, :long)}")
-      runtime = Benchmark.realtime do
-        if job.batch?
-          # each job in the batch will have perform called on it, so we don't
-          # need a timeout around this
-          count = perform_batch(job)
-        else
-          job.invoke_job
+    begin
+      count = 1
+      raise Delayed::Backend::JobExpired, "job expired at #{job.expires_at}" if job.expired?
+      self.class.lifecycle.run_callbacks(:perform, self, job) do
+        set_process_name("run:#{Settings.worker_procname_prefix}#{job.id}:#{job.name}")
+        logger.info("Processing #{log_job(job, :long)}")
+        runtime = Benchmark.realtime do
+          if job.batch?
+            # each job in the batch will have perform called on it, so we don't
+            # need a timeout around this
+            count = perform_batch(job)
+          else
+            job.invoke_job
+          end
+          job.destroy
         end
-        job.destroy
+        logger.info("Completed #{log_job(job)} #{"%.0fms" % (runtime * 1000)}")
       end
-      logger.info("Completed #{log_job(job)} #{"%.0fms" % (runtime * 1000)}")
-    end
-    count
-  rescue ::Delayed::RetriableError => re
-    can_retry = job.attempts + 1 < job.inferred_max_attempts
-    callback_type = can_retry ? :retry : :error
-    self.class.lifecycle.run_callbacks(callback_type, self, job, re) do
-      handle_failed_job(job, re)
-    end
-  rescue SystemExit => se
-    # There wasn't really a failure here so no callbacks and whatnot needed,
-    # still reschedule the job though.
-    job.reschedule(se)
-    count
-  rescue Exception => e
-    self.class.lifecycle.run_callbacks(:error, self, job, e) do
-      handle_failed_job(job, e)
+    rescue ::Delayed::RetriableError => re
+      can_retry = job.attempts + 1 < job.inferred_max_attempts
+      callback_type = can_retry ? :retry : :error
+      self.class.lifecycle.run_callbacks(callback_type, self, job, re) do
+        handle_failed_job(job, re)
+      end
+    rescue SystemExit => se
+      # There wasn't really a failure here so no callbacks and whatnot needed,
+      # still reschedule the job though.
+      job.reschedule(se)
+    rescue Exception => e
+      self.class.lifecycle.run_callbacks(:error, self, job, e) do
+        handle_failed_job(job, e)
+      end
     end
     count
   end
