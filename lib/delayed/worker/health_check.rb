@@ -59,8 +59,8 @@ module Delayed
 
         def attempt_advisory_lock
           lock_name = "Delayed::Worker::HealthCheck#reschedule_abandoned_jobs"
-          output = ActiveRecord::Base.connection.execute("SELECT pg_try_advisory_xact_lock(half_md5_as_bigint('#{lock_name}'));")
-          output.getvalue(0, 0)
+          conn = ActiveRecord::Base.connection
+          conn.select_value("SELECT pg_try_advisory_xact_lock(#{conn.quote_table_name('half_md5_as_bigint')}('#{lock_name}'));")
         end
       end
 
