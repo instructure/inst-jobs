@@ -105,7 +105,11 @@ class Worker
   end
 
   def exit?
-    @exit
+    !!@exit || parent_exited?
+  end
+
+  def parent_exited?
+    @parent_pid && @parent_pid != Process.ppid
   end
 
   def wake_up
