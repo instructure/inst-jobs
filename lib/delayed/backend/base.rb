@@ -87,6 +87,10 @@ module Delayed
             batches[batch_enqueue_args] << kwargs
             return true
           else
+            if kwargs[:on_conflict].present?
+              Delayed::Logging.logger.warn("[DELAYED_JOB] WARNING: providing 'on_conflict' as an option to a non-singleton job will have no effect.  Discarding.")
+              kwargs.delete(:on_conflict)
+            end
             job = self.create(**kwargs)
           end
 

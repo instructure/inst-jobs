@@ -14,6 +14,7 @@ RSpec.describe Delayed::Periodic do
   ensure
     Delayed::Periodic.scheduled = prev_sched
     Delayed::Periodic.overrides = prev_ovr
+    Delayed::Job.delete_all
   end
 
   describe ".cron" do
@@ -34,6 +35,7 @@ RSpec.describe Delayed::Periodic do
       instance = Delayed::Periodic.scheduled[job_name]
       expect(instance).to_not be_nil
       expect(instance.enqueue_args[:singleton]).to be_nil
+      Delayed::Periodic.perform_audit!
     end
   end
 end
