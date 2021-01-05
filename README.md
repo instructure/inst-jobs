@@ -315,11 +315,7 @@ that re-enqueues it for the NEXT time it will run.  It's expected
 that every periodic job will be in the queue all the time (either executing
 or queued for the next time it will execute).
 
-By default, Periodic jobs are singletons (see docs above on singleton jobs).
-If you really don't want a periodic job to be a singleton, you can pass
-{ singleton: false } as a job arg.  This makes it _possible_ for multiple
-versions of this job to run at the same time in the rare cases where that's
-appropriate.
+Periodic jobs are singletons (see docs above on singleton jobs).
 
 ### Lifecycle Events
 
@@ -394,26 +390,19 @@ default dependencies because it is an optional feature.
 
 ```ruby
 # Enable the consul health check
-Setting.worker_health_check_type = :consul
+Delayed::Settings.worker_health_check_type = :consul
 
 # Configure the health check
-Setting.worker_health_check = {
+Delayed::Settings.worker_health_check_config = {
   service_name: 'canvas-worker', # Optional, defaults to 'inst-jobs_worker'
   check_interval: '7m', # Optional, defaults to 5m
 }
 
-# Schedule a periodic job to clean up abandoned jobs
-Delayed::Periodic.cron 'abandoned job cleanup', '*/10 * * * *', {singleton: false} do
-  Delayed::Worker::HealthCheck.reschedule_abandoned_jobs
-end
+# allow the worker pool to fork off a process
+# periodically to kill any jobs that are failing their
+# health checks
+Delayed::Settings.disable_abandoned_job_cleanup = false
 ```
-
-Notice that the abandoned job cleanup should be scheduled with "singleton: false".
-Remember back in the Periodic Jobs docs where we talked about this being possible
-in the rare cases you didn't want a periodic job to be a singleton?  This is one
-of those times.  If the rescheduling job dies while running, there is no other
-cleanup job to cleanup itself.  Therefore the "reschedule_abandoned_jobs"
-method takes care of it's own concurrency control with postgres advisory locks.
 
 ## Testing
 

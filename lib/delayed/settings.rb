@@ -8,6 +8,7 @@ module Delayed
   module Settings
     SETTINGS = [
       :default_job_options,
+      :disable_abandoned_job_cleanup,
       :disable_periodic_jobs,
       :disable_automatic_orphan_unlocking,
       :fetch_batch_size,

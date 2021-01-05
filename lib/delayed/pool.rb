@@ -39,6 +39,7 @@ class Pool
     Process.wait unlock_pid
 
     spawn_periodic_auditor
+    spawn_abandoned_job_cleanup
     spawn_all_workers
     say "Workers spawned"
     join
@@ -109,6 +110,34 @@ class Pool
       Delayed::Job.reconnect!
       yield
     end
+  end
+
+  def spawn_abandoned_job_cleanup
+    return if Settings.disable_abandoned_job_cleanup
+    cleanup_interval_in_minutes = 60
+    @abandoned_cleanup_thread = Thread.new do
+      # every hour (staggered by process)
+      # check for dead jobs and cull them.
+      # Will actually be more often based on the
+      # number of worker nodes in the pool.  This will actually
+      # be a max of N times per hour where N is the number of workers,
+      # but they won't overrun each other because the health check
+      # takes an advisory lock internally
+      sleep(rand(cleanup_interval_in_minutes * 60))
+      loop do
+        schedule_abandoned_job_cleanup
+        sleep(cleanup_interval_in_minutes * 60)
+      end
+    end
+  end
+
+  def schedule_abandoned_job_cleanup
+    pid = fork_with_reconnects do
+      # we want to avoid db connections in the main pool process
+      $0 = "delayed_abandoned_job_cleanup"
+      Delayed::Worker::HealthCheck.reschedule_abandoned_jobs
+    end
+    workers[pid] = :abandoned_job_cleanup
   end
 
   def spawn_periodic_auditor
@@ -217,6 +246,8 @@ class Pool
       case worker
       when :periodic_audit
         say "ran auditor: #{worker}"
+      when :abandoned_job_cleanup
+        say "ran cleanup: #{worker}"
       when :work_queue
         say "work queue exited, restarting", :info
         spawn_work_queue

@@ -23,12 +23,13 @@ module Delayed
         def reschedule_abandoned_jobs
           return if Settings.worker_health_check_type == :none
           Delayed::Job.transaction do
-            # this job is a special case, and is not a singleton
+            # this action is a special case, and SHOULD NOT be a periodic job
             # because if it gets wiped out suddenly during execution
             # it can't go clean up it's abandoned self.  Therefore,
-            # we try to get an advisory lock when it runs.  If we succeed,
-            # no other job is trying to do this right now (and if we abandon the
-            # job, the transaction will end, releasing the advisory lock).
+            # we expect it to get run from it's own process forked from the job pool
+            # and we try to get an advisory lock when it runs.  If we succeed,
+            # no other worker is trying to do this right now (and if we abandon the
+            # operation, the transaction will end, releasing the advisory lock).
             result = attempt_advisory_lock
             return unless result
             checker = Worker::HealthCheck.build(

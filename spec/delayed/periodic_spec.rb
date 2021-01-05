@@ -27,15 +27,5 @@ RSpec.describe Delayed::Periodic do
       expect(instance).to_not be_nil
       expect(instance.enqueue_args[:singleton]).to eq("periodic: just a test")
     end
-
-    it "uses no singleton if told to skip" do
-      Delayed::Periodic.cron job_name, '*/10 * * * *', {singleton: false} do
-        # no-op
-      end
-      instance = Delayed::Periodic.scheduled[job_name]
-      expect(instance).to_not be_nil
-      expect(instance.enqueue_args[:singleton]).to be_nil
-      Delayed::Periodic.perform_audit!
-    end
   end
 end

@@ -53,18 +53,12 @@ class Periodic
   end
 
   def enqueue_args
-    # yes, checking for whether it is actually the boolean literal false,
-    # which means the consuming code really does not want this job to be
-    # a singleton at all.
-    non_singleton_periodic_job = @job_args[:singleton] == false
     inferred_args = {
       max_attempts: 1,
       run_at: @cron.next_time(Delayed::Periodic.now).utc.to_time,
-      singleton: (non_singleton_periodic_job ? nil : tag)
+      singleton: tag,
+      on_conflict: :patient
     }
-    unless non_singleton_periodic_job
-      inferred_args[:on_conflict] = :patient
-    end
     @job_args.merge(inferred_args)
   end
 
