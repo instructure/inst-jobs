@@ -31,8 +31,8 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'bump'
   s.add_development_dependency 'byebug'
   s.add_development_dependency 'database_cleaner', '1.6.1'
-  s.add_development_dependency 'imperium', '>= 0.5.2'
-  s.add_development_dependency 'pg', '< 1.0'
+  s.add_development_dependency 'diplomat', '~> 2.5.1'
+  s.add_development_dependency 'pg'
   s.add_development_dependency 'pry'
   s.add_development_dependency 'rack-test'
   s.add_development_dependency 'rails'
@@ -41,5 +41,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'sinatra'
   s.add_development_dependency 'sinatra-contrib'
   s.add_development_dependency 'timecop', '0.7.1'
+  s.add_development_dependency 'webmock'
   s.add_development_dependency 'wwtd', '~> 1.4.0'
 end

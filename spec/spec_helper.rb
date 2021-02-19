@@ -7,6 +7,8 @@ require 'database_cleaner'
 require 'rack/test'
 require 'test_after_commit' if ::Rails.version < '5'
 require 'timecop'
+require 'webmock/rspec'
+
 require 'pry'
 require 'byebug'
 
@@ -19,6 +21,7 @@ RSpec.configure do |config|
   config.before(:suite) do
     DatabaseCleaner.strategy = :transaction
     DatabaseCleaner.clean_with(:truncation)
+    WebMock.disable_net_connect!
   end
 
   config.before(:each) do |example|

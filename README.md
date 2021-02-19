@@ -384,8 +384,8 @@ from the agent causing another process to come along and reschedule the locked j
 
 #### Configuring the Consul health check
 
-In order to use the Consul health check you must include the `imperium` gem,
-version 0.2.3 or newer, in your application's Gemfile. It is not included in the
+In order to use the Consul health check you must include the `diplomat` gem,
+version 2.5.x, in your application's Gemfile. It is not included in the
 default dependencies because it is an optional feature.
 
 ```ruby

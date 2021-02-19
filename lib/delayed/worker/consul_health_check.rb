@@ -9,52 +9,49 @@ module Delayed
     class ConsulHealthCheck < HealthCheck
       self.type_name = :consul
 
-      CONSUL_CONFIG_KEYS = %w{url host port ssl token connect_timeout receive_timeout send_timeout}.map(&:freeze).freeze
+      CONSUL_CONFIG_KEYS = %w{url acl_token}.map(&:freeze).freeze
       DEFAULT_SERVICE_NAME = 'inst-jobs_worker'.freeze
-      attr_reader :agent_client, :catalog_client
+      attr_reader :service_client, :health_client
 
       def initialize(*, **)
         super
         # Because we don't want the consul client to be a hard dependency we're
         # only requiring it once it's absolutely needed
-        require 'imperium'
+        require 'diplomat'
 
         if config.keys.any? { |k| CONSUL_CONFIG_KEYS.include?(k) }
-          consul_config = Imperium::Configuration.new.tap do |conf|
+          consul_config = Diplomat::Configuration.new.tap do |conf|
             CONSUL_CONFIG_KEYS.each do |key|
               conf.send("#{key}=", config[key]) if config[key]
             end
           end
-          @agent_client = Imperium::Agent.new(consul_config)
-          @catalog_client = Imperium::Catalog.new(consul_config)
+          @service_client = Diplomat::Service.new(configuration: consul_config)
+          @health_client = Diplomat::Health.new(configuration: consul_config)
         else
-          @agent_client = Imperium::Agent.default_client
-          @catalog_client = Imperium::Catalog.default_client
+          @service_client = Diplomat::Service.new
+          @health_client = Diplomat::Health.new
         end
       end
 
       def start
-        service = Imperium::Service.new({
+        @service_client.register({
           id: worker_name,
           name: service_name,
+          check: check_attributes
         })
-        service.add_check(check_attributes)
-        response = @agent_client.register_service(service)
-        response.ok?
       end
 
       def stop
-        response = @agent_client.deregister_service(worker_name)
-        response.ok? || response.not_found?
+        @service_client.deregister(worker_name)
       end
 
       def live_workers
-        live_nodes = @catalog_client.list_nodes_for_service(service_name)
-        if live_nodes.ok?
-          live_nodes.map(&:service_id)
-        else
-          raise "Unable to read from Consul catalog: #{live_nodes.content}"
-        end
+        # Filter out critical workers (probably nodes failing their serf health check)
+        live_nodes = @health_client.service(service_name, {
+          filter: 'not Checks.Status == critical'
+        })
+
+        live_nodes.map { |n| n.Service['ID']}
       end
 
       private
