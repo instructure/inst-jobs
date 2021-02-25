@@ -1,6 +1,5 @@
 language: ruby
 gemfile:
-  - spec/gemfiles/51.gemfile
   - spec/gemfiles/52.gemfile
   - spec/gemfiles/60.gemfile
 rvm:

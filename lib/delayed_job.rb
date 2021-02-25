@@ -18,6 +18,7 @@ require 'rails'
 require 'active_support/core_ext/module/attribute_accessors'
 require 'active_record'
 require 'after_transaction_commit'
+require 'debug_inspector'
 
 require 'delayed/core_ext/kernel'
 

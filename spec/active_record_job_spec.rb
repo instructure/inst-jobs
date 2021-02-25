@@ -262,8 +262,6 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
 
   context "non-transactional", non_transactional: true do
     it "creates a stranded job in a single statement" do
-      skip "Requires Rails 5.2 or greater" unless Rails.version >= '5.2'
-
       allow(Delayed::Job.connection).to receive(:prepared_statements).and_return(false)
       allow(Delayed::Job.connection).to receive(:execute).with(be_include("pg_advisory_xact_lock"), anything).and_call_original.once
       allow(Delayed::Job.connection).to receive(:insert).never
@@ -273,8 +271,6 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
     end
 
     it "creates a non-stranded job in a single statement" do
-      skip "Requires Rails 5.2 or greater" unless Rails.version >= '5.2'
-
       allow(Delayed::Job.connection).to receive(:prepared_statements).and_return(false)
       call_count = 0
       allow(Delayed::Job.connection).to receive(:execute).and_wrap_original do |m, (arg1, arg2)|

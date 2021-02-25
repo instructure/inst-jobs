@@ -1,23 +1,16 @@
 FROM instructure/rvm
 
-WORKDIR /usr/src/app
+RUN bash -lc "rvm use --default 2.6"
+RUN bash -lc "rvm-exec 2.6 gem install bundler -v 2.1.4"
 
-RUN /bin/bash -lc "rvm use --default 2.6"
-RUN /bin/bash -lc "rvm-exec 2.7 gem install bundler -v 1.17.3"
+COPY --chown=docker:docker inst-jobs.gemspec Gemfile ./
+COPY --chown=docker:docker exe exe
+COPY --chown=docker:docker lib/delayed/version.rb lib/delayed/version.rb
 
-COPY inst-jobs.gemspec Gemfile* /usr/src/app/
-COPY exe /usr/src/app/exe
-COPY lib/delayed/version.rb /usr/src/app/lib/delayed/version.rb
-USER root
-RUN chown -R docker:docker /usr/src/app
-USER docker
-RUN /bin/bash -l -c "bundle install"
-COPY . /usr/src/app
+RUN bash -lc "rvm 2.6,2.7 do bundle install --jobs 6"
 
-USER root
-RUN chown -R docker:docker /usr/src/app
-USER docker
+COPY --chown=docker:docker . /usr/src/app
 
 ENV TEST_DB_USERNAME postgres
 
-CMD /bin/bash -l -c "bundle exec wwtd"
+CMD bash -lc "bundle exec wwtd"

@@ -395,13 +395,6 @@ class Job
     result
   end
 
-  if Rails.version < "4.1"
-    def changes_applied
-      @previously_changed = changes
-      @changed_attributes.clear
-    end
-  end
-
   def save!(*a)
     save(*a) || raise(RecordNotSaved)
   end

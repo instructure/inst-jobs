@@ -27,7 +27,7 @@ module Delayed
 
         class << self
           def create(attributes, &block)
-            return super if connection.prepared_statements || Rails.version < '5.2'
+            return super if connection.prepared_statements
 
             # modified from ActiveRecord::Persistence.create and ActiveRecord::Persistence#_insert_record
             job = new(attributes, &block)
@@ -37,7 +37,7 @@ module Delayed
 
         def single_step_create
           connection = self.class.connection
-          return save if connection.prepared_statements || Rails.version < '5.2'
+          return save if connection.prepared_statements
 
           # a before_save callback that we're skipping
           initialize_defaults
@@ -513,17 +513,6 @@ module Delayed
         class Failed < Job
           include Delayed::Backend::Base
           self.table_name = :failed_jobs
-          # Rails hasn't completely loaded yet, and setting the table name will cache some stuff
-          # so reset that cache so that it will load correctly after Rails is all loaded
-          # It's fixed in Rails 5 to not cache anything when you set the table_name
-          if Rails.version < '5' && Rails.version >= '4.2'
-            @arel_engine = nil
-            @arel_table = nil
-          end
-        end
-        if Rails.version < '5' && Rails.version >= '4.2'
-          @arel_engine = nil
-          @arel_table = nil
         end
       end
 

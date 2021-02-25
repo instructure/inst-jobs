@@ -5,7 +5,6 @@ require 'delayed/testing'
 
 require 'database_cleaner'
 require 'rack/test'
-require 'test_after_commit' if ::Rails.version < '5'
 require 'timecop'
 require 'webmock/rspec'
 
@@ -63,18 +62,8 @@ connection_config = {
   database: ENV['TEST_DB_DATABASE'],
 }
 
-if ::Rails.version < '5'
-  class ActiveRecord::Migration
-    class << self
-      def [](_version); self; end
-    end
-  end
-end
-
 def migrate(file)
-  if ::Rails.version < '5.2'
-    ActiveRecord::Migrator.migrate(file)
-  elsif ::Rails.version >= '6'
+  if ::Rails.version >= '6'
     ActiveRecord::MigrationContext.new(file, ActiveRecord::SchemaMigration).migrate
   else
     ActiveRecord::MigrationContext.new(file).migrate
