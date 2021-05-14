@@ -66,7 +66,8 @@ module Delayed
           # > Multiple queries sent in a single PQexec call are processed in a single transaction,
           # unless there are explicit BEGIN/COMMIT commands included in the query string to divide
           # it into multiple transactions.
-          sql = "SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(#{connection.quote(values['strand'])})); #{sql}" if values["strand"]
+          # but we don't need to lock when inserting into Delayed::Failed
+          sql = "SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(#{connection.quote(values['strand'])})); #{sql}" if values["strand"] && self.class == Job
           result = connection.execute(sql, "#{self} Create")
           self.id = result.values.first.first
           result.clear
@@ -98,7 +99,7 @@ module Delayed
         # to raise the lock level
         before_create :lock_strand_on_create
         def lock_strand_on_create
-          if strand.present?
+          if strand.present? && self.class == Job
             self.class.connection.execute("SELECT pg_advisory_xact_lock(#{self.class.connection.quote_table_name('half_md5_as_bigint')}(#{self.class.connection.quote(strand)}))")
           end
         end

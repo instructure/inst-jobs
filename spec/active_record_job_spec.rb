@@ -282,5 +282,20 @@ describe 'Delayed::Backed::ActiveRecord::Job' do
       expect(call_count).to eq 1
       expect(Delayed::Job.find(j.id)).to eq j
     end
+
+    it "does not lock a stranded failed job creation" do
+      j = create_job(strand: "test1")
+      # query for metadata to ensure it's loaded before we start mucking with the connection
+      Delayed::Backend::ActiveRecord::Job::Failed.new
+
+      allow(Delayed::Job.connection).to receive(:prepared_statements).and_return(false)
+      allow(Delayed::Job.connection).to receive(:execute).and_wrap_original do |original, *args|
+        expect(args.first).not_to include("pg_advisory_xact_lock")
+        original.call(*args)
+      end
+      allow(Delayed::Job.connection).to receive(:insert).never
+      j.fail!
+      allow(Delayed::Job.connection).to receive(:execute).and_call_original
+    end
   end
 end
