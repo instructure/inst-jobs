@@ -13,9 +13,13 @@ end
 module Delayed
   module Backend
     module ActiveRecord
+      class AbstractJob < ::ActiveRecord::Base
+        self.abstract_class = true
+      end
+
       # A job object that is persisted to the database.
       # Contains the work object as a YAML field.
-      class Job < ::ActiveRecord::Base
+      class Job < AbstractJob
         include Delayed::Backend::Base
         self.table_name = :delayed_jobs
 

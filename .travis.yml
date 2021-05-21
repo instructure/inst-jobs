@@ -2,6 +2,7 @@ language: ruby
 gemfile:
   - spec/gemfiles/52.gemfile
   - spec/gemfiles/60.gemfile
+  - spec/gemfiles/61.gemfile
 rvm:
   - "2.6"
   - "2.7"
