@@ -84,7 +84,7 @@ module Delayed
     def self.worker_config(config_filename = nil)
       config_filename ||= default_worker_config_name
       config = YAML.load(ERB.new(File.read(config_filename)).result)
-      env = defined?(RAILS_ENV) ? RAILS_ENV : ENV['RAILS_ENV'] || 'development'
+      env = Rails.env || 'development'
       config = config[env] || config['default']
       # Backwards compatibility from when the config was just an array of queues
       config = { :workers => config } if config.is_a?(Array)
