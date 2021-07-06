@@ -11,7 +11,10 @@ class ParentProcess
     def initialize(addrinfo, config: Settings.parent_process)
       @addrinfo = addrinfo
       @connect_timeout = config['client_connect_timeout'] || 2
-      @self_pipe = IO.pipe
+    end
+
+    def init
+      @self_pipe ||= IO.pipe
     end
 
     def close

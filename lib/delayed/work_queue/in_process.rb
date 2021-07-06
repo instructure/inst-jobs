@@ -16,6 +16,7 @@ class InProcess
   end
 
   # intentional nops for compatibility w/ parent process
+  def init; end
   def close; end
   def wake_up; end
 end

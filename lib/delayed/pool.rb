@@ -106,6 +106,7 @@ class Pool
   # db connections with the parent
   def fork_with_reconnects
     fork do
+      @self_pipe.each(&:close) # sub-processes don't need to wake us up; keep their FDs clean
       Pool.on_fork.()
       Delayed::Job.reconnect!
       yield

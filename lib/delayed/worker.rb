@@ -69,7 +69,6 @@ class Worker
     @config = options
     @job_count = 0
 
-    @self_pipe = IO.pipe
     @signal_queue = []
 
     app = Rails.application
@@ -120,6 +119,8 @@ class Worker
   def start
     logger.info "Starting worker"
     set_process_name("start:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || 'max'}")
+    @self_pipe = IO.pipe
+    work_queue.init
 
     work_thread = Thread.current
     SIGNALS.each do |sig|
@@ -162,6 +163,9 @@ class Worker
       signal_processor.kill
       signal_processor.join
     end
+
+    @self_pipe&.each(&:close)
+    @self_pipe = nil
   end
 
   def cleanup!
