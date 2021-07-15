@@ -313,6 +313,13 @@ shared_examples_for 'a backend' do
       expect(second).to eq nil
     end
 
+    it "complains if you pass more than one strand-based option" do
+      expect { create_job(strand: 'a', n_strand: 'b') }.to raise_error(ArgumentError)
+      expect { create_job(strand: 'a', singleton: 'b') }.to raise_error(ArgumentError)
+      expect { create_job(n_strand: 'a', singleton: 'b') }.to raise_error(ArgumentError)
+      expect { create_job(strand: 'a', n_strand: 'b', singleton: 'c') }.to raise_error(ArgumentError)
+    end
+
     context 'singleton' do
       it "should create if there's no jobs on the strand" do
         @job = create_job(:singleton => 'myjobs')

@@ -56,6 +56,12 @@ module Delayed
           kwargs[:expires_at] = expires_at
           kwargs[:queue] = queue
 
+          strand_args = 0
+          strand_args += 1 if strand
+          strand_args += 1 if n_strand
+          strand_args += 1 if singleton
+          raise ArgumentError, "Only one of strand, n_strand, or singleton can be used" if strand_args > 1
+
           # If two parameters are given to n_strand, the first param is used
           # as the strand name for looking up the Setting, while the second
           # param is appended to make a unique set of strands.
