@@ -80,7 +80,7 @@ class CLI
 
       opts.separator "\n<options>"
       opts.on("-c", "--config [CONFIG_PATH]", "Use alternate config file (default #{@options[:config_file]})") { |c| @options[:config_file] = c }
-      opts.on("-p", "--pid", "Use alternate folder for PID files (default #{@options[:pid_folder]})") { |p| @options[:pid_folder] = p }
+      opts.on("-p", "--pid [PID_PATH]", "Use alternate folder for PID files (default #{@options[:pid_folder]})") { |p| @options[:pid_folder] = p }
       opts.on("--no-tail", "Don't tail the logs (only affects non-daemon mode)") { @options[:tail_logs] = false }
       opts.on("--with-prejudice", "When stopping, interrupt jobs in progress, instead of letting them drain") { @options[:kill] ||= true }
       opts.on("--with-extreme-prejudice", "When stopping, immediately kill jobs in progress, instead of letting them drain") { @options[:kill] = 9 }
