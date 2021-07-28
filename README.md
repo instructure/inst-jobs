@@ -326,7 +326,7 @@ To hook into a callback, write something that looks like this in
 an initializer:
 
 ```ruby
-Delayed::Worker.lifecycle.before(:error) do |worker, exception|
+Delayed::Worker.lifecycle.before(:error) do |worker, job, exception|
   ErrorThingy.notify(exception)
 end
 ```
