@@ -667,9 +667,6 @@ shared_examples_for 'a backend' do
         @affected_jobs.all? { |j| Delayed::Job.find(j.id).on_hold? }.should be true
         @ignored_jobs.any? { |j| Delayed::Job.find(j.id).on_hold? }.should be false
 
-        # redis holding seems busted - it removes from the tag set and strand list, so you can't use a query
-        # to un-hold them
-        next if Delayed::Job == Delayed::Backend::Redis::Job
         Delayed::Job.bulk_update('unhold', :flavor => @flavor, :query => @query).should == @affected_jobs.size
 
         @affected_jobs.any? { |j| Delayed::Job.find(j.id).on_hold? }.should be false

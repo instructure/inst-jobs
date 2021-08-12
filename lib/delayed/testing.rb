@@ -23,8 +23,6 @@ module Testing
 
   def self.clear_all!
     case Delayed::Job.name
-    when /Redis/
-      Delayed::Job.redis.flushdb
     when /ActiveRecord/
       Delayed::Job.delete_all
       Delayed::Job::Failed.delete_all

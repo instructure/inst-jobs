@@ -27,7 +27,6 @@ require 'delayed/yaml_extensions'
 
 require 'delayed/backend/base'
 require 'delayed/backend/active_record'
-require 'delayed/backend/redis/job'
 require 'delayed/batch'
 require 'delayed/cli'
 require 'delayed/daemon'

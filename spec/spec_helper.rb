@@ -24,9 +24,6 @@ RSpec.configure do |config|
   end
 
   config.before(:each) do |example|
-    if Delayed::Backend::Redis::Job.redis
-      Delayed::Backend::Redis::Job.redis.flushdb
-    end
     DatabaseCleaner.strategy = (example.metadata[:sinatra] || example.metadata[:non_transactional]) ?
         :truncation : :transaction
     DatabaseCleaner.start
@@ -49,10 +46,6 @@ RSpec::Core::ExampleGroup.include(NoYamlDump)
 ENV['TEST_ENV_NUMBER'] ||= '1'
 ENV['TEST_DB_HOST'] ||= 'localhost'
 ENV['TEST_DB_DATABASE'] ||= "inst-jobs-test-#{ENV['TEST_ENV_NUMBER']}"
-ENV['TEST_REDIS_CONNECTION'] ||= 'redis://localhost:6379/'
-
-Delayed::Backend::Redis::Job.redis = Redis.new(url: ENV['TEST_REDIS_CONNECTION'])
-Delayed::Backend::Redis::Job.redis.select ENV['TEST_ENV_NUMBER']
 
 connection_config = {
   adapter: :postgresql,
