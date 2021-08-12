@@ -31,17 +31,15 @@ module Delayed
 
         class << self
           def create(attributes, &block)
-            return super if connection.prepared_statements
-
+            on_conflict = attributes.delete(:on_conflict)
             # modified from ActiveRecord::Persistence.create and ActiveRecord::Persistence#_insert_record
             job = new(attributes, &block)
-            job.single_step_create
+            job.single_step_create(on_conflict: on_conflict)
           end
         end
 
-        def single_step_create
+        def single_step_create(on_conflict: nil)
           connection = self.class.connection
-          return save if connection.prepared_statements
 
           # a before_save callback that we're skipping
           initialize_defaults
@@ -62,21 +60,54 @@ module Delayed
             attribute_names = partial_writes? ? keys_for_partial_write : self.attribute_names
             values = attributes_with_values_for_create(attribute_names)
           end
+
           im = self.class.arel_table.compile_insert(self.class.send(:_substitute_values, values))
-          sql, _binds = connection.send(:to_sql_and_binds, im, [])
+
+          lock_and_insert = values["strand"] && self.class == Job
+          # can't use prepared statements if we're combining multiple statemenets
+          sql, binds = if lock_and_insert
+            connection.unprepared_statement do
+               connection.send(:to_sql_and_binds, im)
+            end
+          else
+            connection.send(:to_sql_and_binds, im)
+          end
+          sql = +sql
+
+          if singleton && self.class == Job
+            sql << " ON CONFLICT (singleton) WHERE singleton IS NOT NULL AND locked_by IS NULL DO "
+            sql << case on_conflict
+            when :patient, :loose
+              "NOTHING"
+            when :overwrite
+              "UPDATE SET run_at=EXCLUDED.run_at, handler=EXCLUDED.handler"
+            else # :use_earliest
+              "UPDATE SET run_at=EXCLUDED.run_at WHERE EXCLUDED.run_at<delayed_jobs.run_at"
+            end
+          end
 
           # https://www.postgresql.org/docs/9.5/libpq-exec.html
-          sql = "#{sql} RETURNING id"
-          # > Multiple queries sent in a single PQexec call are processed in a single transaction,
-          # unless there are explicit BEGIN/COMMIT commands included in the query string to divide
-          # it into multiple transactions.
-          # but we don't need to lock when inserting into Delayed::Failed
-          sql = "SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(#{connection.quote(values['strand'])})); #{sql}" if values["strand"] && self.class == Job
-          result = connection.execute(sql, "#{self} Create")
-          self.id = result.values.first.first
-          result.clear
-          @new_record = false
-          changes_applied
+          sql << " RETURNING id"
+
+          if lock_and_insert
+            # > Multiple queries sent in a single PQexec call are processed in a single transaction,
+            # unless there are explicit BEGIN/COMMIT commands included in the query string to divide
+            # it into multiple transactions.
+            # but we don't need to lock when inserting into Delayed::Failed
+            sql = "SELECT pg_advisory_xact_lock(#{connection.quote_table_name('half_md5_as_bigint')}(#{connection.quote(values['strand'])})); #{sql}" if values["strand"] && self.class == Job
+            result = connection.execute(sql, "#{self} Create")
+            self.id = result.values.first.first
+            result.clear
+          else
+            result = connection.exec_query(sql, "#{self} Create", binds)
+            self.id = connection.send(:last_inserted_id, result)
+          end
+
+          # it might not get set if there was an existing record, and we didn't update it
+          if id
+            @new_record = false
+            changes_applied
+          end
 
           self
         end
@@ -380,33 +411,17 @@ module Delayed
               where(:priority => min_priority..max_priority, :queue => queue).
               by_priority
         end
-
-        # used internally by create_singleton to take the appropriate lock
-        # depending on the db driver
-        def self.transaction_for_singleton(strand, on_conflict)
-          return yield if on_conflict == :loose
-          self.transaction do
-            if on_conflict == :patient
-              pg_function = 'pg_try_advisory_xact_lock'
-              execute_method = :select_value
-            else
-              pg_function = 'pg_advisory_xact_lock'
-              execute_method = :execute
-            end
-            result = connection.send(execute_method, sanitize_sql(["SELECT #{pg_function}(#{connection.quote_table_name('half_md5_as_bigint')}(?))", strand]))
-            return if result == false && on_conflict == :patient
-            yield
-          end
-        end
-
+        
         # Create the job on the specified strand, but only if there aren't any
         # other non-running jobs on that strand.
         # (in other words, the job will still be created if there's another job
         # on the strand but it's already running)
         def self.create_singleton(options)
-          strand = options[:strand]
+          strand = options[:singleton]
           on_conflict = options.delete(:on_conflict) || :use_earliest
-          transaction_for_singleton(strand, on_conflict) do
+
+
+          transaction_for_singleton(singleton, on_conflict) do
             job = self.where(:strand => strand, :locked_at => nil).next_in_strand_order.first
             new_job = new(options)
             if job
@@ -491,6 +506,15 @@ module Delayed
 
         def create_and_lock!(worker)
           raise "job already exists" unless new_record?
+
+          # we don't want to process unique constraint violations of
+          # running singleton jobs; always do it as two steps
+          if singleton
+            single_step_create
+            lock_exclusively!(worker)
+            return
+          end
+
           self.locked_at = Delayed::Job.db_time_now
           self.locked_by = worker
           single_step_create

@@ -12,6 +12,9 @@ module Delayed
       :disable_periodic_jobs,
       :disable_automatic_orphan_unlocking,
       :fetch_batch_size,
+      # this is a transitional setting, so that you don't have a time where a singleton switches to using the singleton column,
+      # but there are old jobs that only used strand
+      :infer_strand_from_singleton,
       :kill_workers_on_exit,
       :last_ditch_logfile,
       :max_attempts,

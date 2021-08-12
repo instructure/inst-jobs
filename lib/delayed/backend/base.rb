@@ -46,6 +46,8 @@ module Delayed
             raise ArgumentError, 'Cannot enqueue items which do not respond to perform'
           end
 
+          strand ||= singleton if Settings.infer_strand_from_singleton
+
           kwargs = Settings.default_job_options.merge(kwargs)
           kwargs[:payload_object] = object
           kwargs[:priority] = priority
@@ -55,12 +57,9 @@ module Delayed
           kwargs[:source] = Marginalia::Comment.construct_comment if defined?(Marginalia) && Marginalia::Comment.components
           kwargs[:expires_at] = expires_at
           kwargs[:queue] = queue
+          kwargs[:singleton] = singleton
 
-          strand_args = 0
-          strand_args += 1 if strand
-          strand_args += 1 if n_strand
-          strand_args += 1 if singleton
-          raise ArgumentError, "Only one of strand, n_strand, or singleton can be used" if strand_args > 1
+          raise ArgumentError, "Only one of strand or n_strand can be used" if strand && n_strand
 
           # If two parameters are given to n_strand, the first param is used
           # as the strand name for looking up the Setting, while the second
@@ -86,8 +85,7 @@ module Delayed
           end
 
           if singleton
-            kwargs[:strand] = singleton
-            job = self.create_singleton(**kwargs)
+            job = self.create(**kwargs)
           elsif batches && strand.nil? && run_at.nil?
             batch_enqueue_args = kwargs.slice(*self.batch_enqueue_args)
             batches[batch_enqueue_args] << kwargs

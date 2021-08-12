@@ -32,8 +32,10 @@ those familiar with it:
   jobs](#periodic-jobs) functionality.
 * [Strands](#strands), allowing for ordered sequences of jobs based on ad-hoc
   name tags.
-  * Building on the strand concept, a [singleton job](#singleton-jobs) concept
-    has been added as well.
+* [N-Strands](#n-strands), building on strands, allowing one to throttle how
+  many jobs on a strand can be running concurrently.
+* [Singleton jobs](#singleton-jobs), where at most one job is running, and one
+  queued at a time.
 * A simple [jobs admin UI](#web-ui), usable by any Rails or Rack application.
 * A separate `failed_jobs` table for tracking failed jobs.
 * Automatic tracking of what code enqueued each job, if
@@ -174,7 +176,7 @@ To pass parameters to the jobs engine, send them to the  `delay` method:
   to assign to a strand.
 - `:n_strand` (string): [n_strand](#n-strands) to assign this job to; default is
   none.
-- `:singleton` (string): [singleton strand](#singleton-jobs) to assign this job
+- `:singleton` (string): [singleton](#singleton-jobs) to assign this job
   to; default is none.
 - `:on_conflict` (:use_earliest|:overwrite|:loose): option for how to handle the
   new job if a singleton[#singleton-jobs] job of the same type already exists.
@@ -261,17 +263,23 @@ trigger action calms down. This is also useful if the arguments to the job
 might change, and you want it to run with the latest version of those
 arguments.
 
-The third option is `:loose`. This is similar to the default use with a
-`run_at` of now, but does _not_ lock the strand in order to guarantee exactly
-one of the singleton is in queue. It does the query to see if a job is already
-in queue, and if it is, does nothing. This means there is a race condition
-that multiple processes might see no queued job, and each enqueue one,
-meaning it's not a true singleton. But it also reduces locking on the queue
-itself, and is useful for a singleton that is triggered with high frequency,
-and low impact if it happens to run a couple extra times. Because it is
-less sure about the state of the queue, it cannot implement the
-`:use_earliest` logic and update the already queued job. Therefore it is not
-viable if you want to mix on-demand and periodic singletons.
+#### Mixing N-Strand and Singleton
+
+It is allowed to use both n_strand and singleton at the same time. This could
+be useful if you want to throttle the number of jobs hitting an external service,
+but also only allow one instance of the job along another axis. For example,
+a job to refresh the state of a particular user with an external service:
+
+```
+user.delay(singleton: "service_update:#{user.id}", n_strand: "service_updates").update_service_data
+```
+
+The rules for singletons and N-strands are intersected - a job is ready to run
+only if there are no more than max_concurrent running for the strand, _and_ if
+there is not another job running for its singleton. In a strand with three jobs,
+and max concurrency of two, if the first two jobs are on one singleton, but the
+third is on another, the third job will run, even though the second one cannot
+yet (due to waiting for the first job on the same singleton to complete).
 
 ### Periodic Jobs
 

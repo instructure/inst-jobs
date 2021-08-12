@@ -315,9 +315,6 @@ shared_examples_for 'a backend' do
 
     it "complains if you pass more than one strand-based option" do
       expect { create_job(strand: 'a', n_strand: 'b') }.to raise_error(ArgumentError)
-      expect { create_job(strand: 'a', singleton: 'b') }.to raise_error(ArgumentError)
-      expect { create_job(n_strand: 'a', singleton: 'b') }.to raise_error(ArgumentError)
-      expect { create_job(strand: 'a', n_strand: 'b', singleton: 'c') }.to raise_error(ArgumentError)
     end
 
     context 'singleton' do
@@ -342,7 +339,7 @@ shared_examples_for 'a backend' do
         @job.should be_present
 
         @job2 = create_job(:singleton => 'myjobs')
-        @job2.should == @job
+        expect(@job2).to be_new_record
       end
 
       it "should not create if there's a job running and one waiting on the strand" do
@@ -355,7 +352,7 @@ shared_examples_for 'a backend' do
         @job2.should_not == @job
 
         @job3 = create_job(:singleton => 'myjobs')
-        @job3.should == @job2
+        expect(@job3).to be_new_record
       end
 
       it "should update existing job if new job is set to run sooner" do
@@ -371,8 +368,7 @@ shared_examples_for 'a backend' do
         t2 = 2.hours.from_now
         job1 = create_job(singleton: 'myjobs', run_at: t1)
         job2 = create_job(singleton: 'myjobs', run_at: t2)
-        job2.should == job1
-        job2.run_at.to_i.should == t1.to_i
+        expect(job2).to be_new_record
 
         job3 = create_job(singleton: 'myjobs', run_at: t2, on_conflict: :overwrite)
         job3.should == job1
@@ -383,15 +379,95 @@ shared_examples_for 'a backend' do
         job1 = Delayed::Job.enqueue(SimpleJob.new, queue: nil, singleton: 'myjobs', on_conflict: :overwrite)
         job2 = Delayed::Job.enqueue(ErrorJob.new, queue: nil, singleton: 'myjobs', on_conflict: :overwrite)
         job2.should == job1
-        expect(job2.handler).to include("ErrorJob")
+        expect(job1.reload.handler).to include("ErrorJob")
       end
 
-      it "does not create even if it's earlier when in loose mode" do
-        t1 = 1.hour.from_now
-        job1 = create_job(singleton: 'myjobs', run_at: t1)
-        job2 = create_job(singleton: 'myjobs', on_conflict: :loose)
-        job1.should == job2
-        job2.run_at.to_i.should == t1.to_i
+      context "next_in_strand management" do
+        it "creates first as true, and second as false, then transitions to second when deleted" do
+          @job1 = create_job(singleton: 'myjobs')
+          Delayed::Job.get_and_lock_next_available('w1')
+          @job2 = create_job(singleton: 'myjobs')
+          expect(@job1.reload.next_in_strand).to eq true
+          expect(@job2.reload.next_in_strand).to eq false
+
+          @job1.destroy
+          expect(@job2.reload.next_in_strand).to eq true
+        end
+
+        it "when combined with a strand" do
+          job1 = create_job(singleton: 'singleton', strand: 'strand')
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job1
+          job2 = create_job(singleton: 'singleton', strand: 'strand')
+          expect(job2).not_to eq job1
+          expect(job2).not_to be_new_record
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          job3 = create_job(strand: 'strand')
+          job4 = create_job(strand: 'strand')
+          expect(job3.reload).not_to be_next_in_strand
+          expect(job4.reload).not_to be_next_in_strand
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          job1.destroy
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job2
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          job2.destroy
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job3
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          job3.destroy
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job4
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+        end
+
+        it "when combined with a small n_strand" do
+          allow(Delayed::Settings).to receive(:num_strands).and_return(->(*) { 2 })
+
+          job1 = create_job(singleton: 'singleton', n_strand: 'strand')
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job1
+          job2 = create_job(singleton: 'singleton', n_strand: 'strand')
+          expect(job2).not_to eq job1
+          expect(job2).not_to be_new_record
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          job3 = create_job(n_strand: 'strand')
+          job4 = create_job(n_strand: 'strand')
+          expect(job3.reload).to be_next_in_strand
+          expect(job4.reload).not_to be_next_in_strand
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job3
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          # this doesn't unlock job2, even though it's ahead of job4
+          job3.destroy
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job4
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          job4.destroy
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          job1.destroy
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job2
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+        end
+
+         it "when combined with a larger n_strand" do
+          allow(Delayed::Settings).to receive(:num_strands).and_return(->(*) { 10 })
+
+          job1 = create_job(singleton: 'singleton', n_strand: 'strand')
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job1
+          job2 = create_job(singleton: 'singleton', n_strand: 'strand')
+          expect(job2).not_to eq job1
+          expect(job2).not_to be_new_record
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          job3 = create_job(n_strand: 'strand')
+          job4 = create_job(n_strand: 'strand')
+          expect(job3.reload).to be_next_in_strand
+          expect(job4.reload).to be_next_in_strand
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job3
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job4
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          # this doesn't unlock job2
+          job3.destroy
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          job4.destroy
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+          job1.destroy
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to eq job2
+          expect(Delayed::Job.get_and_lock_next_available('w1')).to be_nil
+        end
       end
     end
   end
@@ -427,7 +503,7 @@ shared_examples_for 'a backend' do
       job.payload_object.should == Delayed::Periodic.scheduled['my SimpleJob']
       job.run_at.should >= @cron_time
       job.run_at.should <= @cron_time + 6.minutes
-      job.strand.should == job.tag
+      job.singleton.should == job.tag
     end
 
     it "should schedule jobs if there are only failed jobs on the queue" do
