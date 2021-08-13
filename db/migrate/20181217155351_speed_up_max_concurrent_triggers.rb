@@ -1,16 +1,15 @@
 # frozen_string_literal: true
 
-class SpeedUpMaxConcurrentTriggers  < ActiveRecord::Migration[4.2]
+class SpeedUpMaxConcurrentTriggers < ActiveRecord::Migration[4.2]
   def connection
     Delayed::Job.connection
   end
 
   def up
-    if connection.adapter_name == 'PostgreSQL'
-      # tl;dr sacrifice some responsiveness to max_concurrent changes for faster performance
-      # don't get the count every single time - it's usually safe to just set the next one in line
-      # since the max_concurrent doesn't change all that often for a strand
-      execute(<<-CODE)
+    # tl;dr sacrifice some responsiveness to max_concurrent changes for faster performance
+    # don't get the count every single time - it's usually safe to just set the next one in line
+    # since the max_concurrent doesn't change all that often for a strand
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_after_delete_row_tr_fn () RETURNS trigger AS $$
       DECLARE
         running_count integer;
@@ -36,10 +35,10 @@ class SpeedUpMaxConcurrentTriggers  < ActiveRecord::Migration[4.2]
         RETURN OLD;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
+    SQL
 
-      # don't need the full count on insert
-      execute(<<-CODE)
+    # don't need the full count on insert
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_before_insert_row_tr_fn () RETURNS trigger AS $$
       BEGIN
         IF NEW.strand IS NOT NULL THEN
@@ -53,13 +52,11 @@ class SpeedUpMaxConcurrentTriggers  < ActiveRecord::Migration[4.2]
         RETURN NEW;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
-    end
+    SQL
   end
 
   def down
-    if connection.adapter_name == 'PostgreSQL'
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_after_delete_row_tr_fn () RETURNS trigger AS $$
       DECLARE
         running_count integer;
@@ -77,9 +74,9 @@ class SpeedUpMaxConcurrentTriggers  < ActiveRecord::Migration[4.2]
         RETURN OLD;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
+    SQL
 
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_before_insert_row_tr_fn () RETURNS trigger AS $$
       BEGIN
         IF NEW.strand IS NOT NULL THEN
@@ -91,7 +88,6 @@ class SpeedUpMaxConcurrentTriggers  < ActiveRecord::Migration[4.2]
         RETURN NEW;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
-    end
+    SQL
   end
 end

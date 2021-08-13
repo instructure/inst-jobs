@@ -6,10 +6,9 @@ class AddMaxConcurrentToJobs < ActiveRecord::Migration[4.2]
   end
 
   def up
-    add_column :delayed_jobs, :max_concurrent, :integer, :default => 1, :null => false
+    add_column :delayed_jobs, :max_concurrent, :integer, default: 1, null: false
 
-    if connection.adapter_name == 'PostgreSQL'
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_before_insert_row_tr_fn () RETURNS trigger AS $$
       BEGIN
         IF NEW.strand IS NOT NULL THEN
@@ -21,9 +20,9 @@ class AddMaxConcurrentToJobs < ActiveRecord::Migration[4.2]
         RETURN NEW;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
+    SQL
 
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_after_delete_row_tr_fn () RETURNS trigger AS $$
       BEGIN
         IF OLD.strand IS NOT NULL THEN
@@ -38,15 +37,13 @@ class AddMaxConcurrentToJobs < ActiveRecord::Migration[4.2]
         RETURN OLD;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
-    end
+    SQL
   end
 
   def down
     remove_column :delayed_jobs, :max_concurrent
 
-    if connection.adapter_name == 'PostgreSQL'
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_before_insert_row_tr_fn () RETURNS trigger AS $$
       BEGIN
         PERFORM pg_advisory_xact_lock(half_md5_as_bigint(NEW.strand));
@@ -56,9 +53,9 @@ class AddMaxConcurrentToJobs < ActiveRecord::Migration[4.2]
         RETURN NEW;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
+    SQL
 
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_after_delete_row_tr_fn () RETURNS trigger AS $$
       BEGIN
         PERFORM pg_advisory_xact_lock(half_md5_as_bigint(OLD.strand));
@@ -66,7 +63,6 @@ class AddMaxConcurrentToJobs < ActiveRecord::Migration[4.2]
         RETURN OLD;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
-    end
+    SQL
   end
 end

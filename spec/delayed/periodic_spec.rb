@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 RSpec.describe Delayed::Periodic do
   around(:each) do |block|
@@ -18,9 +18,9 @@ RSpec.describe Delayed::Periodic do
   end
 
   describe ".cron" do
-    let(:job_name){ 'just a test'}
+    let(:job_name) { "just a test" }
     it "provides a tag by default for periodic jobs" do
-      Delayed::Periodic.cron job_name, '*/10 * * * *' do
+      Delayed::Periodic.cron job_name, "*/10 * * * *" do
         # no-op
       end
       instance = Delayed::Periodic.scheduled[job_name]

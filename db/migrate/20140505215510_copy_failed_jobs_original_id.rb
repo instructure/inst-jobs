@@ -10,6 +10,5 @@ class CopyFailedJobsOriginalId < ActiveRecord::Migration[4.2]
     Delayed::Backend::ActiveRecord::Job::Failed.where("original_job_id is null").update_all("original_job_id = original_id")
   end
 
-  def down
-  end
+  def down; end
 end

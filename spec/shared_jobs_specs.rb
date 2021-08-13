@@ -1,17 +1,17 @@
 # frozen_string_literal: true
 
-require File.expand_path('../shared/delayed_batch', __FILE__)
-require File.expand_path('../shared/delayed_method', __FILE__)
-require File.expand_path('../shared/performable_method', __FILE__)
-require File.expand_path('../shared/shared_backend', __FILE__)
-require File.expand_path('../shared/testing', __FILE__)
-require File.expand_path('../shared/worker', __FILE__)
+require_relative "shared/delayed_batch"
+require_relative "shared/delayed_method"
+require_relative "shared/performable_method"
+require_relative "shared/shared_backend"
+require_relative "shared/testing"
+require_relative "shared/worker"
 
-shared_examples_for 'a delayed_jobs implementation' do
-  include_examples 'a backend'
-  include_examples 'Delayed::Batch'
-  include_examples 'random ruby objects'
-  include_examples 'Delayed::PerformableMethod'
-  include_examples 'Delayed::Worker'
-  include_examples 'Delayed::Testing'
+shared_examples_for "a delayed_jobs implementation" do
+  include_examples "a backend"
+  include_examples "Delayed::Batch"
+  include_examples "random ruby objects"
+  include_examples "Delayed::PerformableMethod"
+  include_examples "Delayed::Worker"
+  include_examples "Delayed::Testing"
 end

@@ -12,7 +12,7 @@ module Delayed
     end
 
     module Base
-      ON_HOLD_LOCKED_BY = 'on hold'
+      ON_HOLD_LOCKED_BY = "on hold"
       ON_HOLD_COUNT = 50
 
       def self.included(base)
@@ -22,9 +22,7 @@ module Delayed
       end
 
       module ClassMethods
-        attr_accessor :batches
-        attr_accessor :batch_enqueue_args
-        attr_accessor :default_priority
+        attr_accessor :batches, :batch_enqueue_args, :default_priority
 
         # Add a job to the queue
         # The first argument should be an object that respond_to?(:perform)
@@ -32,18 +30,18 @@ module Delayed
         # :priority, :run_at, :queue, :strand, :singleton
         # Example: Delayed::Job.enqueue(object, priority: 0, run_at: time, queue: queue)
         def enqueue(object,
-          priority: default_priority,
-          run_at: nil,
-          expires_at: nil,
-          queue: Delayed::Settings.queue,
-          strand: nil,
-          singleton: nil,
-          n_strand: nil,
-          max_attempts: Delayed::Settings.max_attempts,
-          **kwargs)
+                    priority: default_priority,
+                    run_at: nil,
+                    expires_at: nil,
+                    queue: Delayed::Settings.queue,
+                    strand: nil,
+                    singleton: nil,
+                    n_strand: nil,
+                    max_attempts: Delayed::Settings.max_attempts,
+                    **kwargs)
 
           unless object.respond_to?(:perform)
-            raise ArgumentError, 'Cannot enqueue items which do not respond to perform'
+            raise ArgumentError, "Cannot enqueue items which do not respond to perform"
           end
 
           strand ||= singleton if Settings.infer_strand_from_singleton
@@ -54,7 +52,10 @@ module Delayed
           kwargs[:run_at] = run_at if run_at
           kwargs[:strand] = strand
           kwargs[:max_attempts] = max_attempts
-          kwargs[:source] = Marginalia::Comment.construct_comment if defined?(Marginalia) && Marginalia::Comment.components
+          if defined?(Marginalia) && Marginalia::Comment.components
+            kwargs[:source] =
+              Marginalia::Comment.construct_comment
+          end
           kwargs[:expires_at] = expires_at
           kwargs[:queue] = queue
           kwargs[:singleton] = singleton
@@ -85,17 +86,15 @@ module Delayed
           end
 
           if singleton
-            job = self.create(**kwargs)
+            job = create(**kwargs)
           elsif batches && strand.nil? && run_at.nil?
             batch_enqueue_args = kwargs.slice(*self.batch_enqueue_args)
             batches[batch_enqueue_args] << kwargs
             return true
           else
-            if kwargs[:on_conflict].present?
-              Delayed::Logging.logger.warn("[DELAYED_JOB] WARNING: providing 'on_conflict' as an option to a non-singleton job will have no effect.  Discarding.")
-              kwargs.delete(:on_conflict)
-            end
-            job = self.create(**kwargs)
+            raise ArgumentError, "on_conflict can only be provided with singleton" if kwargs[:on_conflict]
+
+            job = create(**kwargs)
           end
 
           JobTracking.job_created(job)
@@ -126,10 +125,10 @@ module Delayed
 
         def check_priorities(min_priority, max_priority)
           if min_priority && min_priority < Delayed::MIN_PRIORITY
-            raise(ArgumentError, "min_priority #{min_priority} can't be less than #{Delayed::MIN_PRIORITY}")
+            raise ArgumentError, "min_priority #{min_priority} can't be less than #{Delayed::MIN_PRIORITY}"
           end
-          if max_priority && max_priority > Delayed::MAX_PRIORITY
-            raise(ArgumentError, "max_priority #{max_priority} can't be greater than #{Delayed::MAX_PRIORITY}")
+          if max_priority && max_priority > Delayed::MAX_PRIORITY # rubocop:disable Style/GuardClause
+            raise ArgumentError, "max_priority #{max_priority} can't be greater than #{Delayed::MAX_PRIORITY}"
           end
         end
 
@@ -142,13 +141,19 @@ module Delayed
 
         def processes_locked_locally(name: nil)
           name ||= Socket.gethostname rescue x
-          running_jobs.select{|job| job.locked_by.start_with?("#{name}:")}.map{|job| job.locked_by.split(':').last.to_i}
+          local_jobs = running_jobs.select do |job|
+            job.locked_by.start_with?("#{name}:")
+          end
+          local_jobs.map { |job| job.locked_by.split(":").last.to_i }
         end
 
         def unlock_orphaned_prefetched_jobs
           horizon = db_time_now - Settings.parent_process[:prefetched_jobs_timeout] * 4
-          orphaned_jobs = running_jobs.select { |job| job.locked_by.start_with?('prefetch:') && job.locked_at < horizon }
+          orphaned_jobs = running_jobs.select do |job|
+            job.locked_by.start_with?("prefetch:") && job.locked_at < horizon
+          end
           return 0 if orphaned_jobs.empty?
+
           unlock(orphaned_jobs)
         end
 
@@ -162,13 +167,14 @@ module Delayed
           regex = Regexp.new("^#{Regexp.escape(name)}:#{pid_regex}$")
           unlocked_jobs = 0
           running = false if pid
-          self.running_jobs.each do |job|
+          running_jobs.each do |job|
             next unless job.locked_by =~ regex
+
             unless pid
               job_pid = $1.to_i
               running = Process.kill(0, job_pid) rescue false
             end
-            if !running
+            unless running
               unlocked_jobs += 1
               job.reschedule("process died")
             end
@@ -180,14 +186,14 @@ module Delayed
       def failed?
         failed_at
       end
-      alias_method :failed, :failed?
+      alias failed failed?
 
       def expired?
         expires_at && (self.class.db_time_now >= expires_at)
       end
 
       def inferred_max_attempts
-        self.max_attempts || Delayed::Settings.max_attempts
+        max_attempts || Delayed::Settings.max_attempts
       end
 
       # Reschedule the job in the future (when a job fails).
@@ -195,22 +201,22 @@ module Delayed
       def reschedule(error = nil, time = nil)
         begin
           obj = payload_object
-          return_code = obj.on_failure(error) if obj && obj.respond_to?(:on_failure)
+          return_code = obj.on_failure(error) if obj.respond_to?(:on_failure)
         rescue
           # don't allow a failed deserialization to prevent rescheduling
         end
 
         self.attempts += 1 unless return_code == :unlock
 
-        if self.attempts >= self.inferred_max_attempts
+        if self.attempts >= inferred_max_attempts
           permanent_failure error || "max attempts reached"
         elsif expired?
           permanent_failure error || "job has expired"
         else
-          time ||= self.reschedule_at
+          time ||= reschedule_at
           self.run_at = time
-          self.unlock
-          self.save!
+          unlock
+          save!
         end
       end
 
@@ -218,26 +224,24 @@ module Delayed
         begin
           # notify the payload_object of a permanent failure
           obj = payload_object
-          obj.on_permanent_failure(error) if obj && obj.respond_to?(:on_permanent_failure)
+          obj.on_permanent_failure(error) if obj.respond_to?(:on_permanent_failure)
         rescue
           # don't allow a failed deserialization to prevent destroying the job
         end
 
         # optionally destroy the object
         destroy_self = true
-        if Delayed::Worker.on_max_failures
-          destroy_self = Delayed::Worker.on_max_failures.call(self, error)
-        end
+        destroy_self = Delayed::Worker.on_max_failures.call(self, error) if Delayed::Worker.on_max_failures
 
         if destroy_self
-          self.destroy
+          destroy
         else
-          self.fail!
+          fail!
         end
       end
 
       def payload_object
-        @payload_object ||= deserialize(self['handler'].untaint)
+        @payload_object ||= deserialize(self["handler"].untaint)
       end
 
       def name
@@ -253,7 +257,7 @@ module Delayed
 
       def full_name
         obj = payload_object rescue nil
-        if obj && obj.respond_to?(:full_name)
+        if obj.respond_to?(:full_name)
           obj.full_name
         else
           name
@@ -262,14 +266,14 @@ module Delayed
 
       def payload_object=(object)
         @payload_object = object
-        self['handler'] = object.to_yaml
-        self['tag'] = if object.respond_to?(:tag)
-          object.tag
-        elsif object.is_a?(Module)
-          "#{object}.perform"
-        else
-          "#{object.class}#perform"
-        end
+        self["handler"] = object.to_yaml
+        self["tag"] = if object.respond_to?(:tag)
+                        object.tag
+                      elsif object.is_a?(Module)
+                        "#{object}.perform"
+                      else
+                        "#{object.class}#perform"
+                      end
       end
 
       # Moved into its own method so that new_relic can trace it.
@@ -296,15 +300,16 @@ module Delayed
       end
 
       def locked?
-        !!(self.locked_at || self.locked_by)
+        !!(locked_at || locked_by)
       end
 
       def reschedule_at
-        new_time = self.class.db_time_now + (attempts ** 4) + 5
+        new_time = self.class.db_time_now + (attempts**4) + 5
         begin
           if payload_object.respond_to?(:reschedule_at)
             new_time = payload_object.reschedule_at(
-                                        self.class.db_time_now, attempts)
+              self.class.db_time_now, attempts
+            )
           end
         rescue
           # TODO: just swallow errors from reschedule_at ?
@@ -316,25 +321,26 @@ module Delayed
         self.locked_by = ON_HOLD_LOCKED_BY
         self.locked_at = self.class.db_time_now
         self.attempts = ON_HOLD_COUNT
-        self.save!
+        save!
       end
 
       def unhold!
         self.locked_by = nil
         self.locked_at = nil
         self.attempts = 0
-        self.run_at = [self.class.db_time_now, self.run_at].max
+        self.run_at = [self.class.db_time_now, run_at].max
         self.failed_at = nil
-        self.save!
+        save!
       end
 
       def on_hold?
-        self.locked_by == 'on hold' && self.locked_at && self.attempts == ON_HOLD_COUNT
+        locked_by == "on hold" && locked_at && self.attempts == ON_HOLD_COUNT
       end
 
-    private
+      private
 
-      ParseObjectFromYaml = /\!ruby\/\w+\:([^\s]+)/
+      PARSE_OBJECT_FROM_YAML = %r{!ruby/\w+:([^\s]+)}.freeze
+      private_constant :PARSE_OBJECT_FROM_YAML
 
       def deserialize(source)
         handler = nil
@@ -348,13 +354,13 @@ module Delayed
         return handler if handler.respond_to?(:perform)
 
         raise DeserializationError,
-          'Job failed to load: Unknown handler. Try to manually require the appropriate file.'
+              "Job failed to load: Unknown handler. Try to manually require the appropriate file."
       rescue TypeError, LoadError, NameError => e
         raise DeserializationError,
-          "Job failed to load: #{e.message}. Try to manually require the required file."
+              "Job failed to load: #{e.message}. Try to manually require the required file."
       rescue Psych::SyntaxError => e
-          raise DeserializationError,
-            "YAML parsing error: #{e.message}. Probably not recoverable."
+        raise DeserializationError,
+              "YAML parsing error: #{e.message}. Probably not recoverable."
       end
 
       def _yaml_deserialize(source)
@@ -362,12 +368,13 @@ module Delayed
       end
 
       def attempt_to_load_from_source(source)
-        if md = ParseObjectFromYaml.match(source)
-          md[1].constantize
-        end
+        return unless (md = PARSE_OBJECT_FROM_YAML.match(source))
+
+        md[1].constantize
       end
 
-    public
+      public
+
       def initialize_defaults
         self.queue ||= Delayed::Settings.queue
         self.run_at ||= self.class.db_time_now

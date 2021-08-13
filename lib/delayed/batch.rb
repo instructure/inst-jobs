@@ -2,11 +2,11 @@
 
 module Delayed
   module Batch
-    class PerformableBatch < Struct.new(:mode, :items)
+    PerformableBatch = Struct.new(:mode, :items) do
       def initialize(mode, items)
         raise "unsupported mode" unless mode == :serial
-        self.mode   = mode
-        self.items  = items
+
+        super
       end
 
       def display_name
@@ -25,14 +25,16 @@ module Delayed
     end
 
     class << self
-      def serial_batch(opts = {})
-        prepare_batches(:serial, opts){ yield }
+      def serial_batch(opts = {}, &block)
+        prepare_batches(:serial, opts, &block)
       end
 
       private
+
       def prepare_batches(mode, opts)
         raise "nested batching is not supported" if Delayed::Job.batches
-        Delayed::Job.batches = Hash.new { |h,k| h[k] = Set.new }
+
+        Delayed::Job.batches = Hash.new { |h, k| h[k] = Set.new }
         batch_enqueue_args = [:queue]
         batch_enqueue_args << :priority unless opts[:priority]
         Delayed::Job.batch_enqueue_args = batch_enqueue_args
@@ -42,9 +44,9 @@ module Delayed
         Delayed::Job.batches = nil
         batch_args = opts.slice(:priority)
         batches.each do |enqueue_args, batch|
-          if batch.size == 0
-            next
-          elsif batch.size == 1
+          next if batch.size.zero?
+
+          if batch.size == 1
             args = batch.first.merge(batch_args)
             payload_object = args.delete(:payload_object)
             Delayed::Job.enqueue(payload_object, **args)

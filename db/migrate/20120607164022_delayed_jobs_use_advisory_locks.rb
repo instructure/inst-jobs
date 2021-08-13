@@ -10,8 +10,7 @@ class DelayedJobsUseAdvisoryLocks < ActiveRecord::Migration[4.2]
     # note that we're using half of the md5, so collisions are possible, but we don't really
     # care because that would just be the old behavior, whereas for the most part locking will
     # be much smaller
-    if connection.adapter_name == 'PostgreSQL'
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE FUNCTION half_md5_as_bigint(strand varchar) RETURNS bigint AS $$
       DECLARE
         strand_md5 bytea;
@@ -27,9 +26,9 @@ class DelayedJobsUseAdvisoryLocks < ActiveRecord::Migration[4.2]
                                    get_byte(strand_md5, 7);
       END;
       $$ LANGUAGE plpgsql;
-      CODE
+    SQL
 
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_before_insert_row_tr_fn () RETURNS trigger AS $$
       BEGIN
         PERFORM pg_advisory_xact_lock(half_md5_as_bigint(NEW.strand));
@@ -39,9 +38,9 @@ class DelayedJobsUseAdvisoryLocks < ActiveRecord::Migration[4.2]
         RETURN NEW;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
+    SQL
 
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_after_delete_row_tr_fn () RETURNS trigger AS $$
       BEGIN
         PERFORM pg_advisory_xact_lock(half_md5_as_bigint(OLD.strand));
@@ -49,13 +48,11 @@ class DelayedJobsUseAdvisoryLocks < ActiveRecord::Migration[4.2]
         RETURN OLD;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
-    end
+    SQL
   end
 
   def down
-    if connection.adapter_name == 'PostgreSQL'
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_before_insert_row_tr_fn () RETURNS trigger AS $$
       BEGIN
         LOCK delayed_jobs IN SHARE ROW EXCLUSIVE MODE;
@@ -65,18 +62,17 @@ class DelayedJobsUseAdvisoryLocks < ActiveRecord::Migration[4.2]
         RETURN NEW;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
+    SQL
 
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_after_delete_row_tr_fn () RETURNS trigger AS $$
       BEGIN
         UPDATE delayed_jobs SET next_in_strand = 't' WHERE id = (SELECT id FROM delayed_jobs j2 WHERE j2.strand = OLD.strand ORDER BY j2.strand, j2.id ASC LIMIT 1 FOR UPDATE);
         RETURN OLD;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
+    SQL
 
-      execute('DROP FUNCTION half_md5_as_bigint(varchar)')
-    end
+    execute("DROP FUNCTION half_md5_as_bigint(varchar)")
   end
 end

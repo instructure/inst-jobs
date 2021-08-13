@@ -1,0 +1,30 @@
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 2.6
+
+# migrations have some triggers with really long lines we can't really do anything about
+Layout/LineLength:
+  Exclude:
+   - db/migrate/*
+Naming/FileName:
+  Exclude:
+    - lib/inst-jobs.rb
+Security/MarshalLoad:
+  Enabled: false
+Security/YAMLLoad:
+  Enabled: false
+Style/Documentation:
+  Enabled: false
+Style/PerlBackrefs:
+  Enabled: false
+Style/RescueModifier:
+  Enabled: false
+Style/RescueStandardError:
+  Enabled: false
+Style/SpecialGlobalVars:
+  Enabled: false
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Metrics:
+  Enabled: false

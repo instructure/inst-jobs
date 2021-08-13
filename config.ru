@@ -1,7 +1,9 @@
-$:.unshift('lib')
+# frozen_string_literal: true
 
-require 'delayed/server'
+$:.unshift("lib")
 
-map '/delayed_jobs' do
+require "delayed/server"
+
+map "/delayed_jobs" do
   run Delayed::Server.new
 end

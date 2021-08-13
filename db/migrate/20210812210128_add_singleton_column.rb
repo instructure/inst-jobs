@@ -8,18 +8,18 @@ class AddSingletonColumn < ActiveRecord::Migration[5.2]
     add_column :failed_jobs, :singleton, :string, if_not_exists: true
     # only one job can be queued in a singleton
     add_index :delayed_jobs,
-      :singleton,
-      where: 'singleton IS NOT NULL AND locked_by IS NULL',
-      unique: true,
-      name: 'index_delayed_jobs_on_singleton_not_running',
-      algorithm: :concurrently
+              :singleton,
+              where: "singleton IS NOT NULL AND locked_by IS NULL",
+              unique: true,
+              name: "index_delayed_jobs_on_singleton_not_running",
+              algorithm: :concurrently
     # only one job can be running for a singleton
     add_index :delayed_jobs,
-      :singleton,
-      where: 'singleton IS NOT NULL AND locked_by IS NOT NULL',
-      unique: true,
-      name: 'index_delayed_jobs_on_singleton_running',
-      algorithm: :concurrently
+              :singleton,
+              where: "singleton IS NOT NULL AND locked_by IS NOT NULL",
+              unique: true,
+              name: "index_delayed_jobs_on_singleton_running",
+              algorithm: :concurrently
 
     reversible do |direction|
       direction.up do
@@ -196,7 +196,7 @@ class AddSingletonColumn < ActiveRecord::Migration[5.2]
     end
   end
 
-    def drop_triggers
+  def drop_triggers
     execute("DROP TRIGGER delayed_jobs_before_insert_row_tr ON delayed_jobs")
     execute("DROP TRIGGER delayed_jobs_after_delete_row_tr ON delayed_jobs")
   end

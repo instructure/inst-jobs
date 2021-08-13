@@ -1,30 +1,27 @@
 # frozen_string_literal: true
 
-require 'date'
+require "date"
 
 module Delayed
   module Logging
-    TIMESTAMP_FORMAT = '%Y-%m-%dT%H:%M:%S.%6N'.freeze
+    TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%6N"
     private_constant :TIMESTAMP_FORMAT
 
-    FORMAT = '%s - %s'
+    FORMAT = "%s - %s"
     private_constant :FORMAT
-
 
     def self.logger
       return @logger if @logger
-      if defined?(Rails.logger) && Rails.logger
-        @logger = Rails.logger
-      else
-        @logger = ::Logger.new(STDOUT).tap do |logger|
-          logger.formatter = ->(_, time, _, msg) {
-            FORMAT % [
-              time.strftime(TIMESTAMP_FORMAT),
-              msg
-            ]
-          }
-        end
-      end
+
+      @logger = if defined?(Rails.logger) && Rails.logger
+                  Rails.logger
+                else
+                  ::Logger.new($stdout).tap do |logger|
+                    logger.formatter = lambda { |_, time, _, msg|
+                      format(FORMAT, time.strftime(TIMESTAMP_FORMAT), msg)
+                    }
+                  end
+                end
     end
 
     def logger

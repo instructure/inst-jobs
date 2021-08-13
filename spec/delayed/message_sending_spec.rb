@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-require 'debug_inspector'
+require "spec_helper"
+require "debug_inspector"
 
 RSpec.describe Delayed::MessageSending do
   before do
     allow(::Rails.env).to receive(:test?).and_return(true)
   end
 
-  before (:all) do
-    class SpecClass
+  before(:all) do
+    class SpecClass # rubocop:disable Lint/ConstantDefinitionInBlock this has to be a "real" constant
       def call_private(**enqueue_args)
         delay(**enqueue_args).private_method
       end
@@ -21,13 +21,11 @@ RSpec.describe Delayed::MessageSending do
 
       private
 
-      def private_method
-      end
+      def private_method; end
 
       protected
 
-      def protected_method
-      end
+      def protected_method; end
     end
   end
 
@@ -89,7 +87,7 @@ RSpec.describe Delayed::MessageSending do
         Kernel.delay.sleep(1)
       end
 
-      def encode_with(encoder)
+      def encode_with(_encoder)
         raise "yaml encoding failed"
       end
     end

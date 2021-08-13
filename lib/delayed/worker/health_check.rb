@@ -11,17 +11,20 @@ module Delayed
 
         def inherited(subclass)
           @subclasses << subclass
+          super
         end
 
         def build(type:, worker_name:, config: {})
           type = type.to_sym
           klass = @subclasses.find { |sc| sc.type_name == type }
           raise ArgumentError, "Unable to build a HealthCheck for type #{type}" unless klass
+
           klass.new(worker_name: worker_name, config: config)
         end
 
         def reschedule_abandoned_jobs
           return if Settings.worker_health_check_type == :none
+
           Delayed::Job.transaction do
             # this action is a special case, and SHOULD NOT be a periodic job
             # because if it gets wiped out suddenly during execution
@@ -32,27 +35,32 @@ module Delayed
             # operation, the transaction will end, releasing the advisory lock).
             result = attempt_advisory_lock
             return unless result
+
             checker = Worker::HealthCheck.build(
               type: Settings.worker_health_check_type,
               config: Settings.worker_health_check_config,
-              worker_name: 'cleanup-crew'
+              worker_name: "cleanup-crew"
             )
             live_workers = checker.live_workers
 
             Delayed::Job.running_jobs.each do |job|
               # prefetched jobs have their own way of automatically unlocking themselves
               next if job.locked_by.start_with?("prefetch:")
-              unless live_workers.include?(job.locked_by)
-                begin
-                  Delayed::Job.transaction do
-                    # double check that the job is still there. locked_by will immediately be reset
-                    # to nil in this transaction by Job#reschedule
-                    next unless Delayed::Job.where(id: job, locked_by: job.locked_by).update_all(locked_by: "abandoned job cleanup") == 1
-                    job.reschedule
-                  end
-                rescue
-                  ::Rails.logger.error "Failure rescheduling abandoned job #{job.id} #{$!.inspect}"
+
+              next if live_workers.include?(job.locked_by)
+
+              begin
+                Delayed::Job.transaction do
+                  # double check that the job is still there. locked_by will immediately be reset
+                  # to nil in this transaction by Job#reschedule
+                  next unless Delayed::Job.where(id: job,
+                                                 locked_by: job.locked_by)
+                                          .update_all(locked_by: "abandoned job cleanup") == 1
+
+                  job.reschedule
                 end
+              rescue
+                ::Rails.logger.error "Failure rescheduling abandoned job #{job.id} #{$!.inspect}"
               end
             end
           end
@@ -61,7 +69,8 @@ module Delayed
         def attempt_advisory_lock
           lock_name = "Delayed::Worker::HealthCheck#reschedule_abandoned_jobs"
           conn = ActiveRecord::Base.connection
-          conn.select_value("SELECT pg_try_advisory_xact_lock(#{conn.quote_table_name('half_md5_as_bigint')}('#{lock_name}'));")
+          fn_name = conn.quote_table_name("half_md5_as_bigint")
+          conn.select_value("SELECT pg_try_advisory_xact_lock(#{fn_name}('#{lock_name}'));")
         end
       end
 

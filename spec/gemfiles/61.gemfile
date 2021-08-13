@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
 source "https://rubygems.org"
 
-gemspec :path => "../../"
+gemspec path: "../../"
 
 gem "rails", "~> 6.1.0"
-gem 'sinatra', "~> 2.0"
-gem 'sinatra-contrib', "~> 2.0"
+gem "sinatra", "~> 2.0"
+gem "sinatra-contrib", "~> 2.0"

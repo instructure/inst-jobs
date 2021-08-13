@@ -10,6 +10,6 @@ class ChangeDelayedJobsHandlerToText < ActiveRecord::Migration[4.2]
   end
 
   def down
-    change_column :delayed_jobs, :handler, :string, :limit => 500.kilobytes
+    change_column :delayed_jobs, :handler, :string, limit: 500.kilobytes
   end
 end

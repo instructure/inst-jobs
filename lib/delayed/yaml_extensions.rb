@@ -2,36 +2,37 @@
 
 # New definitions for YAML to aid in serialization and deserialization of delayed jobs.
 
-require 'yaml'
+require "yaml"
 
 # These two added domain types are for backwards compatibility with jobs created
 # using the old syck tags, as syck didn't have built-in module/class dumping. We
 # now use Psych's built-in tags, which are `!ruby/module` and `!ruby/class`. At
 # some point we can remove these, once there are no more jobs in any queues with
 # these tags.
-Psych.add_domain_type("ruby/object", "Module") do |type, val|
+Psych.add_domain_type("ruby/object", "Module") do |_type, val|
   val.constantize
 end
-Psych.add_domain_type("ruby/object", "Class") do |type, val|
+Psych.add_domain_type("ruby/object", "Class") do |_type, val|
   val.constantize
 end
 
 # Tell YAML how to intelligently load ActiveRecord objects, using the
 # database rather than just serializing their attributes to the YAML. This
 # ensures the object is up to date when we use it in the job.
-class ActiveRecord::Base
-  def encode_with(coder)
-    if id.nil?
-      raise("Can't serialize unsaved ActiveRecord object for delayed job: #{self.inspect}")
+module ActiveRecord
+  class Base
+    def encode_with(coder)
+      raise("Can't serialize unsaved ActiveRecord object for delayed job: #{inspect}") if id.nil?
+
+      coder.scalar("!ruby/ActiveRecord:#{self.class.name}", id.to_s)
     end
-    coder.scalar("!ruby/ActiveRecord:#{self.class.name}", id.to_s)
   end
 end
 
 module Delayed
   module PsychExt
     module ToRuby
-      def visit_Psych_Nodes_Scalar(object)
+      def visit_Psych_Nodes_Scalar(object) # rubocop:disable Naming/MethodName
         case object.tag
         when %r{^!ruby/ActiveRecord:(.+)$}
           begin
@@ -51,6 +52,7 @@ module Delayed
 
       def resolve_class(klass_name)
         return nil if !klass_name || klass_name.empty?
+
         klass_name.constantize
       rescue
         super

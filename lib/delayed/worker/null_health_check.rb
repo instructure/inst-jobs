@@ -13,7 +13,9 @@ module Delayed
         true
       end
 
-      def live_workers; []; end
+      def live_workers
+        []
+      end
     end
   end
 end

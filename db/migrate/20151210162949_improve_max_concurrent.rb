@@ -6,8 +6,7 @@ class ImproveMaxConcurrent < ActiveRecord::Migration[4.2]
   end
 
   def up
-    if connection.adapter_name == 'PostgreSQL'
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_after_delete_row_tr_fn () RETURNS trigger AS $$
       DECLARE
         running_count integer;
@@ -25,13 +24,11 @@ class ImproveMaxConcurrent < ActiveRecord::Migration[4.2]
         RETURN OLD;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
-    end
+    SQL
   end
 
   def down
-    if connection.adapter_name == 'PostgreSQL'
-      execute(<<-CODE)
+    execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_after_delete_row_tr_fn () RETURNS trigger AS $$
       BEGIN
         IF OLD.strand IS NOT NULL THEN
@@ -46,7 +43,6 @@ class ImproveMaxConcurrent < ActiveRecord::Migration[4.2]
         RETURN OLD;
       END;
       $$ LANGUAGE plpgsql;
-      CODE
-    end
+    SQL
   end
 end

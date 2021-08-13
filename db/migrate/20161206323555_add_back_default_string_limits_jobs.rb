@@ -24,8 +24,8 @@ class AddBackDefaultStringLimitsJobs < ActiveRecord::Migration[4.2]
   end
 
   def drop_triggers
-    execute %{DROP TRIGGER delayed_jobs_before_insert_row_tr ON delayed_jobs}
-    execute %{DROP TRIGGER delayed_jobs_after_delete_row_tr ON delayed_jobs}
+    execute %(DROP TRIGGER delayed_jobs_before_insert_row_tr ON delayed_jobs)
+    execute %(DROP TRIGGER delayed_jobs_after_delete_row_tr ON delayed_jobs)
   end
 
   def readd_triggers
@@ -35,6 +35,7 @@ class AddBackDefaultStringLimitsJobs < ActiveRecord::Migration[4.2]
 
   def add_string_limit_if_missing(table, column)
     return if column_exists?(table, column, :string, limit: 255)
+
     change_column table, column, :string, limit: 255
   end
 end

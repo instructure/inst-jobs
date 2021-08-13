@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'active_support/core_ext/class/attribute'
+require "active_support/core_ext/class/attribute"
 
 module Delayed
   class Plugin
@@ -11,9 +11,7 @@ module Delayed
     end
 
     def self.inject!
-      unless @injected
-        self.callback_block.call(Delayed::Worker.lifecycle) if self.callback_block
-      end
+      callback_block&.call(Delayed::Worker.lifecycle) unless @injected
       @injected = true
     end
 

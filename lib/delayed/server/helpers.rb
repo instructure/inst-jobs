@@ -8,21 +8,21 @@ module Delayed
       end
 
       def url_path(*path_parts)
-        [path_prefix, path_parts].join('/').squeeze('/')
+        [path_prefix, path_parts].join("/").squeeze("/")
       end
 
       def path_prefix
-        request.env['SCRIPT_NAME']
+        request.env["SCRIPT_NAME"]
       end
 
       def render_javascript_env
         {
           Routes: {
             root: path_prefix,
-            running: url_path('running'),
-            tags: url_path('tags'),
-            jobs: url_path('jobs'),
-            bulkUpdate: url_path('bulk_update'),
+            running: url_path("running"),
+            tags: url_path("tags"),
+            jobs: url_path("jobs"),
+            bulkUpdate: url_path("bulk_update")
           }
         }.to_json
       end

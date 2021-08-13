@@ -14,43 +14,43 @@ module Delayed
   end
 end
 
-require 'rails'
-require 'active_support/core_ext/module/attribute_accessors'
-require 'active_record'
-require 'after_transaction_commit'
-require 'debug_inspector'
+require "rails"
+require "active_support/core_ext/module/attribute_accessors"
+require "active_record"
+require "after_transaction_commit"
+require "debug_inspector"
 
-require 'delayed/core_ext/kernel'
+require "delayed/core_ext/kernel"
 
-require 'delayed/settings'
-require 'delayed/yaml_extensions'
+require "delayed/settings"
+require "delayed/yaml_extensions"
 
-require 'delayed/backend/base'
-require 'delayed/backend/active_record'
-require 'delayed/batch'
-require 'delayed/cli'
-require 'delayed/daemon'
-require 'delayed/job_tracking'
-require 'delayed/lifecycle'
-require 'delayed/log_tailer'
-require 'delayed/logging'
-require 'delayed/message_sending'
-require 'delayed/performable_method'
-require 'delayed/periodic'
-require 'delayed/plugin'
-require 'delayed/pool'
-require 'delayed/worker'
+require "delayed/backend/base"
+require "delayed/backend/active_record"
+require "delayed/batch"
+require "delayed/cli"
+require "delayed/daemon"
+require "delayed/job_tracking"
+require "delayed/lifecycle"
+require "delayed/log_tailer"
+require "delayed/logging"
+require "delayed/message_sending"
+require "delayed/performable_method"
+require "delayed/periodic"
+require "delayed/plugin"
+require "delayed/pool"
+require "delayed/worker"
 
-require 'delayed/worker/health_check'
-require 'delayed/worker/consul_health_check'
-require 'delayed/worker/null_health_check'
+require "delayed/worker/health_check"
+require "delayed/worker/consul_health_check"
+require "delayed/worker/null_health_check"
 
-require 'delayed/work_queue/in_process'
-require 'delayed/work_queue/parent_process'
+require "delayed/work_queue/in_process"
+require "delayed/work_queue/parent_process"
 
-require 'delayed/engine'
+require "delayed/engine"
 
 Delayed.select_backend(Delayed::Backend::ActiveRecord::Job)
 
-Object.send(:include, Delayed::MessageSending)
-Module.send(:include, Delayed::MessageSending::ClassMethods)
+Object.include Delayed::MessageSending
+Module.include Delayed::MessageSending::ClassMethods

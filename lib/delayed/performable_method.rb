@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Delayed
-  class PerformableMethod < Struct.new(:object, :method, :args, :kwargs, :fail_cb, :permanent_fail_cb, :sender)
+  PerformableMethod = Struct.new(:object, :method, :args, :kwargs, :fail_cb, :permanent_fail_cb, :sender) do # rubocop:disable Lint/StructNewOverride
     def initialize(object, method, args: [], kwargs: {}, on_failure: nil, on_permanent_failure: nil, sender: nil)
       raise NoMethodError, "undefined method `#{method}' for #{object.inspect}" unless object.respond_to?(method, true)
 
@@ -41,12 +41,10 @@ module Delayed
         else
           object.send(method, *args, **kwargs)
         end
+      elsif kwargs.empty?
+        object.public_send(method, *args)
       else
-        if kwargs.empty?
-          object.public_send(method, *args)
-        else
-          object.public_send(method, *args, **kwargs)
-        end
+        object.public_send(method, *args, **kwargs)
       end
     end
 
@@ -74,7 +72,7 @@ module Delayed
     def full_name
       obj_name = object.is_a?(ActiveRecord::Base) ? "#{object.class}.find(#{object.id}).#{method}" : display_name
       kgs = kwargs || {}
-      kwargs_str = kgs.map { |(k, v)| ", #{k}: #{deep_de_ar_ize(v)}"}.join("")
+      kwargs_str = kgs.map { |(k, v)| ", #{k}: #{deep_de_ar_ize(v)}" }.join
       "#{obj_name}(#{args.map { |a| deep_de_ar_ize(a) }.join(', ')}#{kwargs_str})"
     end
   end

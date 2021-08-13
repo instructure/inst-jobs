@@ -1,18 +1,30 @@
 # frozen_string_literal: true
 
-shared_examples_for 'Delayed::Worker' do
-  def job_create(opts = {})
-    Delayed::Job.create({:payload_object => SimpleJob.new, :queue => Delayed::Settings.queue}.merge(opts))
+class TestPlugin < ::Delayed::Plugin
+  cattr_accessor :runs
+  self.runs = 0
+  callbacks do |lifecycle|
+    lifecycle.around(:invoke_job) do |job, *args, &block|
+      TestPlugin.runs += 1
+      block.call(job, *args)
+    end
   end
+end
+
+shared_examples_for "Delayed::Worker" do
+  def job_create(opts = {})
+    Delayed::Job.create({ payload_object: SimpleJob.new, queue: Delayed::Settings.queue }.merge(opts))
+  end
+
   def worker_create(opts = {})
-    Delayed::Worker.new(opts.merge(:max_priority => nil, :min_priority => nil, :quiet => true))
+    Delayed::Worker.new(opts.merge(max_priority: nil, min_priority: nil, quiet: true))
   end
 
   before(:each) do
     @worker = worker_create
     SimpleJob.runs = 0
     Delayed::Worker.on_max_failures = nil
-    Delayed::Settings.sleep_delay = ->{ 0.01 }
+    Delayed::Settings.sleep_delay = -> { 0.01 }
   end
 
   after do
@@ -43,44 +55,52 @@ shared_examples_for 'Delayed::Worker' do
         expect(bar).to receive(:scan).with("a").ordered
         expect(bar).to receive(:scan).with("r").ordered
         batch = Delayed::Batch::PerformableBatch.new(:serial, [
-          { :payload_object => Delayed::PerformableMethod.new(bar, :scan, args: ["b"]) },
-          { :payload_object => Delayed::PerformableMethod.new(bar, :scan, args: ["a"]) },
-          { :payload_object => Delayed::PerformableMethod.new(bar, :scan, args: ["r"]) },
-        ])
+                                                       { payload_object: Delayed::PerformableMethod.new(bar, :scan,
+                                                                                                        args: ["b"]) },
+                                                       { payload_object: Delayed::PerformableMethod.new(bar, :scan,
+                                                                                                        args: ["a"]) },
+                                                       { payload_object: Delayed::PerformableMethod.new(bar, :scan,
+                                                                                                        args: ["r"]) }
+                                                     ])
 
-        batch_job = Delayed::Job.create :payload_object => batch
-        @worker.perform(batch_job).should == 3
+        batch_job = Delayed::Job.create payload_object: batch
+        expect(@worker.perform(batch_job)).to eq(3)
         expect(@runs).to eql 4 # batch, plus all jobs
       end
 
       it "should succeed regardless of the success/failure of its component jobs" do
         change_setting(Delayed::Settings, :max_attempts, 2) do
           batch = Delayed::Batch::PerformableBatch.new(:serial, [
-            { :payload_object => Delayed::PerformableMethod.new("foo", :reverse) },
-            { :payload_object => Delayed::PerformableMethod.new(1, :/, args: [0]) },
-            { :payload_object => Delayed::PerformableMethod.new("bar", :scan, args: ["r"]) },
-          ])
-          batch_job = Delayed::Job.create :payload_object => batch
+                                                         { payload_object: Delayed::PerformableMethod.new("foo",
+                                                                                                          :reverse) },
+                                                         { payload_object: Delayed::PerformableMethod.new(1, :/,
+                                                                                                          args: [0]) },
+                                                         { payload_object: Delayed::PerformableMethod.new("bar", :scan,
+                                                                                                          args: ["r"]) }
+                                                       ])
+          batch_job = Delayed::Job.create payload_object: batch
 
-          @worker.perform(batch_job).should == 3
+          expect(@worker.perform(batch_job)).to eq(3)
           expect(@runs).to eql 3 # batch, plus two successful jobs
 
           to_retry = Delayed::Job.list_jobs(:future, 100)
-          to_retry.size.should eql 1
-          to_retry[0].payload_object.method.should eql :/
-          to_retry[0].last_error.should =~ /divided by 0/
-          to_retry[0].attempts.should == 1
+          expect(to_retry.size).to eql 1
+          expect(to_retry[0].payload_object.method).to eql :/
+          expect(to_retry[0].last_error).to match(/divided by 0/)
+          expect(to_retry[0].attempts).to eq(1)
         end
       end
 
       it "should retry a failed individual job" do
         batch = Delayed::Batch::PerformableBatch.new(:serial, [
-          { :payload_object => Delayed::PerformableMethod.new(1, :/, args: [0]) },
-        ])
-        batch_job = Delayed::Job.create :payload_object => batch
+                                                       { payload_object: Delayed::PerformableMethod.new(1,
+                                                                                                        :/,
+                                                                                                        args: [0]) }
+                                                     ])
+        batch_job = Delayed::Job.create payload_object: batch
 
         expect_any_instance_of(Delayed::Job).to receive(:reschedule).once
-        @worker.perform(batch_job).should == 1
+        expect(@worker.perform(batch_job)).to eq(1)
         expect(@runs).to eql 1 # just the batch
       end
     end
@@ -88,40 +108,40 @@ shared_examples_for 'Delayed::Worker' do
 
   context "worker prioritization" do
     before(:each) do
-      @worker = Delayed::Worker.new(:max_priority => 5, :min_priority => 2, :quiet => true)
+      @worker = Delayed::Worker.new(max_priority: 5, min_priority: 2, quiet: true)
     end
 
     it "should only run jobs that are >= min_priority" do
-      SimpleJob.runs.should == 0
+      expect(SimpleJob.runs).to eq(0)
 
-      job_create(:priority => 1)
-      job_create(:priority => 3)
+      job_create(priority: 1)
+      job_create(priority: 3)
       @worker.run
 
-      SimpleJob.runs.should == 1
+      expect(SimpleJob.runs).to eq(1)
     end
 
     it "should only run jobs that are <= max_priority" do
-      SimpleJob.runs.should == 0
+      expect(SimpleJob.runs).to eq(0)
 
-      job_create(:priority => 10)
-      job_create(:priority => 4)
+      job_create(priority: 10)
+      job_create(priority: 4)
 
       @worker.run
 
-      SimpleJob.runs.should == 1
+      expect(SimpleJob.runs).to eq(1)
     end
   end
 
   context "while running with locked jobs" do
     it "should not run jobs locked by another worker" do
-      job_create(:locked_by => 'other_worker', :locked_at => (Delayed::Job.db_time_now - 1.minutes))
-      lambda { @worker.run }.should_not change { SimpleJob.runs }
+      job_create(locked_by: "other_worker", locked_at: (Delayed::Job.db_time_now - 1.minutes))
+      expect { @worker.run }.not_to(change { SimpleJob.runs })
     end
 
     it "should run open jobs" do
       job_create
-      lambda { @worker.run }.should change { SimpleJob.runs }.from(0).to(1)
+      expect { @worker.run }.to change { SimpleJob.runs }.from(0).to(1)
     end
   end
 
@@ -136,31 +156,31 @@ shared_examples_for 'Delayed::Worker' do
       Delayed::Worker.on_max_failures = proc { false }
       @job.max_attempts = 1
       @job.save!
-      (job = Delayed::Job.get_and_lock_next_available('w1')).should == @job
+      expect(job = Delayed::Job.get_and_lock_next_available("w1")).to eq(@job)
       @worker.perform(job)
       old_id = @job.id
       @job = Delayed::Job.list_jobs(:failed, 1).first
-      @job.original_job_id.should == old_id
-      @job.last_error.should =~ /did not work/
-      @job.last_error.should =~ /shared\/worker.rb/
-      @job.attempts.should == 1
-      @job.failed_at.should_not be_nil
-      @job.run_at.should > Delayed::Job.db_time_now - 10.minutes
-      @job.run_at.should < Delayed::Job.db_time_now + 10.minutes
+      expect(@job.original_job_id).to eq(old_id)
+      expect(@job.last_error).to match(/did not work/)
+      expect(@job.last_error).to match(%r{shared/worker.rb})
+      expect(@job.attempts).to eq(1)
+      expect(@job.failed_at).not_to be_nil
+      expect(@job.run_at).to be > Delayed::Job.db_time_now - 10.minutes
+      expect(@job.run_at).to be < Delayed::Job.db_time_now + 10.minutes
       # job stays locked after failing, for record keeping of time/worker
-      @job.should be_locked
+      expect(@job).to be_locked
 
-      Delayed::Job.find_available(100, @job.queue).should == []
+      expect(Delayed::Job.find_available(100, @job.queue)).to eq([])
     end
 
     it "should re-schedule jobs after failing" do
       @worker.perform(@job)
       @job = Delayed::Job.find(@job.id)
-      @job.last_error.should =~ /did not work/
-      @job.last_error.should =~ /sample_jobs.rb:10:in `perform'/
-      @job.attempts.should == 1
-      @job.run_at.should > Delayed::Job.db_time_now - 10.minutes
-      @job.run_at.should < Delayed::Job.db_time_now + 10.minutes
+      expect(@job.last_error).to match(/did not work/)
+      expect(@job.last_error).to match(/sample_jobs.rb:22:in `perform'/)
+      expect(@job.attempts).to eq(1)
+      expect(@job.run_at).to be > Delayed::Job.db_time_now - 10.minutes
+      expect(@job.run_at).to be < Delayed::Job.db_time_now + 10.minutes
     end
 
     it "should accept :unlock return value from on_failure during reschedule and unlock the job" do
@@ -172,20 +192,20 @@ shared_examples_for 'Delayed::Worker' do
     it "should notify jobs on failure" do
       ErrorJob.failure_runs = 0
       @worker.perform(@job)
-      ErrorJob.failure_runs.should == 1
+      expect(ErrorJob.failure_runs).to eq(1)
     end
 
     it "should notify jobs on permanent failure" do
       (Delayed::Settings.max_attempts - 1).times { @job.reschedule }
       ErrorJob.permanent_failure_runs = 0
       @worker.perform(@job)
-      ErrorJob.permanent_failure_runs.should == 1
+      expect(ErrorJob.permanent_failure_runs).to eq(1)
     end
   end
 
   context "reschedule" do
     before do
-      @job = Delayed::Job.create :payload_object => SimpleJob.new
+      @job = Delayed::Job.create payload_object: SimpleJob.new
     end
 
     context "and we want to destroy jobs" do
@@ -208,7 +228,7 @@ shared_examples_for 'Delayed::Worker' do
       end
 
       it "should be destroyed if it has expired" do
-        job = Delayed::Job.create :payload_object => SimpleJob.new, :expires_at => Delayed::Job.db_time_now - 1.day
+        job = Delayed::Job.create payload_object: SimpleJob.new, expires_at: Delayed::Job.db_time_now - 1.day
         expect(job).to receive(:destroy)
         job.reschedule
       end
@@ -224,19 +244,19 @@ shared_examples_for 'Delayed::Worker' do
       end
 
       it "should be failed if it failed more than Settings.max_attempts times" do
-        @job.failed_at.should == nil
+        expect(@job.failed_at).to eq(nil)
         Delayed::Settings.max_attempts.times { @job.reschedule }
-        Delayed::Job.list_jobs(:failed, 100).size.should == 1
+        expect(Delayed::Job.list_jobs(:failed, 100).size).to eq(1)
       end
 
       it "should not be failed if it failed fewer than Settings.max_attempts times" do
         (Delayed::Settings.max_attempts - 1).times { @job.reschedule }
         @job = Delayed::Job.find(@job.id)
-        @job.failed_at.should == nil
+        expect(@job.failed_at).to eq(nil)
       end
 
       it "should be failed if it has expired" do
-        job = Delayed::Job.create :payload_object => SimpleJob.new, :expires_at => Delayed::Job.db_time_now - 1.day
+        job = Delayed::Job.create payload_object: SimpleJob.new, expires_at: Delayed::Job.db_time_now - 1.day
         expect(job).to receive(:fail!)
         job.reschedule
       end
@@ -244,8 +264,8 @@ shared_examples_for 'Delayed::Worker' do
 
     context "and we give an on_max_failures callback" do
       it "should be failed max_attempts times and cb is false" do
-        Delayed::Worker.on_max_failures = proc do |job, ex|
-          job.should == @job
+        Delayed::Worker.on_max_failures = proc do |job, _ex|
+          expect(job).to eq(@job)
           false
         end
         expect(@job).to receive(:fail!)
@@ -253,8 +273,8 @@ shared_examples_for 'Delayed::Worker' do
       end
 
       it "should be destroyed if it failed max_attempts times and cb is true" do
-        Delayed::Worker.on_max_failures = proc do |job, ex|
-          job.should == @job
+        Delayed::Worker.on_max_failures = proc do |job, _ex|
+          expect(job).to eq(@job)
           true
         end
         expect(@job).to receive(:destroy)
@@ -263,68 +283,56 @@ shared_examples_for 'Delayed::Worker' do
     end
   end
 
-
   context "Queue workers" do
     before :each do
       Delayed::Settings.queue = "Queue workers test"
-      job_create(:queue => 'queue1')
-      job_create(:queue => 'queue2')
+      job_create(queue: "queue1")
+      job_create(queue: "queue2")
     end
 
     it "should only work off jobs assigned to themselves" do
-      worker = worker_create(:queue=>'queue1')
-      SimpleJob.runs.should == 0
+      worker = worker_create(queue: "queue1")
+      expect(SimpleJob.runs).to eq(0)
       worker.run
-      SimpleJob.runs.should == 1
+      expect(SimpleJob.runs).to eq(1)
 
       SimpleJob.runs = 0
 
-      worker = worker_create(:queue=>'queue2')
-      SimpleJob.runs.should == 0
+      worker = worker_create(queue: "queue2")
+      expect(SimpleJob.runs).to eq(0)
       worker.run
-      SimpleJob.runs.should == 1
+      expect(SimpleJob.runs).to eq(1)
     end
 
     it "should not work off jobs not assigned to themselves" do
-      worker = worker_create(:queue=>'queue3')
+      worker = worker_create(queue: "queue3")
 
-      SimpleJob.runs.should == 0
+      expect(SimpleJob.runs).to eq(0)
       worker.run
-      SimpleJob.runs.should == 0
+      expect(SimpleJob.runs).to eq(0)
     end
 
     it "should get the default queue if none is set" do
       queue_name = "default_queue"
       Delayed::Settings.queue = queue_name
-      worker = worker_create(:queue=>nil)
-      worker.queue_name.should == queue_name
+      worker = worker_create(queue: nil)
+      expect(worker.queue_name).to eq(queue_name)
     end
 
     it "should override default queue name if specified in initialize" do
       queue_name = "my_queue"
       Delayed::Settings.queue = "default_queue"
-      worker = worker_create(:queue=>queue_name)
-      worker.queue_name.should == queue_name
+      worker = worker_create(queue: queue_name)
+      expect(worker.queue_name).to eq(queue_name)
     end
   end
 
   context "plugins" do
-    class TestPlugin < ::Delayed::Plugin
-      cattr_accessor :runs
-      self.runs = 0
-      callbacks do |lifecycle|
-        lifecycle.around(:invoke_job) do |job, *args, &block|
-          TestPlugin.runs += 1
-          block.call(job, *args)
-        end
-      end
-    end
-
     it "should create and call the plugin callbacks" do
       TestPlugin.runs = 0
       Delayed::Worker.plugins << TestPlugin
       job_create
-      @worker = Delayed::Worker.new(:quiet => true)
+      @worker = Delayed::Worker.new(quiet: true)
       @worker.run
       expect(TestPlugin.runs).to eq(1)
       expect(SimpleJob.runs).to eq(1)
@@ -333,18 +341,18 @@ shared_examples_for 'Delayed::Worker' do
 
   describe "expires_at" do
     it "should run non-expired jobs" do
-      Delayed::Job.enqueue SimpleJob.new, :expires_at => Delayed::Job.db_time_now + 1.day
+      Delayed::Job.enqueue SimpleJob.new, expires_at: Delayed::Job.db_time_now + 1.day
       expect { @worker.run }.to change { SimpleJob.runs }.by(1)
     end
 
     it "should not run expired jobs" do
-      Delayed::Job.enqueue SimpleJob.new, :expires_at => Delayed::Job.db_time_now - 1.day
+      Delayed::Job.enqueue SimpleJob.new, expires_at: Delayed::Job.db_time_now - 1.day
       expect { @worker.run }.to change { SimpleJob.runs }.by(0)
     end
 
     it "should report a permanent failure when an expired job is dequeued" do
       ErrorJob.last_error = nil
-      Delayed::Job.enqueue ErrorJob.new, :expires_at => Delayed::Job.db_time_now - 1.day
+      Delayed::Job.enqueue ErrorJob.new, expires_at: Delayed::Job.db_time_now - 1.day
       expect { @worker.run }.to change { ErrorJob.permanent_failure_runs }.by(1)
       expect(ErrorJob.last_error).to be_a Delayed::Backend::JobExpired
     end
@@ -355,29 +363,29 @@ shared_examples_for 'Delayed::Worker' do
       ErrorJob.last_error = nil
       ErrorJob.new.delay(max_attempts: 2, on_failure: :on_failure).perform
       expect { @worker.run }.to change { ErrorJob.failure_runs }.by(1)
-      expect(ErrorJob.last_error.to_s).to eq 'did not work'
+      expect(ErrorJob.last_error.to_s).to eq "did not work"
     end
 
     it "should call the on_permanent_failure callback" do
       ErrorJob.last_error = nil
       ErrorJob.new.delay(max_attempts: 1, on_permanent_failure: :on_failure).perform
       expect { @worker.run }.to change { ErrorJob.failure_runs }.by(1)
-      expect(ErrorJob.last_error.to_s).to eq 'did not work'
+      expect(ErrorJob.last_error.to_s).to eq "did not work"
     end
   end
 
   describe "custom deserialization errors" do
     it "should reschedule with more attempts left" do
-      job = Delayed::Job.create({:payload_object => DeserializeErrorJob.new, max_attempts: 2})
+      job = Delayed::Job.create({ payload_object: DeserializeErrorJob.new, max_attempts: 2 })
       job.instance_variable_set("@payload_object", nil)
-      worker = Delayed::Worker.new(:max_priority => nil, :min_priority => nil, :quiet => true)
+      worker = Delayed::Worker.new(max_priority: nil, min_priority: nil, quiet: true)
       expect { worker.perform(job) }.not_to raise_error
     end
 
     it "run permanent failure code on last attempt" do
-      job = Delayed::Job.create({:payload_object => DeserializeErrorJob.new, max_attempts: 1})
+      job = Delayed::Job.create({ payload_object: DeserializeErrorJob.new, max_attempts: 1 })
       job.instance_variable_set("@payload_object", nil)
-      worker = Delayed::Worker.new(:max_priority => nil, :min_priority => nil, :quiet => true)
+      worker = Delayed::Worker.new(max_priority: nil, min_priority: nil, quiet: true)
       expect { worker.perform(job) }.not_to raise_error
     end
   end

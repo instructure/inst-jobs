@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
-RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
-  class JobClass
-    attr_reader :id
+class JobClass
+  attr_reader :id
 
-    def initialize
-      @id = rand
-    end
-
-    def ==(other)
-      self.id == other.id
-    end
+  def initialize
+    @id = rand
   end
 
+  def ==(other)
+    id == other.id
+  end
+end
+
+RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
   let(:parent) { Delayed::WorkQueue::ParentProcess.new }
   let(:subject) { described_class.new(listen_socket) }
   let(:listen_socket) { Socket.unix_server_socket(parent.server_address) }
@@ -26,7 +26,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
   before :all do
     Delayed.select_backend(Delayed::Backend::ActiveRecord::Job)
     Delayed::Settings.parent_process = {
-      'server_address' => '/tmp/inst-jobs-test.sock'
+      "server_address" => "/tmp/inst-jobs-test.sock"
     }
   end
 
@@ -35,26 +35,26 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
   end
 
   after :each do
-    File.unlink('/tmp/inst-jobs-test.sock') if File.exist?('/tmp/inst-jobs-test.sock')
+    File.unlink("/tmp/inst-jobs-test.sock") if File.exist?("/tmp/inst-jobs-test.sock")
   end
 
-  it 'accepts new clients' do
-    client = Socket.unix(subject.listen_socket.local_address.unix_path)
+  it "accepts new clients" do
+    Socket.unix(subject.listen_socket.local_address.unix_path)
     expect { subject.run_once }.to change(subject, :connected_clients).by(1)
   end
 
-  it 'queries the queue on client request' do
+  it "queries the queue on client request" do
     client = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
 
-    expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return('worker_name' => job)
+    expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return("worker_name" => job)
     Marshal.dump(args, client)
     subject.run_once
     expect(client).to be_ready
     expect(Marshal.load(client)).to eq(job)
   end
 
-  it 'can pop multiple jobs at once' do
+  it "can pop multiple jobs at once" do
     client1 = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
     client2 = Socket.unix(subject.listen_socket.local_address.unix_path)
@@ -62,8 +62,8 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
 
     job1 = JobClass.new
     job2 = JobClass.new
-    job_args = [["worker_name1", "worker_name2"], "queue_name", 1, 2, hash_including(prefetch: 3)]
-    jobs = { 'worker_name1' => job1, 'worker_name2' => job2 }
+    job_args = [%w[worker_name1 worker_name2], "queue_name", 1, 2, hash_including(prefetch: 3)]
+    jobs = { "worker_name1" => job1, "worker_name2" => job2 }
 
     expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return(jobs)
     Marshal.dump(["worker_name1", worker_config], client1)
@@ -73,17 +73,18 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect(Marshal.load(client2)).to eq(job2)
   end
 
-  it 'will prefetch and use jobs' do
+  it "will prefetch and use jobs" do
     client = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
 
-    allow(subject).to receive(:prefetch_owner).and_return('work_queue:X')
-    job_args = [["worker_name1"], "queue_name", 1, 2, prefetch: 4, prefetch_owner: 'work_queue:X', forced_latency: 6.0]
-    job2 = Delayed::Job.new(:tag => 'tag')
-    job2.create_and_lock!('work_queue:X')
-    job3 = Delayed::Job.new(:tag => 'tag')
-    job3.create_and_lock!('work_queue:X')
-    jobs = { 'worker_name1' => job, 'work_queue:X' => [job2, job3]}
+    allow(subject).to receive(:prefetch_owner).and_return("work_queue:X")
+    job_args = [["worker_name1"], "queue_name", 1, 2,
+                { prefetch: 4, prefetch_owner: "work_queue:X", forced_latency: 6.0 }]
+    job2 = Delayed::Job.new(tag: "tag")
+    job2.create_and_lock!("work_queue:X")
+    job3 = Delayed::Job.new(tag: "tag")
+    job3.create_and_lock!("work_queue:X")
+    jobs = { "worker_name1" => job, "work_queue:X" => [job2, job3] }
 
     expect(Delayed::Job).to receive(:get_and_lock_next_available).once.with(*job_args).and_return(jobs)
     Marshal.dump(["worker_name1", worker_config], client)
@@ -107,7 +108,10 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect(client).not_to be_ready
 
     # next time around, return the result
-    expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return('worker_name' => job).ordered
+    expect(Delayed::Job).to receive(:get_and_lock_next_available)
+      .with(*job_args)
+      .and_return("worker_name" => job)
+      .ordered
     allow(Delayed::Settings).to receive(:sleep_delay).and_return(0)
     allow(Delayed::Settings).to receive(:sleep_delay_stagger).and_return(0)
     subject.run_once
@@ -115,7 +119,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect(Marshal.load(client)).to eq(job)
   end
 
-  it 'drops the client on i/o error' do
+  it "drops the client on i/o error" do
     client = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
 
@@ -125,7 +129,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect { subject.run_once }.to change(subject, :connected_clients).by(-1)
   end
 
-  it 'drops the client when the client disconnects' do
+  it "drops the client when the client disconnects" do
     client = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
 
@@ -138,7 +142,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect(subject.instance_variable_get(:@waiting_clients).first.last).to eq []
   end
 
-  it 'drops the client when a write fails' do
+  it "drops the client when a write fails" do
     client = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
 
@@ -151,7 +155,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     # don't let the server see the close and process it there; we want to check a failure later
     expect(subject).to receive(:handle_request).with(server_client_socket)
 
-    expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return('worker_name' => job)
+    expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return("worker_name" => job)
     # the job gets unlocked
     expect(Delayed::Job).to receive(:unlock).with([job])
     subject.run_once
@@ -161,14 +165,14 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect(subject.instance_variable_get(:@waiting_clients).first.last).to eq []
   end
 
-  it 'tracks when clients are idle' do
+  it "tracks when clients are idle" do
     expect(subject.all_workers_idle?).to be(true)
 
     client = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
     expect(subject.all_workers_idle?).to be(true)
 
-    expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return('worker_name' => job)
+    expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return("worker_name" => job)
     Marshal.dump(args, client)
     subject.run_once
     expect(subject.all_workers_idle?).to be(false)
@@ -179,7 +183,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect(subject.all_workers_idle?).to be(true)
   end
 
-  it 'triggers the lifecycle event around the pop' do
+  it "triggers the lifecycle event around the pop" do
     called = false
     client = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once
@@ -187,7 +191,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     Delayed::Worker.lifecycle.around(:work_queue_pop) do |queue, &cb|
       expect(subject.all_workers_idle?).to be(true)
       expect(queue).to eq(subject)
-      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return('worker_name' => job)
+      expect(Delayed::Job).to receive(:get_and_lock_next_available).with(*job_args).and_return("worker_name" => job)
       called = true
       res = cb.call(queue)
       expect(subject.all_workers_idle?).to be(false)
@@ -201,4 +205,3 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect(called).to eq(true)
   end
 end
-

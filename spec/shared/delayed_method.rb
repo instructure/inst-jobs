@@ -1,7 +1,21 @@
 # frozen_string_literal: true
 
-shared_examples_for 'random ruby objects' do
-  def set_queue(name)
+module UnlessInJob
+  class << self
+    attr_accessor :runs
+
+    def run
+      self.runs += 1
+    end
+
+    def run_later
+      delay(synchronous: Delayed::Job.in_delayed_job?).run
+    end
+  end
+end
+
+shared_examples_for "random ruby objects" do
+  def set_queue(name) # rubocop:disable Naming/AccessorMethodName
     old_name = Delayed::Settings.queue
     Delayed::Settings.queue = name
   ensure
@@ -13,23 +27,25 @@ shared_examples_for 'random ruby objects' do
   end
 
   it "should raise a ArgumentError if delay is called but the target method doesn't exist" do
-    lambda { Object.new.delay.method_that_deos_not_exist }.should raise_error(NoMethodError)
+    expect { Object.new.delay.method_that_deos_not_exist }.to raise_error(NoMethodError)
   end
 
   it "should add a new entry to the job table when delay is called on it" do
-    lambda { Object.new.delay.to_s }.should change { Delayed::Job.jobs_count(:current) }.by(1)
+    expect { Object.new.delay.to_s }.to change { Delayed::Job.jobs_count(:current) }.by(1)
   end
 
   it "should add a new entry to the job table when delay is called on it with a queue" do
-    lambda { Object.new.delay(queue: "testqueue").to_s }.should change { Delayed::Job.jobs_count(:current, "testqueue") }.by(1)
+    expect { Object.new.delay(queue: "testqueue").to_s }.to change {
+                                                              Delayed::Job.jobs_count(:current, "testqueue")
+                                                            }.by(1)
   end
 
   it "should add a new entry to the job table when delay is called on the class" do
-    lambda { Object.delay.to_s }.should change { Delayed::Job.jobs_count(:current) }.by(1)
+    expect { Object.delay.to_s }.to change { Delayed::Job.jobs_count(:current) }.by(1)
   end
 
   it "should add a new entry to the job table when delay is called on the class with a queue" do
-    lambda { Object.delay(queue: "testqueue").to_s }.should change { Delayed::Job.jobs_count(:current, "testqueue") }.by(1)
+    expect { Object.delay(queue: "testqueue").to_s }.to change { Delayed::Job.jobs_count(:current, "testqueue") }.by(1)
   end
 
   context "class methods" do
@@ -37,92 +53,128 @@ shared_examples_for 'random ruby objects' do
       it "should work with default_async" do
         klass = Class.new do
           attr_reader :ran
-          def test_method; @ran = true; end
+
+          def test_method
+            @ran = true
+          end
           handle_asynchronously :test_method
         end
         obj = klass.new
-        lambda { obj.test_method }.should change { Delayed::Job.jobs_count(:current) }.by(1)
-        obj.ran.should be_falsey
-        lambda { obj.test_method(synchronous: true) }.should_not change { Delayed::Job.jobs_count(:current) }
-        obj.ran.should be true
+        expect { obj.test_method }.to change { Delayed::Job.jobs_count(:current) }.by(1)
+        expect(obj.ran).to be_falsey
+        expect { obj.test_method(synchronous: true) }.not_to(change { Delayed::Job.jobs_count(:current) })
+        expect(obj.ran).to be true
       end
 
-      it 'must work with enqueue args that are lambdas' do
+      it "must work with enqueue args that are lambdas" do
         klass = Class.new do
           attr_reader :ran
-          def test_method; @ran = true; end
-          handle_asynchronously :test_method, singleton: -> (obj) { "foobar:#{obj.object_id}" }
+
+          def test_method
+            @ran = true
+          end
+          handle_asynchronously :test_method, singleton: ->(obj) { "foobar:#{obj.object_id}" }
         end
 
         obj = klass.new
-        lambda { obj.test_method }.should change { Delayed::Job.jobs_count(:current) }.by(1)
+        expect { obj.test_method }.to change { Delayed::Job.jobs_count(:current) }.by(1)
       end
 
-      it 'must work with kwargs in the original method' do
+      it "must work with kwargs in the original method" do
         klass = Class.new do
           attr_reader :run
-          def test_method(my_kwarg: nil); @run = my_kwarg; end
+
+          def test_method(my_kwarg: nil)
+            @run = my_kwarg
+          end
           handle_asynchronously :test_method
 
-          def other_test(arg); @foo = arg; end
+          def other_test(arg)
+            @foo = arg
+          end
           handle_asynchronously :other_test
         end
 
         obj = klass.new
-        obj.test_method(my_kwarg: 'foo', synchronous: true)
-        expect(obj.run).to eq 'foo'
+        obj.test_method(my_kwarg: "foo", synchronous: true)
+        expect(obj.run).to eq "foo"
       end
 
       it "should send along enqueue args and args" do
         klass = Class.new do
           attr_accessor :ran
-          def test_method(*args); @ran = args; end
-          handle_asynchronously(:test_method, enqueue_arg_1: :thing)
+
+          def test_method(*args)
+            @ran = args
+          end
+          handle_asynchronously(:test_method, enqueue_arg1: :thing)
         end
         obj = klass.new
-        method = double()
+        method = double
 
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method, args: [1,2,3], kwargs: {synchronous: true}, on_failure: nil, on_permanent_failure: nil, sender: obj).and_return(method)
-        expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
-        obj.test_method(1,2,3)
+        expect(Delayed::PerformableMethod).to receive(:new)
+          .with(obj,
+                :test_method,
+                args: [1, 2, 3],
+                kwargs: { synchronous: true },
+                on_failure: nil,
+                on_permanent_failure: nil,
+                sender: obj)
+          .and_return(method)
+        expect(Delayed::Job).to receive(:enqueue).with(method, enqueue_arg1: :thing)
+        obj.test_method(1, 2, 3)
 
-        expect(Delayed::PerformableMethod).to receive(:new).with(obj, :test_method, args: [4], kwargs: {:synchronous=>true}, on_failure: nil, on_permanent_failure: nil, sender: obj).and_return(method)
-        expect(Delayed::Job).to receive(:enqueue).with(method, :enqueue_arg_1 => :thing)
+        expect(Delayed::PerformableMethod).to receive(:new)
+          .with(obj,
+                :test_method,
+                args: [4],
+                kwargs: { synchronous: true },
+                on_failure: nil,
+                on_permanent_failure: nil,
+                sender: obj)
+          .and_return(method)
+        expect(Delayed::Job).to receive(:enqueue).with(method, enqueue_arg1: :thing)
         obj.test_method(4)
 
-        obj.ran.should be_nil
+        expect(obj.ran).to be_nil
         obj.test_method(7, synchronous: true)
-        obj.ran.should == [7]
+        expect(obj.ran).to eq([7])
         obj.ran = nil
-        obj.ran.should == nil
-        obj.test_method(8,9, synchronous: true)
-        obj.ran.should == [8,9]
+        expect(obj.ran).to eq(nil)
+        obj.test_method(8, 9, synchronous: true)
+        expect(obj.ran).to eq([8, 9])
       end
 
       it "should handle punctuation correctly" do
         klass = Class.new do
           attr_reader :ran
-          def test_method?; @ran = true; end
+
+          def test_method?
+            @ran = true
+          end
           handle_asynchronously :test_method?
         end
         obj = klass.new
-        lambda { obj.test_method? }.should change { Delayed::Job.jobs_count(:current) }.by(1)
-        obj.ran.should be_falsey
-        lambda { obj.test_method?(synchronous: true) }.should_not change { Delayed::Job.jobs_count(:current) }
-        obj.ran.should be true
+        expect { obj.test_method? }.to change { Delayed::Job.jobs_count(:current) }.by(1)
+        expect(obj.ran).to be_falsey
+        expect { obj.test_method?(synchronous: true) }.not_to(change { Delayed::Job.jobs_count(:current) })
+        expect(obj.ran).to be true
       end
 
       it "should handle assignment punctuation correctly" do
         klass = Class.new do
           attr_reader :ran
-          def test_method=(val); @ran = val; end
+
+          def test_method=(val)
+            @ran = val
+          end
           handle_asynchronously :test_method=
         end
         obj = klass.new
-        lambda { obj.test_method = 3 }.should change { Delayed::Job.jobs_count(:current) }.by(1)
-        obj.ran.should be_nil
-        lambda { obj.send(:test_method=, 5, synchronous: true) }.should_not change { Delayed::Job.jobs_count(:current) }
-        obj.ran.should == 5
+        expect { obj.test_method = 3 }.to change { Delayed::Job.jobs_count(:current) }.by(1)
+        expect(obj.ran).to be_nil
+        expect { obj.send(:test_method=, 5, synchronous: true) }.not_to(change { Delayed::Job.jobs_count(:current) })
+        expect(obj.ran).to eq(5)
       end
 
       it "should correctly sort out method accessibility" do
@@ -133,34 +185,36 @@ shared_examples_for 'random ruby objects' do
 
         klass2 = Class.new do
           protected
+
           def test_method; end
           handle_asynchronously :test_method
         end
 
         klass3 = Class.new do
           private
+
           def test_method; end
           handle_asynchronously :test_method
         end
 
-        klass1.public_method_defined?(:test_method).should be true
-        klass2.protected_method_defined?(:test_method).should be true
-        klass3.private_method_defined?(:test_method).should be true
+        expect(klass1.public_method_defined?(:test_method)).to be true
+        expect(klass2.protected_method_defined?(:test_method)).to be true
+        expect(klass3.private_method_defined?(:test_method)).to be true
       end
     end
   end
 
   it "should call send later on methods which are wrapped with handle_asynchronously" do
-    story = Story.create :text => 'Once upon...'
+    story = Story.create text: "Once upon..."
 
     expect { story.whatever(1, 5) }.to change { Delayed::Job.jobs_count(:current) }.by(1)
 
     job = Delayed::Job.list_jobs(:current, 1).first
-    job.payload_object.class.should   == Delayed::PerformableMethod
-    job.payload_object.method.should  == :whatever
-    job.payload_object.args.should    == [1, 5]
-    job.payload_object.kwargs.should  == {:synchronous=>true}
-    job.payload_object.perform.should == 'Once upon...'
+    expect(job.payload_object.class).to   eq(Delayed::PerformableMethod)
+    expect(job.payload_object.method).to  eq(:whatever)
+    expect(job.payload_object.args).to    eq([1, 5])
+    expect(job.payload_object.kwargs).to  eq({ synchronous: true })
+    expect(job.payload_object.perform).to eq("Once upon...")
   end
 
   context "delay" do
@@ -168,11 +222,11 @@ shared_examples_for 'random ruby objects' do
       set_queue("testqueue") do
         "string".delay.reverse
         job = Delayed::Job.list_jobs(:current, 1).first
-        job.queue.should == "testqueue"
+        expect(job.queue).to eq("testqueue")
 
         "string".delay(queue: nil).reverse
         job2 = Delayed::Job.list_jobs(:current, 2).last
-        job2.queue.should == "testqueue"
+        expect(job2.queue).to eq("testqueue")
       end
     end
 
@@ -183,64 +237,51 @@ shared_examples_for 'random ruby objects' do
 
   context "delay with run_at" do
     it "should queue a new job" do
-      lambda do
+      expect do
         "string".delay(run_at: 1.hour.from_now).length
-      end.should change { Delayed::Job.jobs_count(:future) }.by(1)
+      end.to change { Delayed::Job.jobs_count(:future) }.by(1)
     end
 
     it "should schedule the job in the future" do
       time = 1.hour.from_now
       "string".delay(run_at: time).length
       job = Delayed::Job.list_jobs(:future, 1).first
-      job.run_at.to_i.should == time.to_i
+      expect(job.run_at.to_i).to eq(time.to_i)
     end
 
     it "should store payload as PerformableMethod" do
-      "string".delay(run_at: 1.hour.from_now).count('r')
+      "string".delay(run_at: 1.hour.from_now).count("r")
       job = Delayed::Job.list_jobs(:future, 1).first
-      job.payload_object.class.should   == Delayed::PerformableMethod
-      job.payload_object.method.should  == :count
-      job.payload_object.args.should    == ['r']
-      job.payload_object.perform.should == 1
+      expect(job.payload_object.class).to   eq(Delayed::PerformableMethod)
+      expect(job.payload_object.method).to  eq(:count)
+      expect(job.payload_object.args).to    eq(["r"])
+      expect(job.payload_object.perform).to eq(1)
     end
 
     it "should use the default queue if there is one" do
       set_queue("testqueue") do
         "string".delay(run_at: 1.hour.from_now).reverse
         job = Delayed::Job.list_jobs(:current, 1).first
-        job.queue.should == "testqueue"
+        expect(job.queue).to eq("testqueue")
       end
     end
   end
 
   describe "delay with synchronous argument" do
-    module UnlessInJob
-      @runs = 0
-      def self.runs; @runs; end
-
-      def self.run
-        @runs += 1
-      end
-
-      def self.run_later
-        self.delay(synchronous: Delayed::Job.in_delayed_job?).run
-      end
-    end
-
     before do
-      UnlessInJob.class_eval { @runs = 0 }
+      UnlessInJob.runs = 0
     end
 
     it "should perform immediately if in job" do
       UnlessInJob.delay.run_later
       job = Delayed::Job.list_jobs(:current, 1).first
       job.invoke_job
-      UnlessInJob.runs.should == 1
+      expect(UnlessInJob.runs).to eq(1)
     end
 
     it "should queue up for later if not in job" do
       UnlessInJob.run_later
-      UnlessInJob.runs.should == 0
+      expect(UnlessInJob.runs).to eq(0)
     end
   end
 end

@@ -6,19 +6,21 @@ class CreateDelayedJobs < ActiveRecord::Migration[4.2]
   end
 
   def up
-    raise("#{connection.adapter_name} is not supported for delayed jobs queue") unless connection.adapter_name == 'PostgreSQL'
+    unless connection.adapter_name == "PostgreSQL"
+      raise("#{connection.adapter_name} is not supported for delayed jobs queue")
+    end
 
     create_table :delayed_jobs do |table|
       # Allows some jobs to jump to the front of the queue
-      table.integer  :priority, :default => 0
+      table.integer  :priority, default: 0
       # Provides for retries, but still fail eventually.
-      table.integer  :attempts, :default => 0
+      table.integer  :attempts, default: 0
       # YAML-encoded string of the object that will do work
-      table.text     :handler, :limit => (500 * 1024)
+      table.text     :handler, limit: (500 * 1024)
       # reason for last failure (See Note below)
       table.text     :last_error
       # The queue that this job is in
-      table.string   :queue, :default => nil
+      table.string   :queue, default: nil
       # When to run.
       # Could be Time.zone.now for immediately, or sometime in the future.
       table.datetime :run_at
@@ -32,8 +34,8 @@ class CreateDelayedJobs < ActiveRecord::Migration[4.2]
       table.timestamps
     end
 
-    add_index :delayed_jobs, [:priority, :run_at], :name => 'delayed_jobs_priority'
-    add_index :delayed_jobs, [:queue], :name => 'delayed_jobs_queue'
+    add_index :delayed_jobs, %i[priority run_at], name: "delayed_jobs_priority"
+    add_index :delayed_jobs, [:queue], name: "delayed_jobs_queue"
   end
 
   def down

@@ -3,14 +3,18 @@
 require_relative "../spec_helper"
 
 describe Delayed::Worker do
-  let(:worker_config) { {
-      queue: "test", min_priority: 1, max_priority: 2, stuff: "stuff",
-  }.freeze }
-  let(:job_attrs) { {
-    id: 42, name: "testjob", full_name: "testfullname", :last_error= => nil,
-    attempts: 1, reschedule: nil, :expired? => false,
-    payload_object: {}, priority: 25
-  }.freeze }
+  let(:worker_config) do
+    {
+      queue: "test", min_priority: 1, max_priority: 2, stuff: "stuff"
+    }.freeze
+  end
+  let(:job_attrs) do
+    {
+      id: 42, name: "testjob", full_name: "testfullname", :last_error= => nil,
+      attempts: 1, reschedule: nil, :expired? => false,
+      payload_object: {}, priority: 25
+    }.freeze
+  end
   subject { described_class.new(worker_config.dup) }
 
   after { Delayed::Worker.lifecycle.reset! }
@@ -18,7 +22,7 @@ describe Delayed::Worker do
   describe "#perform" do
     it "fires off an error callback when a job raises an exception" do
       fired = false
-      Delayed::Worker.lifecycle.before(:error) {|worker, exception| fired = true}
+      Delayed::Worker.lifecycle.before(:error) { |_worker, _exception| fired = true }
       job = double(job_attrs)
       output_count = subject.perform(job)
       expect(fired).to be_truthy
@@ -27,8 +31,8 @@ describe Delayed::Worker do
 
     it "uses the retry callback for a retriable exception" do
       error_fired = retry_fired = false
-      Delayed::Worker.lifecycle.before(:error) {|worker, exception| error_fired = true }
-      Delayed::Worker.lifecycle.before(:retry) {|worker, exception| retry_fired = true}
+      Delayed::Worker.lifecycle.before(:error) { |_worker, _exception| error_fired = true }
+      Delayed::Worker.lifecycle.before(:retry) { |_worker, _exception| retry_fired = true }
       job = Delayed::Job.new(payload_object: {}, priority: 25, strand: "test_jobs", max_attempts: 3)
       expect(job).to receive(:invoke_job) do
         raise Delayed::RetriableError, "that's all this job does"
@@ -40,15 +44,13 @@ describe Delayed::Worker do
     end
 
     it "reloads" do
-      fakeApplication = double('Rails.application',
-          config: double('Rails.application.config',
-          cache_classes: false,
-          reload_classes_only_on_change: false
-        ),
-        reloader: double()
-      )
+      fake_application = double("Rails.application",
+                                config: double("Rails.application.config",
+                                               cache_classes: false,
+                                               reload_classes_only_on_change: false),
+                                reloader: double)
 
-      allow(Rails).to receive(:application).and_return(fakeApplication)
+      allow(Rails).to receive(:application).and_return(fake_application)
       if Rails::VERSION::MAJOR >= 5
         expect(Rails.application.reloader).to receive(:reload!).once
       else
@@ -73,11 +75,11 @@ describe Delayed::Worker do
       short_log_format = subject.log_job(job, :short)
       expect(short_log_format).to eq("RSpec::Mocks::Double")
       long_format = subject.log_job(job, :long)
-      expect(long_format).to eq("RSpec::Mocks::Double {\"priority\":25,\"attempts\":0,\"created_at\":null,\"tag\":\"RSpec::Mocks::Double#perform\",\"max_attempts\":null,\"strand\":\"test_jobs\",\"source\":null}")
+      expect(long_format).to eq("RSpec::Mocks::Double {\"priority\":25,\"attempts\":0,\"created_at\":null,\"tag\":\"RSpec::Mocks::Double#perform\",\"max_attempts\":null,\"strand\":\"test_jobs\",\"source\":null}") # rubocop:disable Layout/LineLength
     end
 
     it "logging format can be changed with settings" do
-      Delayed::Settings.job_detailed_log_format = ->(job){ "override format #{job.strand}"}
+      Delayed::Settings.job_detailed_log_format = ->(job) { "override format #{job.strand}" }
       payload = double(perform: nil)
       job = Delayed::Job.new(payload_object: payload, priority: 25, strand: "test_jobs")
       short_log_format = subject.log_job(job, :short)
@@ -89,8 +91,8 @@ describe Delayed::Worker do
 
   describe "#run" do
     it "passes extra config options through to the WorkQueue" do
-      expect(subject.work_queue).to receive(:get_and_lock_next_available).
-        with(subject.name, worker_config).and_return(nil)
+      expect(subject.work_queue).to receive(:get_and_lock_next_available)
+        .with(subject.name, worker_config).and_return(nil)
       subject.run
     end
   end
