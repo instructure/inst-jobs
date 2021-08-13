@@ -22,35 +22,35 @@ shared_examples_for "random ruby objects" do
     Delayed::Settings.queue = old_name
   end
 
-  it "should respond_to :delay method" do
+  it "respond_toes :delay method" do
     Object.new.respond_to?(:delay)
   end
 
-  it "should raise a ArgumentError if delay is called but the target method doesn't exist" do
+  it "raises a ArgumentError if delay is called but the target method doesn't exist" do
     expect { Object.new.delay.method_that_deos_not_exist }.to raise_error(NoMethodError)
   end
 
-  it "should add a new entry to the job table when delay is called on it" do
+  it "adds a new entry to the job table when delay is called on it" do
     expect { Object.new.delay.to_s }.to change { Delayed::Job.jobs_count(:current) }.by(1)
   end
 
-  it "should add a new entry to the job table when delay is called on it with a queue" do
+  it "adds a new entry to the job table when delay is called on it with a queue" do
     expect { Object.new.delay(queue: "testqueue").to_s }.to change {
                                                               Delayed::Job.jobs_count(:current, "testqueue")
                                                             }.by(1)
   end
 
-  it "should add a new entry to the job table when delay is called on the class" do
+  it "adds a new entry to the job table when delay is called on the class" do
     expect { Object.delay.to_s }.to change { Delayed::Job.jobs_count(:current) }.by(1)
   end
 
-  it "should add a new entry to the job table when delay is called on the class with a queue" do
+  it "adds a new entry to the job table when delay is called on the class with a queue" do
     expect { Object.delay(queue: "testqueue").to_s }.to change { Delayed::Job.jobs_count(:current, "testqueue") }.by(1)
   end
 
   context "class methods" do
     context "handle_asynchronously" do
-      it "should work with default_async" do
+      it "works with default_async" do
         klass = Class.new do
           attr_reader :ran
 
@@ -100,7 +100,7 @@ shared_examples_for "random ruby objects" do
         expect(obj.run).to eq "foo"
       end
 
-      it "should send along enqueue args and args" do
+      it "sends along enqueue args and args" do
         klass = Class.new do
           attr_accessor :ran
 
@@ -145,7 +145,7 @@ shared_examples_for "random ruby objects" do
         expect(obj.ran).to eq([8, 9])
       end
 
-      it "should handle punctuation correctly" do
+      it "handles punctuation correctly" do
         klass = Class.new do
           attr_reader :ran
 
@@ -161,7 +161,7 @@ shared_examples_for "random ruby objects" do
         expect(obj.ran).to be true
       end
 
-      it "should handle assignment punctuation correctly" do
+      it "handles assignment punctuation correctly" do
         klass = Class.new do
           attr_reader :ran
 
@@ -177,7 +177,7 @@ shared_examples_for "random ruby objects" do
         expect(obj.ran).to eq(5)
       end
 
-      it "should correctly sort out method accessibility" do
+      it "correctlies sort out method accessibility" do
         klass1 = Class.new do
           def test_method; end
           handle_asynchronously :test_method
@@ -204,7 +204,7 @@ shared_examples_for "random ruby objects" do
     end
   end
 
-  it "should call send later on methods which are wrapped with handle_asynchronously" do
+  it "calls send later on methods which are wrapped with handle_asynchronously" do
     story = Story.create text: "Once upon..."
 
     expect { story.whatever(1, 5) }.to change { Delayed::Job.jobs_count(:current) }.by(1)
@@ -218,7 +218,7 @@ shared_examples_for "random ruby objects" do
   end
 
   context "delay" do
-    it "should use the default queue if there is one" do
+    it "uses the default queue if there is one" do
       set_queue("testqueue") do
         "string".delay.reverse
         job = Delayed::Job.list_jobs(:current, 1).first
@@ -230,26 +230,26 @@ shared_examples_for "random ruby objects" do
       end
     end
 
-    it "should require a queue" do
+    it "requires a queue" do
       expect { set_queue(nil) }.to raise_error(ArgumentError)
     end
   end
 
   context "delay with run_at" do
-    it "should queue a new job" do
+    it "queues a new job" do
       expect do
         "string".delay(run_at: 1.hour.from_now).length
       end.to change { Delayed::Job.jobs_count(:future) }.by(1)
     end
 
-    it "should schedule the job in the future" do
+    it "schedules the job in the future" do
       time = 1.hour.from_now
       "string".delay(run_at: time).length
       job = Delayed::Job.list_jobs(:future, 1).first
       expect(job.run_at.to_i).to eq(time.to_i)
     end
 
-    it "should store payload as PerformableMethod" do
+    it "stores payload as PerformableMethod" do
       "string".delay(run_at: 1.hour.from_now).count("r")
       job = Delayed::Job.list_jobs(:future, 1).first
       expect(job.payload_object.class).to   eq(Delayed::PerformableMethod)
@@ -258,7 +258,7 @@ shared_examples_for "random ruby objects" do
       expect(job.payload_object.perform).to eq(1)
     end
 
-    it "should use the default queue if there is one" do
+    it "uses the default queue if there is one" do
       set_queue("testqueue") do
         "string".delay(run_at: 1.hour.from_now).reverse
         job = Delayed::Job.list_jobs(:current, 1).first
@@ -272,14 +272,14 @@ shared_examples_for "random ruby objects" do
       UnlessInJob.runs = 0
     end
 
-    it "should perform immediately if in job" do
+    it "performs immediately if in job" do
       UnlessInJob.delay.run_later
       job = Delayed::Job.list_jobs(:current, 1).first
       job.invoke_job
       expect(UnlessInJob.runs).to eq(1)
     end
 
-    it "should queue up for later if not in job" do
+    it "queues up for later if not in job" do
       UnlessInJob.run_later
       expect(UnlessInJob.runs).to eq(0)
     end

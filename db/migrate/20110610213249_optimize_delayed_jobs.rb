@@ -31,7 +31,7 @@ class OptimizeDelayedJobs < ActiveRecord::Migration[4.2]
     add_index :delayed_jobs, %w[strand id], name: "index_delayed_jobs_on_strand"
 
     # move all failed jobs to the new failed table
-    Delayed::Backend::ActiveRecord::Job.where("failed_at IS NOT NULL").find_each do |job|
+    Delayed::Backend::ActiveRecord::Job.where.not(failed_at: nil).find_each do |job|
       job.fail! unless job.on_hold?
     end
   end

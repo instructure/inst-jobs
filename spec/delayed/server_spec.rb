@@ -24,8 +24,8 @@ RSpec.describe Delayed::Server, sinatra: true do
     before do
       3.times do |i|
         Delayed::Job.create!({
-                               run_at: Time.now,
-                               locked_at: Time.now,
+                               run_at: Time.zone.now,
+                               locked_at: Time.zone.now,
                                locked_by: "dummy-runner-#{i}:${$$}"
                              })
       end
@@ -74,8 +74,8 @@ RSpec.describe Delayed::Server, sinatra: true do
 
       it "must remove job1" do
         expect { Delayed::Job.find(job1.id) }.to raise_error(ActiveRecord::RecordNotFound)
-        expect(Delayed::Job.find(job2.id)).to_not be_nil
-        expect(Delayed::Job.find(job3.id)).to_not be_nil
+        expect(Delayed::Job.find(job2.id)).not_to be_nil
+        expect(Delayed::Job.find(job3.id)).not_to be_nil
       end
 
       it "must return ok" do
@@ -90,9 +90,9 @@ RSpec.describe Delayed::Server, sinatra: true do
       end
 
       it "must not remove job1" do
-        expect(Delayed::Job.find(job1.id)).to_not be_nil
-        expect(Delayed::Job.find(job2.id)).to_not be_nil
-        expect(Delayed::Job.find(job3.id)).to_not be_nil
+        expect(Delayed::Job.find(job1.id)).not_to be_nil
+        expect(Delayed::Job.find(job2.id)).not_to be_nil
+        expect(Delayed::Job.find(job3.id)).not_to be_nil
       end
 
       it "must return forbidden" do

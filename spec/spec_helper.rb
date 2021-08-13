@@ -22,7 +22,7 @@ RSpec.configure do |config|
     WebMock.disable_net_connect!
   end
 
-  config.before(:each) do |example|
+  config.before do |example|
     DatabaseCleaner.strategy = if example.metadata[:sinatra] || example.metadata[:non_transactional]
                                  :truncation
                                else
@@ -31,7 +31,7 @@ RSpec.configure do |config|
     DatabaseCleaner.start
   end
 
-  config.after(:each) do
+  config.after do
     DatabaseCleaner.clean
   end
 end
@@ -79,7 +79,7 @@ migrate("spec/migrate")
 Delayed::Backend::ActiveRecord::Job.reset_column_information
 Delayed::Backend::ActiveRecord::Job::Failed.reset_column_information
 
-Time.zone = "UTC"
+Time.zone = "UTC" # rubocop:disable Rails/TimeZoneAssignment
 Rails.logger = Logger.new(nil)
 
 # Purely useful for test cases...

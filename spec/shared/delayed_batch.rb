@@ -2,7 +2,7 @@
 
 shared_examples_for "Delayed::Batch" do
   context "batching" do
-    it "should batch up all deferrable delayed methods" do
+    it "batches up all deferrable delayed methods" do
       later = 1.hour.from_now
       Delayed::Batch.serial_batch do
         expect("string".delay(ignore_transaction: true).size).to be true
@@ -32,7 +32,7 @@ shared_examples_for "Delayed::Batch" do
                         ])
     end
 
-    it "should not let you invoke it directly" do
+    it "does not let you invoke it directly" do
       Delayed::Batch.serial_batch do
         expect("string".delay(ignore_transaction: true).size).to be true
         expect("string".delay(ignore_transaction: true).gsub(/./, "!")).to be true
@@ -42,7 +42,7 @@ shared_examples_for "Delayed::Batch" do
       expect { job.invoke_job }.to raise_error(RuntimeError)
     end
 
-    it "should create valid jobs" do
+    it "creates valid jobs" do
       Delayed::Batch.serial_batch do
         expect("string".delay(ignore_transaction: true).size).to be true
         expect("string".delay(ignore_transaction: true).gsub(/./, "!")).to be true
@@ -65,7 +65,7 @@ shared_examples_for "Delayed::Batch" do
       expect(jobs[1].payload_object.perform).to eq("!!!!!!")
     end
 
-    it "should create a different batch for each priority" do
+    it "creates a different batch for each priority" do
       Delayed::Batch.serial_batch do
         expect("string".delay(priority: Delayed::LOW_PRIORITY, ignore_transaction: true).size).to be true
         expect("string".delay(ignore_transaction: true).gsub(/./, "!")).to be true
@@ -73,7 +73,7 @@ shared_examples_for "Delayed::Batch" do
       expect(Delayed::Job.jobs_count(:current)).to eq(2)
     end
 
-    it "should use the given priority for all, if specified" do
+    it "uses the given priority for all, if specified" do
       Delayed::Batch.serial_batch(priority: 11) do
         expect("string".delay(priority: 20, ignore_transaction: true).size).to be true
         expect("string".delay(priority: 15, ignore_transaction: true).gsub(/./, "!")).to be true
@@ -82,7 +82,7 @@ shared_examples_for "Delayed::Batch" do
       expect(Delayed::Job.find_available(1).first.priority).to eq(11)
     end
 
-    it "should just create the job, if there's only one in the batch" do
+    it "justs create the job, if there's only one in the batch" do
       Delayed::Batch.serial_batch(priority: 11) do
         expect("string".delay(ignore_transaction: true).size).to be true
       end
@@ -91,7 +91,7 @@ shared_examples_for "Delayed::Batch" do
       expect(Delayed::Job.find_available(1).first.priority).to eq(11)
     end
 
-    it "should list a job only once when the same call is made multiple times" do
+    it "lists a job only once when the same call is made multiple times" do
       Delayed::Batch.serial_batch(priority: 11) do
         "string".delay(ignore_transaction: true).size
         "string".delay(ignore_transaction: true).gsub(/./, "!")

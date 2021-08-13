@@ -10,29 +10,29 @@ RSpec.describe Delayed::Worker::HealthCheck do
   end
 
   after do
-    Delayed::Worker::HealthCheck.subclasses.delete(klass)
+    described_class.subclasses.delete(klass)
   end
 
   it "must maintain a list of its subclasses" do
     klass
-    expect(Delayed::Worker::HealthCheck.subclasses).to include klass
+    expect(described_class.subclasses).to include klass
   end
 
   describe ".build(type:, config: {})" do
     it "must select the concrete class to use by the type_name in the subclass" do
-      check = Delayed::Worker::HealthCheck.build(type: "test", worker_name: "foobar")
+      check = described_class.build(type: "test", worker_name: "foobar")
       expect(check).to be_a(klass)
     end
 
     it "must raise ArgumentError when the specified type doesn't exist" do
       expect do
-        Delayed::Worker::HealthCheck.build(type: "nope", config: { worker_name: "foobar" })
+        described_class.build(type: "nope", config: { worker_name: "foobar" })
       end.to raise_error ArgumentError
     end
 
     it "must initiaize the specified class using the supplied config" do
       config = { foo: "bar" }.with_indifferent_access
-      check = Delayed::Worker::HealthCheck.build(type: "test", worker_name: "foobar", config: config)
+      check = described_class.build(type: "test", worker_name: "foobar", config: config)
       expect(check.config).to eq config
     end
   end
@@ -73,13 +73,13 @@ RSpec.describe Delayed::Worker::HealthCheck do
     end
 
     after do
-      Delayed::Worker::HealthCheck.subclasses.delete(klass)
+      described_class.subclasses.delete(klass)
       Delayed::Settings.worker_health_check_type = :none
       Delayed::Settings.worker_health_check_config = {}
     end
 
     it "must leave jobs locked by live workers alone" do
-      Delayed::Worker::HealthCheck.reschedule_abandoned_jobs
+      described_class.reschedule_abandoned_jobs
       @alive_job.reload
       expect(@alive_job.run_at.to_i).to eq initial_run_at.to_i
       expect(@alive_job.locked_at.to_i).to eq initial_run_at.to_i
@@ -87,7 +87,7 @@ RSpec.describe Delayed::Worker::HealthCheck do
     end
 
     it "must reschedule jobs locked by dead workers" do
-      Delayed::Worker::HealthCheck.reschedule_abandoned_jobs
+      described_class.reschedule_abandoned_jobs
       @dead_job.reload
       expect(@dead_job.run_at).to be > initial_run_at
       expect(@dead_job.locked_at).to be_nil
@@ -97,7 +97,7 @@ RSpec.describe Delayed::Worker::HealthCheck do
     it "ignores jobs that are re-locked after fetching from db" do
       Delayed::Job.where(id: @dead_job).update_all(locked_by: "someone_else")
       allow(Delayed::Job).to receive(:running_jobs).and_return([@dead_job])
-      Delayed::Worker::HealthCheck.reschedule_abandoned_jobs
+      described_class.reschedule_abandoned_jobs
       @dead_job.reload
       expect(@dead_job.locked_by).to eq "someone_else"
     end
@@ -105,18 +105,18 @@ RSpec.describe Delayed::Worker::HealthCheck do
     it "ignores jobs that are prefetched" do
       Delayed::Job.where(id: @dead_job).update_all(locked_by: "prefetch:some_node")
       allow(Delayed::Job).to receive(:running_jobs).and_return([@dead_job])
-      Delayed::Worker::HealthCheck.reschedule_abandoned_jobs
+      described_class.reschedule_abandoned_jobs
       @dead_job.reload
       expect(@dead_job.locked_by).to eq "prefetch:some_node"
     end
 
     it "bails immediately if advisory lock already taken" do
-      allow(Delayed::Worker::HealthCheck).to receive(:attempt_advisory_lock).and_return(false)
-      Delayed::Worker::HealthCheck.reschedule_abandoned_jobs
+      allow(described_class).to receive(:attempt_advisory_lock).and_return(false)
+      described_class.reschedule_abandoned_jobs
       @dead_job.reload
       expect(@dead_job.run_at.to_i).to eq(initial_run_at.to_i)
-      expect(@dead_job.locked_at).to_not be_nil
-      expect(@dead_job.locked_by).to_not be_nil
+      expect(@dead_job.locked_at).not_to be_nil
+      expect(@dead_job.locked_by).not_to be_nil
     end
   end
 

@@ -3,6 +3,8 @@
 require_relative "../spec_helper"
 
 describe Delayed::Worker do
+  subject { described_class.new(worker_config.dup) }
+
   let(:worker_config) do
     {
       queue: "test", min_priority: 1, max_priority: 2, stuff: "stuff"
@@ -15,14 +17,13 @@ describe Delayed::Worker do
       payload_object: {}, priority: 25
     }.freeze
   end
-  subject { described_class.new(worker_config.dup) }
 
-  after { Delayed::Worker.lifecycle.reset! }
+  after { described_class.lifecycle.reset! }
 
   describe "#perform" do
     it "fires off an error callback when a job raises an exception" do
       fired = false
-      Delayed::Worker.lifecycle.before(:error) { |_worker, _exception| fired = true }
+      described_class.lifecycle.before(:error) { |_worker, _exception| fired = true }
       job = double(job_attrs)
       output_count = subject.perform(job)
       expect(fired).to be_truthy
@@ -31,8 +32,8 @@ describe Delayed::Worker do
 
     it "uses the retry callback for a retriable exception" do
       error_fired = retry_fired = false
-      Delayed::Worker.lifecycle.before(:error) { |_worker, _exception| error_fired = true }
-      Delayed::Worker.lifecycle.before(:retry) { |_worker, _exception| retry_fired = true }
+      described_class.lifecycle.before(:error) { |_worker, _exception| error_fired = true }
+      described_class.lifecycle.before(:retry) { |_worker, _exception| retry_fired = true }
       job = Delayed::Job.new(payload_object: {}, priority: 25, strand: "test_jobs", max_attempts: 3)
       expect(job).to receive(:invoke_job) do
         raise Delayed::RetriableError, "that's all this job does"
@@ -63,7 +64,7 @@ describe Delayed::Worker do
   end
 
   describe "#log_job" do
-    around(:each) do |block|
+    around do |block|
       prev_logger = Delayed::Settings.job_detailed_log_format
       block.call
       Delayed::Settings.job_detailed_log_format = prev_logger

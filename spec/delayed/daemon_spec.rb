@@ -15,14 +15,14 @@ RSpec.describe Delayed::Daemon do
     it "prints status if not running" do
       expect(subject).to receive(:status).with(print: false, pid: pid).and_return(false)
       expect(subject).to receive(:status).with(no_args)
-      expect(Process).to receive(:kill).never
+      expect(Process).not_to receive(:kill)
       subject.stop
     end
 
     it "prints status if draining" do
       expect(subject).to receive(:status).with(print: false, pid: pid).and_return(:draining)
       expect(subject).to receive(:status).with(no_args)
-      expect(Process).to receive(:kill).never
+      expect(Process).not_to receive(:kill)
       subject.stop
     end
 

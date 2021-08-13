@@ -7,7 +7,7 @@ RSpec.describe Delayed::WorkQueue::InProcess do
     Delayed.select_backend(Delayed::Backend::ActiveRecord::Job)
   end
 
-  after :each do
+  after do
     Delayed::Worker.lifecycle.reset!
   end
 

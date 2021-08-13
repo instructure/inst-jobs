@@ -195,8 +195,8 @@ module Delayed
     def stop(graceful: true, timeout: Settings.slow_exit_timeout)
       signal_for_children = graceful ? :QUIT : :TERM
       if Settings.kill_workers_on_exit
-        limit = Time.now + timeout
-        until @workers.empty? || Time.now >= limit
+        limit = Time.zone.now + timeout
+        until @workers.empty? || Time.zone.now >= limit
           signal_all_children(signal_for_children)
           # Give our children some time to process the signal before checking if
           # they've exited

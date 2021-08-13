@@ -1,14 +1,63 @@
+require:
+  - rubocop-rails
+  - rubocop-rake
+  - rubocop-rspec
+
 AllCops:
   NewCops: enable
   TargetRubyVersion: 2.6
 
 # migrations have some triggers with really long lines we can't really do anything about
+# (and the newlines are important)
 Layout/LineLength:
   Exclude:
    - db/migrate/*
+Rails/SquishedSQLHeredocs:
+  Exclude:
+   - db/migrate/*
+
+
 Naming/FileName:
   Exclude:
     - lib/inst-jobs.rb
+Rails/ApplicationRecord:
+  Enabled: false
+Rails/Exit:
+  Enabled: false
+Rails/HttpPositionalArguments:
+  Enabled: false
+Rails/Output:
+  Enabled: false
+Rails/SkipsModelValidations:
+  Enabled: false
+RSpec/AnyInstance:
+  Enabled: false
+RSpec/BeforeAfterAll:
+  Enabled: false
+RSpec/ContextWording:
+  Enabled: false
+RSpec/ExampleLength:
+  Enabled: false
+RSpec/ExpectInHook:
+  Enabled: false
+RSpec/InstanceVariable:
+  Enabled: false
+RSpec/LetSetup:
+  Enabled: false
+RSpec/MessageSpies:
+  Enabled: false
+RSpec/MultipleExpectations:
+  Enabled: false
+RSpec/MultipleMemoizedHelpers:
+  Enabled: false
+RSpec/NamedSubject:
+  Enabled: false
+RSpec/StubbedMock:
+  Enabled: false
+RSpec/SubjectStub:
+  Enabled: false
+RSpec/VerifiedDoubles:
+  Enabled: false
 Security/MarshalLoad:
   Enabled: false
 Security/YAMLLoad:

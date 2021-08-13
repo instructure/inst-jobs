@@ -34,7 +34,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     Delayed::Settings.parent_process = {}
   end
 
-  after :each do
+  after do
     File.unlink("/tmp/inst-jobs-test.sock") if File.exist?("/tmp/inst-jobs-test.sock")
   end
 
@@ -89,12 +89,12 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect(Delayed::Job).to receive(:get_and_lock_next_available).once.with(*job_args).and_return(jobs)
     Marshal.dump(["worker_name1", worker_config], client)
     subject.run_once
-    expect(subject).to_not be_all_workers_idle
+    expect(subject).not_to be_all_workers_idle
     expect(Marshal.load(client)).to eq(job)
 
     Marshal.dump(["worker_name1", worker_config], client)
     subject.run_once
-    expect(subject).to_not be_all_workers_idle
+    expect(subject).not_to be_all_workers_idle
     expect(Marshal.load(client)).to eq(job2)
   end
 

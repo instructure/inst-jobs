@@ -15,9 +15,9 @@ module Delayed
       def method_missing(method, *args, **kwargs) # rubocop:disable Style/MissingRespondToMissing
         # method doesn't exist? must be method_missing; assume private access
         @sender = nil if !@sender.nil? &&
-                         !@object.methods.include?(method) &&
-                         !@object.protected_methods.include?(method) &&
-                         !@object.private_methods.include?(method)
+                         @object.methods.exclude?(method) &&
+                         @object.protected_methods.exclude?(method) &&
+                         @object.private_methods.exclude?(method)
 
         sender_is_object = @sender == @object
         sender_is_class = @sender.is_a?(@object.class)

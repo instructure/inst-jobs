@@ -11,7 +11,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
 
   include_examples "a delayed_jobs implementation"
 
-  it "should recover as well as possible from a failure failing a job" do
+  it "recovers as well as possible from a failure failing a job" do
     allow(Delayed::Job::Failed).to receive(:create).and_raise(RuntimeError)
     job = "test".delay(ignore_transaction: true).reverse
     job_id = job.id
@@ -21,12 +21,12 @@ describe "Delayed::Backed::ActiveRecord::Job" do
   end
 
   context "when another worker has worked on a task since the job was found to be available, it" do
-    before :each do
+    before do
       @job = Delayed::Job.create payload_object: SimpleJob.new
       @job_copy_for_worker2 = Delayed::Job.find(@job.id)
     end
 
-    it "should not allow a second worker to get exclusive access if already successfully processed by worker1" do
+    it "does not allow a second worker to get exclusive access if already successfully processed by worker1" do
       @job.destroy
       expect(@job_copy_for_worker2.send(:lock_exclusively!, "worker2")).to eq(false)
     end
@@ -37,7 +37,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
       expect(@job_copy_for_worker2.send(:lock_exclusively!, "worker2")).to eq(false)
     end
 
-    it "should select the next job at random if enabled" do
+    it "selects the next job at random if enabled" do
       Delayed::Settings.select_random_from_batch = true
       15.times { "test".delay.length }
       founds = []
@@ -53,7 +53,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
     end
   end
 
-  it "should unlock a successfully locked job and persist the job's unlocked state" do
+  it "unlocks a successfully locked job and persist the job's unlocked state" do
     job = Delayed::Job.create payload_object: SimpleJob.new
     expect(job.send(:lock_exclusively!, "worker1")).to eq(true)
     job.reload
@@ -66,23 +66,23 @@ describe "Delayed::Backed::ActiveRecord::Job" do
 
   describe "bulk_update failed jobs" do
     context "holding/unholding failed jobs" do
-      before :each do
+      before do
         @job = Delayed::Job.create payload_object: SimpleJob.new
         expect(Delayed::Job.get_and_lock_next_available("worker1")).to eq(@job)
         @job.fail!
       end
 
-      it "should raise error when holding failed jobs" do
+      it "raises error when holding failed jobs" do
         expect { Delayed::Job.bulk_update("hold", flavor: "failed", query: @query) }.to raise_error(RuntimeError)
       end
 
-      it "should raise error unholding failed jobs" do
+      it "raises error unholding failed jobs" do
         expect { Delayed::Job.bulk_update("unhold", flavor: "failed", query: @query) }.to raise_error(RuntimeError)
       end
     end
 
     context "deleting failed jobs" do
-      before :each do
+      before do
         2.times do
           j = Delayed::Job.create(payload_object: SimpleJob.new)
           expect(j.send(:lock_exclusively!, "worker1")).to eq(true)
@@ -90,13 +90,13 @@ describe "Delayed::Backed::ActiveRecord::Job" do
         end
       end
 
-      it "should delete failed jobs by id" do
+      it "deletes failed jobs by id" do
         target_ids = Delayed::Job::Failed.all[0..2].map(&:id)
         expect(Delayed::Job.bulk_update("destroy", ids: target_ids, flavor: "failed",
                                                    query: @query)).to eq(target_ids.length)
       end
 
-      it "should delete all failed jobs" do
+      it "deletes all failed jobs" do
         failed_count = Delayed::Job::Failed.count
         expect(Delayed::Job.bulk_update("destroy", flavor: "failed", query: @query)).to eq(failed_count)
       end
@@ -104,13 +104,13 @@ describe "Delayed::Backed::ActiveRecord::Job" do
   end
 
   context "n_strand" do
-    it "should default to 1" do
-      expect(Delayed::Job).to receive(:rand).never
+    it "defaults to 1" do
+      expect(Delayed::Job).not_to receive(:rand)
       job = Delayed::Job.enqueue(SimpleJob.new, n_strand: "njobs")
       expect(job.strand).to eq("njobs")
     end
 
-    it "should set max_concurrent based on num_strands" do
+    it "sets max_concurrent based on num_strands" do
       change_setting(Delayed::Settings, :num_strands, lambda { |strand_name|
                                                         expect(strand_name).to eql "njobs"
                                                         "3"
@@ -122,7 +122,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
     end
 
     context "with two parameters" do
-      it "should use the first param as the setting to read" do
+      it "uses the first param as the setting to read" do
         job = Delayed::Job.enqueue(SimpleJob.new, n_strand: %w[njobs 123])
         expect(job.strand).to eq("njobs/123")
         change_setting(Delayed::Settings, :num_strands, lambda { |strand_name|
@@ -136,7 +136,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
         end
       end
 
-      it "should allow overridding the setting based on the second param" do
+      it "allows overridding the setting based on the second param" do
         change_setting(Delayed::Settings, :num_strands, lambda { |strand_name|
           case strand_name
           when "njobs/123" then 5
@@ -167,7 +167,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
     end
 
     context "max_concurrent triggers" do
-      it "should set one job as next_in_strand at a time with max_concurrent of 1" do
+      it "sets one job as next_in_strand at a time with max_concurrent of 1" do
         job1 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
         job1.reload
         expect(job1.next_in_strand).to eq(true)
@@ -179,7 +179,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
         expect(job2.next_in_strand).to eq(true)
       end
 
-      it "should set multiple jobs as next_in_strand at a time based on max_concurrent" do
+      it "sets multiple jobs as next_in_strand at a time based on max_concurrent" do
         change_setting(Delayed::Settings, :num_strands, lambda { |strand_name|
           case strand_name
           when "njobs" then 2
@@ -246,7 +246,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
     expect(jobs.map(&:reload).map(&:locked_by)).to eq(["worker1", "work_queue", "work_queue", nil, nil])
   end
 
-  it "should not find jobs scheduled for now when we have forced latency" do
+  it "does not find jobs scheduled for now when we have forced latency" do
     job = create_job
     expect(Delayed::Job.get_and_lock_next_available("worker", forced_latency: 60.0)).to be_nil
     expect(Delayed::Job.get_and_lock_next_available("worker")).to eq job
@@ -257,7 +257,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
       allow(Delayed::Job.connection).to receive(:prepared_statements).and_return(false)
       allow(Delayed::Job.connection).to receive(:execute).with(be_include("pg_advisory_xact_lock"),
                                                                anything).and_call_original.once
-      allow(Delayed::Job.connection).to receive(:insert).never
+      expect(Delayed::Job.connection).not_to receive(:insert)
       j = create_job(strand: "test1")
       allow(Delayed::Job.connection).to receive(:execute).and_call_original
       expect(Delayed::Job.find(j.id)).to eq j
@@ -270,7 +270,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
         call_count += 1
         m.call(arg1, arg2)
       end
-      allow(Delayed::Job.connection).to receive(:insert).never
+      expect(Delayed::Job.connection).not_to receive(:insert)
       j = create_job(strand: "test1")
       expect(call_count).to eq 1
       expect(Delayed::Job.find(j.id)).to eq j
@@ -286,7 +286,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
         expect(args.first).not_to include("pg_advisory_xact_lock")
         original.call(*args)
       end
-      allow(Delayed::Job.connection).to receive(:insert).never
+      expect(Delayed::Job.connection).not_to receive(:insert)
       j.fail!
       allow(Delayed::Job.connection).to receive(:execute).and_call_original
     end

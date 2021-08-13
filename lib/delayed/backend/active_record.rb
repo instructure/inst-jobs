@@ -160,7 +160,7 @@ module Delayed
         end
 
         def self.failed
-          where("failed_at IS NOT NULL")
+          where.not(failed_at: nil)
         end
 
         def self.running
@@ -272,7 +272,7 @@ module Delayed
           when "unhold"
             now = db_time_now
             scope = scope.where(locked_by: ON_HOLD_LOCKED_BY)
-            scope.update_all([<<~SQL, now, now])
+            scope.update_all([<<~SQL.squish, now, now])
               locked_by=NULL, locked_at=NULL, attempts=0, run_at=(CASE WHEN run_at > ? THEN run_at ELSE ? END), failed_at=NULL
             SQL
           when "destroy"
@@ -352,7 +352,7 @@ module Delayed
                 # For more details, see:
                 #  * https://dba.stackexchange.com/a/69497/55285
                 #  * https://github.com/feikesteenbergen/demos/blob/b7ecee8b2a79bf04cbcd74972e6bfb81903aee5d/bugs/update_limit_bug.txt
-                query = <<~SQL
+                query = <<~SQL.squish
                   WITH limited_jobs AS (#{jobs_with_row_number.to_sql})
                   UPDATE #{quoted_table_name} SET #{updates} FROM limited_jobs WHERE limited_jobs.id=#{quoted_table_name}.id
                   RETURNING #{quoted_table_name}.*

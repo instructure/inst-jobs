@@ -35,14 +35,14 @@ RSpec.describe Delayed::Settings do
     it "merges in parent_process overrides to default config" do
       described_class.apply_worker_config!("parent_process" => { "foo" => "bar" })
 
-      expect(Delayed::Settings.parent_process).to include("foo" => "bar")
+      expect(described_class.parent_process).to include("foo" => "bar")
     end
   end
 
   describe ".parent_process_client_timeout=" do
     it "must update the value in the parent_process settings hash" do
-      Delayed::Settings.parent_process_client_timeout = 42
-      expect(Delayed::Settings.parent_process["server_socket_timeout"]).to eq 42
+      described_class.parent_process_client_timeout = 42
+      expect(described_class.parent_process["server_socket_timeout"]).to eq 42
     end
   end
 end

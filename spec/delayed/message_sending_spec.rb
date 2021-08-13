@@ -9,7 +9,8 @@ RSpec.describe Delayed::MessageSending do
   end
 
   before(:all) do
-    class SpecClass # rubocop:disable Lint/ConstantDefinitionInBlock this has to be a "real" constant
+    # this has to be a "real" constant
+    class SpecClass # rubocop:disable RSpec/LeakyConstantDeclaration, Lint/ConstantDefinitionInBlock
       def call_private(**enqueue_args)
         delay(**enqueue_args).private_method
       end

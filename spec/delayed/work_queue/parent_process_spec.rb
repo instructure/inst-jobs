@@ -16,7 +16,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
     Delayed::Settings.parent_process = {}
   end
 
-  after :each do
+  after do
     File.unlink("/tmp/inst-jobs-test.sock") if File.exist?("/tmp/inst-jobs-test.sock")
     Delayed::Worker.lifecycle.reset!
   end

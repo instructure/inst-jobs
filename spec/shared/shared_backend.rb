@@ -15,30 +15,30 @@ shared_examples_for "a backend" do
     SimpleJob.runs = 0
   end
 
-  it "should set run_at automatically if not set" do
+  it "sets run_at automatically if not set" do
     expect(Delayed::Job.create(payload_object: ErrorJob.new).run_at).not_to be_nil
   end
 
-  it "should not set run_at automatically if already set" do
+  it "does not set run_at automatically if already set" do
     later = Delayed::Job.db_time_now + 5.minutes
     expect(Delayed::Job.create(payload_object: ErrorJob.new, run_at: later).run_at).to be_within(1).of(later)
   end
 
-  it "should raise ArgumentError when handler doesn't respond_to :perform" do
+  it "raises ArgumentError when handler doesn't respond_to :perform" do
     expect { Delayed::Job.enqueue(Object.new) }.to raise_error(ArgumentError)
   end
 
-  it "should increase count after enqueuing items" do
+  it "increases count after enqueuing items" do
     Delayed::Job.enqueue SimpleJob.new
     expect(Delayed::Job.jobs_count(:current)).to eq(1)
   end
 
-  it "should be able to set priority when enqueuing items" do
+  it "is able to set priority when enqueuing items" do
     @job = Delayed::Job.enqueue SimpleJob.new, priority: 5
     expect(@job.priority).to eq(5)
   end
 
-  it "should use the default priority when enqueuing items" do
+  it "uses the default priority when enqueuing items" do
     Delayed::Job.default_priority = 0
     @job = Delayed::Job.enqueue SimpleJob.new
     expect(@job.priority).to eq(0)
@@ -48,73 +48,73 @@ shared_examples_for "a backend" do
     Delayed::Job.default_priority = 0
   end
 
-  it "should be able to set run_at when enqueuing items" do
+  it "is able to set run_at when enqueuing items" do
     later = Delayed::Job.db_time_now + 5.minutes
     @job = Delayed::Job.enqueue SimpleJob.new, priority: 5, run_at: later
     expect(@job.run_at).to be_within(1).of(later)
   end
 
-  it "should be able to set expires_at when enqueuing items" do
+  it "is able to set expires_at when enqueuing items" do
     later = Delayed::Job.db_time_now + 1.day
     @job = Delayed::Job.enqueue SimpleJob.new, expires_at: later
     expect(@job.expires_at).to be_within(1).of(later)
   end
 
-  it "should work with jobs in modules" do
+  it "works with jobs in modules" do
     M::ModuleJob.runs = 0
     job = Delayed::Job.enqueue M::ModuleJob.new
     expect { job.invoke_job }.to change { M::ModuleJob.runs }.from(0).to(1)
   end
 
-  it "should raise an DeserializationError when the job class is totally unknown" do
+  it "raises an DeserializationError when the job class is totally unknown" do
     job = Delayed::Job.new handler: "--- !ruby/object:JobThatDoesNotExist {}"
     expect { job.payload_object.perform }.to raise_error(Delayed::Backend::DeserializationError)
   end
 
-  it "should try to load the class when it is unknown at the time of the deserialization" do
+  it "tries to load the class when it is unknown at the time of the deserialization" do
     job = Delayed::Job.new handler: "--- !ruby/object:JobThatDoesNotExist {}"
     expect { job.payload_object.perform }.to raise_error(Delayed::Backend::DeserializationError)
   end
 
-  it "should try include the namespace when loading unknown objects" do
+  it "tries include the namespace when loading unknown objects" do
     job = Delayed::Job.new handler: "--- !ruby/object:Delayed::JobThatDoesNotExist {}"
     expect { job.payload_object.perform }.to raise_error(Delayed::Backend::DeserializationError)
   end
 
-  it "should also try to load structs when they are unknown (raises TypeError)" do
+  it "alsoes try to load structs when they are unknown (raises TypeError)" do
     job = Delayed::Job.new handler: "--- !ruby/struct:JobThatDoesNotExist {}"
     expect { job.payload_object.perform }.to raise_error(Delayed::Backend::DeserializationError)
   end
 
-  it "should try include the namespace when loading unknown structs" do
+  it "tries include the namespace when loading unknown structs" do
     job = Delayed::Job.new handler: "--- !ruby/struct:Delayed::JobThatDoesNotExist {}"
     expect { job.payload_object.perform }.to raise_error(Delayed::Backend::DeserializationError)
   end
 
-  it "should raise an DeserializationError when the handler is invalid YAML" do
+  it "raises an DeserializationError when the handler is invalid YAML" do
     job = Delayed::Job.new handler: %(test: ""11")
     expect { job.payload_object.perform }.to raise_error(Delayed::Backend::DeserializationError, /parsing error/)
   end
 
   describe "find_available" do
-    it "should not find failed jobs" do
+    it "does not find failed jobs" do
       @job = create_job attempts: 50
       @job.fail!
       expect(Delayed::Job.find_available(5)).not_to include(@job)
     end
 
-    it "should not find jobs scheduled for the future" do
+    it "does not find jobs scheduled for the future" do
       @job = create_job run_at: (Delayed::Job.db_time_now + 1.minute)
       expect(Delayed::Job.find_available(5)).not_to include(@job)
     end
 
-    it "should not find jobs locked by another worker" do
+    it "does not find jobs locked by another worker" do
       @job = create_job
       expect(Delayed::Job.get_and_lock_next_available("other_worker")).to eq(@job)
       expect(Delayed::Job.find_available(5)).not_to include(@job)
     end
 
-    it "should find open jobs" do
+    it "finds open jobs" do
       @job = create_job
       expect(Delayed::Job.find_available(5)).to include(@job)
     end
@@ -126,38 +126,38 @@ shared_examples_for "a backend" do
   end
 
   context "when another worker is already performing an task, it" do
-    before :each do
+    before do
       @job = Delayed::Job.create payload_object: SimpleJob.new
       expect(Delayed::Job.get_and_lock_next_available("worker1")).to eq(@job)
     end
 
-    it "should not allow a second worker to get exclusive access" do
+    it "does not allow a second worker to get exclusive access" do
       expect(Delayed::Job.get_and_lock_next_available("worker2")).to be_nil
     end
 
-    it "should not be found by another worker" do
+    it "is not found by another worker" do
       expect(Delayed::Job.find_available(1).length).to eq(0)
     end
   end
 
-  context "#name" do
-    it "should be the class name of the job that was enqueued" do
+  describe "#name" do
+    it "is the class name of the job that was enqueued" do
       expect(Delayed::Job.create(payload_object: ErrorJob.new).name).to eq("ErrorJob")
     end
 
-    it "should be the method that will be called if its a performable method object" do
+    it "is the method that will be called if its a performable method object" do
       @job = Story.delay(ignore_transaction: true).create
       expect(@job.name).to eq("Story.create")
     end
 
-    it "should be the instance method that will be called if its a performable method object" do
+    it "is the instance method that will be called if its a performable method object" do
       @job = Story.create(text: "...").delay(ignore_transaction: true).save
       expect(@job.name).to eq("Story#save")
     end
   end
 
   context "worker prioritization" do
-    it "should fetch jobs ordered by priority" do
+    it "fetches jobs ordered by priority" do
       10.times { create_job priority: rand(10) }
       jobs = Delayed::Job.find_available(10)
       expect(jobs.size).to eq(10)
@@ -166,7 +166,7 @@ shared_examples_for "a backend" do
       end
     end
 
-    it "should not find jobs lower than the given priority" do
+    it "does not find jobs lower than the given priority" do
       create_job priority: 5
       found = Delayed::Job.get_and_lock_next_available("test1", Delayed::Settings.queue, 10, 20)
       expect(found).to be_nil
@@ -178,7 +178,7 @@ shared_examples_for "a backend" do
       expect(found).to eq(job3)
     end
 
-    it "should not find jobs higher than the given priority" do
+    it "does not find jobs higher than the given priority" do
       create_job priority: 25
       found = Delayed::Job.get_and_lock_next_available("test1", Delayed::Settings.queue, 10, 20)
       expect(found).to be_nil
@@ -196,12 +196,12 @@ shared_examples_for "a backend" do
       @job = create_job(locked_by: "worker", locked_at: Delayed::Job.db_time_now)
     end
 
-    it "should clear locks for the given worker" do
+    it "clears locks for the given worker" do
       Delayed::Job.clear_locks!("worker")
       expect(Delayed::Job.find_available(5)).to include(@job)
     end
 
-    it "should not clear locks for other workers" do
+    it "does not clear locks for other workers" do
       Delayed::Job.clear_locks!("worker1")
       expect(Delayed::Job.find_available(5)).not_to include(@job)
     end
@@ -212,7 +212,7 @@ shared_examples_for "a backend" do
       @job = create_job(locked_by: "worker", locked_at: Delayed::Job.db_time_now)
     end
 
-    it "should clear locks" do
+    it "clears locks" do
       @job.unlock
       expect(@job.locked_by).to be_nil
       expect(@job.locked_at).to be_nil
@@ -237,7 +237,7 @@ shared_examples_for "a backend" do
   end
 
   context "strands" do
-    it "should run strand jobs in strict order" do
+    it "runs strand jobs in strict order" do
       job1 = create_job(strand: "myjobs")
       job2 = create_job(strand: "myjobs")
       expect(Delayed::Job.get_and_lock_next_available("w1")).to eq(job1)
@@ -250,7 +250,7 @@ shared_examples_for "a backend" do
       expect(Delayed::Job.get_and_lock_next_available("w4")).to eq(nil)
     end
 
-    it "should fail to lock if an earlier job gets locked" do
+    it "fails to lock if an earlier job gets locked" do
       job1 = create_job(strand: "myjobs")
       job2 = create_job(strand: "myjobs")
       expect(Delayed::Job.find_available(2)).to eq([job1])
@@ -270,7 +270,7 @@ shared_examples_for "a backend" do
       expect(Delayed::Job.get_and_lock_next_available("w2")).to eq(job2)
     end
 
-    it "should keep strand jobs in order as they are rescheduled" do
+    it "keeps strand jobs in order as they are rescheduled" do
       job1 = create_job(strand: "myjobs")
       job2 = create_job(strand: "myjobs")
       job3 = create_job(strand: "myjobs")
@@ -287,14 +287,14 @@ shared_examples_for "a backend" do
       expect(Delayed::Job.get_and_lock_next_available("w1")).to eq(job2)
     end
 
-    it "should allow to run the next job if a failed job is present" do
+    it "allows to run the next job if a failed job is present" do
       job1 = create_job(strand: "myjobs")
       job2 = create_job(strand: "myjobs")
       job1.fail!
       expect(Delayed::Job.get_and_lock_next_available("w1")).to eq(job2)
     end
 
-    it "should not interfere with jobs with no strand" do
+    it "does not interfere with jobs with no strand" do
       jobs = [create_job(strand: nil), create_job(strand: "myjobs")]
       locked = [Delayed::Job.get_and_lock_next_available("w1"),
                 Delayed::Job.get_and_lock_next_available("w2")]
@@ -302,7 +302,7 @@ shared_examples_for "a backend" do
       expect(Delayed::Job.get_and_lock_next_available("w3")).to eq(nil)
     end
 
-    it "should not interfere with jobs in other strands" do
+    it "does not interfere with jobs in other strands" do
       jobs = [create_job(strand: "strand1"), create_job(strand: "strand2")]
       locked = [Delayed::Job.get_and_lock_next_available("w1"),
                 Delayed::Job.get_and_lock_next_available("w2")]
@@ -310,7 +310,7 @@ shared_examples_for "a backend" do
       expect(Delayed::Job.get_and_lock_next_available("w3")).to eq(nil)
     end
 
-    it "should not find next jobs when given no priority" do
+    it "does not find next jobs when given no priority" do
       jobs = [create_job(strand: "strand1"), create_job(strand: "strand1")]
       first = Delayed::Job.get_and_lock_next_available("w1", Delayed::Settings.queue, nil, nil)
       second = Delayed::Job.get_and_lock_next_available("w2", Delayed::Settings.queue, nil, nil)
@@ -323,13 +323,13 @@ shared_examples_for "a backend" do
     end
 
     context "singleton" do
-      it "should create if there's no jobs on the strand" do
+      it "creates if there's no jobs on the strand" do
         @job = create_job(singleton: "myjobs")
         expect(@job).to be_present
         expect(Delayed::Job.get_and_lock_next_available("w1")).to eq(@job)
       end
 
-      it "should create if there's another job on the strand, but it's running" do
+      it "creates if there's another job on the strand, but it's running" do
         @job = create_job(singleton: "myjobs")
         expect(@job).to be_present
         expect(Delayed::Job.get_and_lock_next_available("w1")).to eq(@job)
@@ -339,7 +339,7 @@ shared_examples_for "a backend" do
         expect(@job2).not_to eq(@job)
       end
 
-      it "should not create if there's another non-running job on the strand" do
+      it "does not create if there's another non-running job on the strand" do
         @job = create_job(singleton: "myjobs")
         expect(@job).to be_present
 
@@ -347,7 +347,7 @@ shared_examples_for "a backend" do
         expect(@job2).to be_new_record
       end
 
-      it "should not create if there's a job running and one waiting on the strand" do
+      it "does not create if there's a job running and one waiting on the strand" do
         @job = create_job(singleton: "myjobs")
         expect(@job).to be_present
         expect(Delayed::Job.get_and_lock_next_available("w1")).to eq(@job)
@@ -360,7 +360,7 @@ shared_examples_for "a backend" do
         expect(@job3).to be_new_record
       end
 
-      it "should update existing job if new job is set to run sooner" do
+      it "updates existing job if new job is set to run sooner" do
         job1 = create_job(singleton: "myjobs", run_at: 1.hour.from_now)
         job2 = create_job(singleton: "myjobs")
         expect(job2).to eq(job1)
@@ -368,7 +368,7 @@ shared_examples_for "a backend" do
         expect(Delayed::Job.get_and_lock_next_available("w1")).to eq(job1)
       end
 
-      it "should update existing job to a later date if requested" do
+      it "updates existing job to a later date if requested" do
         t1 = 1.hour.from_now
         t2 = 2.hours.from_now
         job1 = create_job(singleton: "myjobs", run_at: t1)
@@ -380,7 +380,7 @@ shared_examples_for "a backend" do
         expect(job3.run_at.to_i).to eq(t2.to_i)
       end
 
-      it "should update existing singleton job handler if requested" do
+      it "updates existing singleton job handler if requested" do
         job1 = Delayed::Job.enqueue(SimpleJob.new, queue: nil, singleton: "myjobs", on_conflict: :overwrite)
         job2 = Delayed::Job.enqueue(ErrorJob.new, queue: nil, singleton: "myjobs", on_conflict: :overwrite)
         expect(job2).to eq(job1)
@@ -478,7 +478,7 @@ shared_examples_for "a backend" do
   end
 
   context "on hold" do
-    it "should hold/unhold jobs" do
+    it "hold/unholds jobs" do
       job1 = create_job
       job1.hold!
       expect(Delayed::Job.get_and_lock_next_available("w1")).to be_nil
@@ -489,7 +489,7 @@ shared_examples_for "a backend" do
   end
 
   context "periodic jobs" do
-    before(:each) do
+    before do
       # make the periodic job get scheduled in the past
       @cron_time = 10.minutes.ago
       allow(Delayed::Periodic).to receive(:now).and_return(@cron_time)
@@ -499,7 +499,7 @@ shared_examples_for "a backend" do
       end
     end
 
-    it "should schedule jobs if they aren't scheduled yet" do
+    it "schedules jobs if they aren't scheduled yet" do
       expect(Delayed::Job.jobs_count(:current)).to eq(0)
       Delayed::Periodic.perform_audit!
       expect(Delayed::Job.jobs_count(:current)).to eq(1)
@@ -511,7 +511,7 @@ shared_examples_for "a backend" do
       expect(job.singleton).to eq(job.tag)
     end
 
-    it "should schedule jobs if there are only failed jobs on the queue" do
+    it "schedules jobs if there are only failed jobs on the queue" do
       expect(Delayed::Job.jobs_count(:current)).to eq(0)
       expect { Delayed::Periodic.perform_audit! }.to change { Delayed::Job.jobs_count(:current) }.by(1)
       expect(Delayed::Job.jobs_count(:current)).to eq(1)
@@ -520,7 +520,7 @@ shared_examples_for "a backend" do
       expect { Delayed::Periodic.perform_audit! }.to change { Delayed::Job.jobs_count(:current) }.by(1)
     end
 
-    it "should not schedule jobs that are already scheduled" do
+    it "does not schedule jobs that are already scheduled" do
       expect(Delayed::Job.jobs_count(:current)).to eq(0)
       Delayed::Periodic.perform_audit!
       expect(Delayed::Job.jobs_count(:current)).to eq(1)
@@ -531,7 +531,7 @@ shared_examples_for "a backend" do
       expect(job).to eq(Delayed::Job.find_available(1).first)
     end
 
-    it "should schedule the next job run after performing" do
+    it "schedules the next job run after performing" do
       expect(Delayed::Job.jobs_count(:current)).to eq(0)
       Delayed::Periodic.perform_audit!
       expect(Delayed::Job.jobs_count(:current)).to eq(1)
@@ -546,11 +546,11 @@ shared_examples_for "a backend" do
       expect(next_scheduled.payload_object).to be_is_a(Delayed::Periodic)
     end
 
-    it "should reject duplicate named jobs" do
+    it "rejects duplicate named jobs" do
       expect { Delayed::Periodic.cron("my SimpleJob", "*/15 * * * * *") { nil } }.to raise_error(ArgumentError)
     end
 
-    it "should handle jobs that are no longer scheduled" do
+    it "handles jobs that are no longer scheduled" do
       Delayed::Periodic.perform_audit!
       Delayed::Periodic.scheduled = {}
       job = Delayed::Job.get_and_lock_next_available("test")
@@ -559,7 +559,7 @@ shared_examples_for "a backend" do
       expect(Delayed::Job.jobs_count(:current)).to eq(0)
     end
 
-    it "should allow overriding schedules using periodic_jobs.yml" do
+    it "allows overriding schedules using periodic_jobs.yml" do
       change_setting(Delayed::Periodic, :overrides, { "my ChangedJob" => "*/10 * * * * *" }) do
         Delayed::Periodic.scheduled = {}
         Delayed::Periodic.cron("my ChangedJob", "*/5 * * * * *") do
@@ -569,7 +569,7 @@ shared_examples_for "a backend" do
       end
     end
 
-    it "should fail if the override cron line is invalid" do
+    it "fails if the override cron line is invalid" do
       change_setting(Delayed::Periodic, :overrides, { "my ChangedJob" => "*/10 * * * * * *" }) do # extra asterisk
         Delayed::Periodic.scheduled = {}
         expect do
@@ -585,14 +585,14 @@ shared_examples_for "a backend" do
     end
   end
 
-  it "should set in_delayed_job?" do
+  it "sets in_delayed_job?" do
     job = InDelayedJobTest.delay(ignore_transaction: true).check_in_job
     expect(Delayed::Job.in_delayed_job?).to eq(false)
     job.invoke_job
     expect(Delayed::Job.in_delayed_job?).to eq(false)
   end
 
-  it "should fail on job creation if an unsaved AR object is used" do
+  it "fails on job creation if an unsaved AR object is used" do
     story = Story.new text: "Once upon..."
     expect { story.delay.text }.to raise_error(RuntimeError)
 
@@ -618,11 +618,11 @@ shared_examples_for "a backend" do
       @other_queue_job = create_job(queue: "another")
     end
 
-    it "should return the queued jobs" do
+    it "returns the queued jobs" do
       expect(Delayed::Job.list_jobs(:current, 100).map(&:id).sort).to eq(@jobs.map(&:id).sort)
     end
 
-    it "should paginate the returned jobs" do
+    it "paginates the returned jobs" do
       @returned = []
       @returned += Delayed::Job.list_jobs(:current, 3, 0)
       @returned += Delayed::Job.list_jobs(:current, 4, 3)
@@ -630,23 +630,23 @@ shared_examples_for "a backend" do
       expect(@returned.sort_by(&:id)).to eq(@jobs.sort_by(&:id))
     end
 
-    it "should return other queues" do
+    it "returns other queues" do
       expect(Delayed::Job.list_jobs(:current, 5, 0, "another")).to eq([@other_queue_job])
     end
 
-    it "should return queue size" do
+    it "returns queue size" do
       expect(Delayed::Job.jobs_count(:current)).to eq(@jobs.size)
       expect(Delayed::Job.jobs_count(:current, "another")).to eq(1)
       expect(Delayed::Job.jobs_count(:current, "bogus")).to eq(0)
     end
 
-    it "should return strand size" do
+    it "returns strand size" do
       expect(Delayed::Job.strand_size("test1")).to eq(2)
       expect(Delayed::Job.strand_size("bogus")).to eq(0)
     end
   end
 
-  it "should return the jobs in a strand" do
+  it "returns the jobs in a strand" do
     strand_jobs = []
     3.times { strand_jobs << create_job(strand: "test1") }
     2.times { create_job(strand: "test2") }
@@ -662,7 +662,7 @@ shared_examples_for "a backend" do
     expect(jobs.sort_by(&:id)).to eq(strand_jobs.sort_by(&:id))
   end
 
-  it "should return the jobs for a tag" do
+  it "returns the jobs for a tag" do
     tag_jobs = []
     3.times { tag_jobs << "test".delay(ignore_transaction: true).to_s }
     2.times { "test".delay.to_i }
@@ -681,7 +681,7 @@ shared_examples_for "a backend" do
   end
 
   describe "running_jobs" do
-    it "should return the running jobs, ordered by locked_at" do
+    it "returns the running jobs, ordered by locked_at" do
       Timecop.freeze(10.minutes.ago) { 3.times { create_job } }
       j1 = Timecop.freeze(2.minutes.ago) { Delayed::Job.get_and_lock_next_available("w1") }
       j2 = Timecop.freeze(5.minutes.ago) { Delayed::Job.get_and_lock_next_available("w2") }
@@ -693,7 +693,7 @@ shared_examples_for "a backend" do
   end
 
   describe "future jobs" do
-    it "should find future jobs once their run_at rolls by" do
+    it "finds future jobs once their run_at rolls by" do
       Timecop.freeze do
         @job = create_job run_at: 5.minutes.from_now
         expect(Delayed::Job.find_available(5)).not_to include(@job)
@@ -704,7 +704,7 @@ shared_examples_for "a backend" do
       end
     end
 
-    it "should return future jobs sorted by their run_at" do
+    it "returns future jobs sorted by their run_at" do
       @j1 = create_job
       @j2 = create_job run_at: 1.hour.from_now
       @j3 = create_job run_at: 30.minutes.from_now
@@ -717,7 +717,7 @@ shared_examples_for "a backend" do
   describe "failed jobs" do
     # the sort order of failed_jobs depends on the back-end implementation,
     # so sort order isn't tested here
-    it "should return the list of failed jobs" do
+    it "returns the list of failed jobs" do
       jobs = []
       3.times { jobs << create_job(priority: 3) }
       jobs = jobs.sort_by(&:id)
@@ -738,7 +738,7 @@ shared_examples_for "a backend" do
         @ignored_jobs = []
       end
 
-      it "should hold and unhold a scope of jobs" do
+      it "holds and unhold a scope of jobs" do
         expect(@affected_jobs.all?(&:on_hold?)).to be false
         expect(@ignored_jobs.any?(&:on_hold?)).to be false
         expect(Delayed::Job.bulk_update("hold", flavor: @flavor, query: @query)).to eq(@affected_jobs.size)
@@ -752,7 +752,7 @@ shared_examples_for "a backend" do
         expect(@ignored_jobs.any? { |j| Delayed::Job.find(j.id).on_hold? }).to be false
       end
 
-      it "should delete a scope of jobs" do
+      it "deletes a scope of jobs" do
         expect(Delayed::Job.bulk_update("destroy", flavor: @flavor, query: @query)).to eq(@affected_jobs.size)
         expect(Delayed::Job.where(id: @affected_jobs.map(&:id))).not_to exist
         expect(Delayed::Job.where(id: @ignored_jobs.map(&:id)).count).to eq @ignored_jobs.size
@@ -761,7 +761,7 @@ shared_examples_for "a backend" do
 
     describe "scope: current" do
       include_examples "scope"
-      before do
+      before do # rubocop:disable RSpec/HooksBeforeExamples
         @flavor = "current"
         Timecop.freeze(5.minutes.ago) do
           3.times { @affected_jobs << create_job }
@@ -773,7 +773,7 @@ shared_examples_for "a backend" do
 
     describe "scope: future" do
       include_examples "scope"
-      before do
+      before do # rubocop:disable RSpec/HooksBeforeExamples
         @flavor = "future"
         Timecop.freeze(5.minutes.ago) do
           3.times { @affected_jobs << create_job(run_at: 2.hours.from_now) }
@@ -785,7 +785,7 @@ shared_examples_for "a backend" do
 
     describe "scope: strand" do
       include_examples "scope"
-      before do
+      before do # rubocop:disable RSpec/HooksBeforeExamples
         @flavor = "strand"
         @query = "s1"
         Timecop.freeze(5.minutes.ago) do
@@ -800,7 +800,7 @@ shared_examples_for "a backend" do
 
     describe "scope: tag" do
       include_examples "scope"
-      before do
+      before do # rubocop:disable RSpec/HooksBeforeExamples
         @flavor = "tag"
         @query = "String#to_i"
         Timecop.freeze(5.minutes.ago) do
@@ -813,7 +813,7 @@ shared_examples_for "a backend" do
       end
     end
 
-    it "should hold and un-hold given job ids" do
+    it "holds and un-hold given job ids" do
       j1 = "test".delay(ignore_transaction: true).to_i
       j2 = create_job(run_at: 2.hours.from_now)
       j3 = "test".delay(strand: "s1", ignore_transaction: true).to_i
@@ -828,7 +828,7 @@ shared_examples_for "a backend" do
       expect(Delayed::Job.find(j3.id).on_hold?).to be false
     end
 
-    it "should not hold locked jobs" do
+    it "does not hold locked jobs" do
       job1 = Delayed::Job.new(tag: "tag")
       job1.create_and_lock!("worker")
       expect(job1.on_hold?).to be false
@@ -836,7 +836,7 @@ shared_examples_for "a backend" do
       expect(Delayed::Job.find(job1.id).on_hold?).to be false
     end
 
-    it "should not unhold locked jobs" do
+    it "does not unhold locked jobs" do
       job1 = Delayed::Job.new(tag: "tag")
       job1.create_and_lock!("worker")
       expect(Delayed::Job.bulk_update("unhold", ids: [job1.id])).to eq(0)
@@ -844,13 +844,13 @@ shared_examples_for "a backend" do
       expect(Delayed::Job.find(job1.id).locked?).to be true
     end
 
-    it "should delete given job ids" do
+    it "deletes given job ids" do
       jobs = (0..2).map { create_job }
       expect(Delayed::Job.bulk_update("destroy", ids: jobs[0, 2].map(&:id))).to eq(2)
       expect(Delayed::Job.order(:id).where(id: jobs.map(&:id))).to eq jobs[2, 1]
     end
 
-    it "should not delete locked jobs" do
+    it "does not delete locked jobs" do
       job1 = Delayed::Job.new(tag: "tag")
       job1.create_and_lock!("worker")
       expect(Delayed::Job.bulk_update("destroy", ids: [job1.id])).to eq(0)
@@ -870,7 +870,7 @@ shared_examples_for "a backend" do
       @cur << "test".delay(ignore_transaction: true).downcase
     end
 
-    it "should return a sorted list of popular current tags" do
+    it "returns a sorted list of popular current tags" do
       expect(Delayed::Job.tag_counts(:current, 1)).to eq([{ tag: "String#to_i", count: 5 }])
       expect(Delayed::Job.tag_counts(:current, 1, 1)).to eq([{ tag: "String#to_s", count: 3 }])
       expect(Delayed::Job.tag_counts(:current, 5)).to eq([{ tag: "String#to_i", count: 5 },
@@ -887,7 +887,7 @@ shared_examples_for "a backend" do
                                                           { tag: "String#upcase", count: 2 }])
     end
 
-    it "should return a sorted list of all popular tags" do
+    it "returns a sorted list of all popular tags" do
       expect(Delayed::Job.tag_counts(:all, 1)).to eq([{ tag: "String#downcase", count: 6 }])
       expect(Delayed::Job.tag_counts(:all, 1, 1)).to eq([{ tag: "String#to_i", count: 5 }])
       expect(Delayed::Job.tag_counts(:all, 5)).to eq([{ tag: "String#downcase", count: 6 },
@@ -906,7 +906,7 @@ shared_examples_for "a backend" do
     end
   end
 
-  it "should unlock orphaned jobs" do
+  it "unlocks orphaned jobs" do
     change_setting(Delayed::Settings, :max_attempts, 2) do
       job1 = Delayed::Job.new(tag: "tag")
       job2 = Delayed::Job.new(tag: "tag")
@@ -930,7 +930,7 @@ shared_examples_for "a backend" do
     end
   end
 
-  it "should unlock orphaned jobs given a pid" do
+  it "unlocks orphaned jobs given a pid" do
     change_setting(Delayed::Settings, :max_attempts, 2) do
       job1 = Delayed::Job.new(tag: "tag")
       job2 = Delayed::Job.new(tag: "tag")
