@@ -13,7 +13,7 @@ matrix:
     - rvm: "3.0"
       gemfile: spec/gemfiles/52.gemfile
 
-script: bundle exec rake spec
+script: bin/rake spec && bin/rubocop
 
 addons:
   postgresql: "9.6"
