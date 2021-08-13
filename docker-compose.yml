@@ -6,20 +6,15 @@ services:
       dockerfile: Dockerfile.ci
     environment:
       TEST_DB_HOST: postgres
-      TEST_REDIS_CONNECTION: redis://redis:6379/
       TEST_CONSUL_URL: http://consul:8500
     links:
       - postgres
-      - redis
       - consul
 
   postgres:
     image: postgres:9.6
     environment:
       POSTGRES_HOST_AUTH_METHOD: trust
-
-  redis:
-    image: redis:2.6
 
   consul:
     image: consul:0.7.5

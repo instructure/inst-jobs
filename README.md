@@ -79,20 +79,6 @@ delayed_engine:install:migrations` again to add any new migrations.
 
 The ActiveRecord backend only supports PostgreSQL.
 
-### Redis Backend
-
-The redis backend doesn't require any migrations. To connect, you'll need to add
-an application initializer such as `config/initializers/delayed_job.rb`:
-
-```ruby
-Delayed::Backend::Redis::Job.redis = Redis.new(url: 'redis://my-redis-host:6379/')
-Delayed.select_backend(Delayed::Backend::Redis::Job)
-```
-
-While the redis backend is well-tested at the code level, it has yet to see real
-use in production, as the PostgreSQL backend has scaled plenty well. If you are
-interested in using this backend, please contact us.
-
 ### Worker Configuration
 
 Worker and queue information defaults to read from `config/delayed_jobs.yml`,
@@ -407,12 +393,10 @@ Delayed::Settings.disable_abandoned_job_cleanup = false
 ## Testing
 
 To write tests that interact with inst-jobs, you'll need to configure
-an actual ActiveRecord or Redis backend. In the future we may add an
-in-memory testing backend.
-
+an actual database.
 ### Locally
 
-By default, if you have postgres and redis running on their default ports,
+By default, if you have postgres running on its default ports,
 and if you have run:
 
 ```

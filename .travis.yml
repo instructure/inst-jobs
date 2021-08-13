@@ -18,9 +18,6 @@ script: bundle exec rake spec
 addons:
   postgresql: "9.6"
 
-services:
-  - redis-server
-
 before_install:
   - gem update bundler
 
