@@ -99,7 +99,7 @@ module Delayed
               sql = "SELECT pg_advisory_xact_lock(#{fn_name}(#{connection.quote(values['strand'])})); #{sql}"
             end
             result = connection.execute(sql, "#{self} Create")
-            self.id = result.values.first.first
+            self.id = result.values.first&.first
             result.clear
           else
             result = connection.exec_query(sql, "#{self} Create", binds)

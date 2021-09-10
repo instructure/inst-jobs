@@ -474,6 +474,23 @@ shared_examples_for "a backend" do
           expect(Delayed::Job.get_and_lock_next_available("w1")).to be_nil
         end
       end
+
+      context "with on_conflict: loose and strand-inferred-from-singleton" do
+        around do |example|
+          Delayed::Settings.infer_strand_from_singleton = true
+          example.call
+        ensure
+          Delayed::Settings.infer_strand_from_singleton = false
+        end
+
+        it "does not create if there's another non-running job on the strand" do
+          @job = create_job(singleton: "myjobs", on_conflict: :loose)
+          expect(@job).to be_present
+
+          @job2 = create_job(singleton: "myjobs", on_conflict: :loose)
+          expect(@job2).to be_new_record
+        end
+      end
     end
   end
 
