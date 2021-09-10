@@ -39,7 +39,7 @@ module Delayed
 
           return @object.public_send(method, *args) if kwargs.empty?
 
-          @object.public_send(method, *args, **kwargs)
+          return @object.public_send(method, *args, **kwargs)
         end
 
         ignore_transaction = @enqueue_args.delete(:ignore_transaction)

@@ -20,6 +20,10 @@ RSpec.describe Delayed::MessageSending do
         other.delay(**enqueue_args).protected_method
       end
 
+      def call_public(**_kwargs)
+        42
+      end
+
       private
 
       def private_method; end
@@ -72,6 +76,10 @@ RSpec.describe Delayed::MessageSending do
 
   it "allows an object to send a protected message to itself synchronouosly" do
     klass.new.call_protected(synchronous: true)
+  end
+
+  it "directly calls a public method on an object with kwargs" do
+    expect(klass.new.delay(synchronous: true).call_public(kwarg: 10)).to eq 42
   end
 
   it "warns about directly sending a protected message asynchronously" do
