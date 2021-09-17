@@ -207,7 +207,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
     job2 = Delayed::Job.new(tag: "tag")
 
     job1.create_and_lock!("prefetch:a")
-    job1.locked_at = Delayed::Job.db_time_now - 15 * 60
+    job1.locked_at = Delayed::Job.db_time_now - (15 * 60)
     job1.save!
     job2.create_and_lock!("prefetch:a")
 

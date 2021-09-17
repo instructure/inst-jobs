@@ -49,7 +49,7 @@ module Delayed
           last_orphaned_prefetched_jobs_purge = Job.db_time_now - rand(15 * 60)
           until exit?
             run_once
-            if last_orphaned_prefetched_jobs_purge + 15 * 60 < Job.db_time_now
+            if last_orphaned_prefetched_jobs_purge + (15 * 60) < Job.db_time_now
               Job.unlock_orphaned_prefetched_jobs
               last_orphaned_prefetched_jobs_purge = Job.db_time_now
             end
@@ -68,7 +68,7 @@ module Delayed
           # if they're not keeping up, the jobs will slip back in time, and suddenly we'll become
           # active and quickly pick up all the jobs we can. The latency is calculated to ensure that
           # an active worker is guaranteed to have attempted to fetch new jobs in the meantime
-          forced_latency = Settings.sleep_delay + Settings.sleep_delay_stagger * 2 if all_workers_idle?
+          forced_latency = Settings.sleep_delay + (Settings.sleep_delay_stagger * 2) if all_workers_idle?
           timeout = Settings.sleep_delay + (rand * Settings.sleep_delay_stagger)
           readable, = IO.select(handles, nil, nil, timeout)
           readable&.each { |s| handle_read(s) }
@@ -156,7 +156,7 @@ module Delayed
                 worker_config[:queue],
                 worker_config[:min_priority],
                 worker_config[:max_priority],
-                prefetch: Settings.fetch_batch_size * (worker_config[:workers] || 1) - recipients.length,
+                prefetch: (Settings.fetch_batch_size * (worker_config[:workers] || 1)) - recipients.length,
                 prefetch_owner: prefetch_owner,
                 forced_latency: forced_latency
               )

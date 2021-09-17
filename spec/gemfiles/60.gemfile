@@ -1,9 +1,0 @@
-# frozen_string_literal: true
-
-source "https://rubygems.org"
-
-gemspec path: "../../"
-
-gem "rails", "~> 6.0.0"
-gem "sinatra", "~> 2.0"
-gem "sinatra-contrib", "~> 2.0"

@@ -188,7 +188,7 @@ module Delayed
     end
 
     def pool_sleep
-      IO.select([@self_pipe[0]], nil, nil, POOL_SLEEP_PERIOD)
+      @self_pipe[0].wait_readable(POOL_SLEEP_PERIOD)
       @self_pipe[0].read_nonblock(11, exception: false)
     end
 

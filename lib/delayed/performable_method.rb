@@ -35,7 +35,7 @@ module Delayed
       sender_is_object = sender == object
       sender_is_class = sender.is_a?(object.class)
 
-      if sender.nil? || sender_is_object || sender_is_class && object.protected_methods.include?(method)
+      if sender.nil? || sender_is_object || (sender_is_class && object.protected_methods.include?(method))
         if kwargs.empty?
           object.send(method, *args)
         else

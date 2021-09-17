@@ -31,7 +31,7 @@ module Delayed
         end
 
         if @synchronous
-          if @sender.nil? || sender_is_object || sender_is_class && @object.protected_methods.include?(method)
+          if @sender.nil? || sender_is_object || (sender_is_class && @object.protected_methods.include?(method))
             return @object.send(method, *args) if kwargs.empty?
 
             return @object.send(method, *args, **kwargs)

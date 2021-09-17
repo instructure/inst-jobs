@@ -459,7 +459,7 @@ module Delayed
         end
 
         def self.unlock_orphaned_prefetched_jobs
-          horizon = db_time_now - Settings.parent_process[:prefetched_jobs_timeout] * 4
+          horizon = db_time_now - (Settings.parent_process[:prefetched_jobs_timeout] * 4)
           where("locked_by LIKE 'prefetch:%' AND locked_at<?", horizon).update_all(locked_at: nil, locked_by: nil)
         end
 

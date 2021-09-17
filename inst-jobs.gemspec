@@ -28,6 +28,7 @@ Gem::Specification.new do |s|
   s.add_dependency "fugit",                    "~> 1.3"
   s.add_dependency "railties",                 ">= 5.2"
 
+  s.add_development_dependency "appraisal", "~> 2.4"
   s.add_development_dependency "bump"
   s.add_development_dependency "byebug"
   s.add_development_dependency "database_cleaner", "~> 2.0"

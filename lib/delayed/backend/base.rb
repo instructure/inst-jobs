@@ -148,7 +148,7 @@ module Delayed
         end
 
         def unlock_orphaned_prefetched_jobs
-          horizon = db_time_now - Settings.parent_process[:prefetched_jobs_timeout] * 4
+          horizon = db_time_now - (Settings.parent_process[:prefetched_jobs_timeout] * 4)
           orphaned_jobs = running_jobs.select do |job|
             job.locked_by.start_with?("prefetch:") && job.locked_at < horizon
           end

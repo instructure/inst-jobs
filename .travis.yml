@@ -1,8 +1,8 @@
 language: ruby
 gemfile:
-  - spec/gemfiles/52.gemfile
-  - spec/gemfiles/60.gemfile
-  - spec/gemfiles/61.gemfile
+  - gemfiles/activerecord_5.2.gemfile
+  - gemfiles/activerecord_6.0.gemfile
+  - gemfiles/activerecord_6.1.gemfile
 rvm:
   - "2.6"
   - "2.7"
@@ -11,7 +11,7 @@ rvm:
 matrix:
   exclude:
     - rvm: "3.0"
-      gemfile: spec/gemfiles/52.gemfile
+      gemfile: gemfiles/activerecord_5.2.gemfile
 
 script: bin/rake spec && bin/rubocop
 
