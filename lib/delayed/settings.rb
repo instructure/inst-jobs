@@ -101,7 +101,7 @@ module Delayed
       # Expands rails-relative paths, without depending on rails being loaded.
       def expand_rails_path(path)
         root = if defined?(Rails) && Rails.root
-                 "#{Rails.root}Gemfile".to_s
+                 Rails.root.join("Gemfile")
                else
                  ENV.fetch("BUNDLE_GEMFILE", "#{Dir.pwd}/Gemfile")
                end
