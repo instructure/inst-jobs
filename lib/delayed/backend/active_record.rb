@@ -98,11 +98,11 @@ module Delayed
               fn_name = connection.quote_table_name("half_md5_as_bigint")
               sql = "SELECT pg_advisory_xact_lock(#{fn_name}(#{connection.quote(values['strand'])})); #{sql}"
             end
-            result = connection.execute(sql, "#{self} Create")
+            result = connection.execute(sql, "#{self.class} Create")
             self.id = result.values.first&.first
             result.clear
           else
-            result = connection.exec_query(sql, "#{self} Create", binds)
+            result = connection.exec_query(sql, "#{self.class} Create", binds)
             self.id = connection.send(:last_inserted_id, result)
           end
 
