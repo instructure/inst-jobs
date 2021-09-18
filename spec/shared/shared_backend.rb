@@ -491,6 +491,19 @@ shared_examples_for "a backend" do
           expect(@job2).to be_new_record
         end
       end
+
+      context "when unlocking with another singleton pending" do
+        it "deletes the pending singleton" do
+          @job1 = create_job(singleton: "myjobs", max_attempts: 2)
+          expect(Delayed::Job.get_and_lock_next_available("w1")).to eq(@job1)
+
+          @job2 = create_job(singleton: "myjobs", max_attempts: 2)
+
+          @job1.reload.reschedule
+          expect { @job1.reload }.not_to raise_error
+          expect { @job2.reload }.to raise_error(ActiveRecord::RecordNotFound)
+        end
+      end
     end
   end
 
