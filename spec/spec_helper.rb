@@ -4,6 +4,7 @@ require "delayed_job"
 require "delayed/testing"
 
 require "database_cleaner"
+require "fileutils"
 require "rack/test"
 require "timecop"
 require "webmock/rspec"
@@ -80,7 +81,8 @@ Delayed::Backend::ActiveRecord::Job.reset_column_information
 Delayed::Backend::ActiveRecord::Job::Failed.reset_column_information
 
 Time.zone = "UTC" # rubocop:disable Rails/TimeZoneAssignment
-Rails.logger = Logger.new(nil)
+FileUtils.mkdir_p("tmp")
+ActiveRecord::Base.logger = Rails.logger = Logger.new("tmp/test.log")
 
 # Purely useful for test cases...
 class Story < ActiveRecord::Base
