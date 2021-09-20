@@ -72,7 +72,7 @@ Style/PerlBackrefs:
 Style/RescueModifier:
   Enabled: false
 Style/RescueStandardError:
-  Enabled: false
+  EnforcedStyle: implicit
 Style/SpecialGlobalVars:
   Enabled: false
 Style/StringLiterals:
