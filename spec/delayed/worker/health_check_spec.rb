@@ -111,7 +111,7 @@ RSpec.describe Delayed::Worker::HealthCheck do
     end
 
     it "bails immediately if advisory lock already taken" do
-      allow(described_class).to receive(:attempt_advisory_lock).and_return(false)
+      allow(Delayed::Job).to receive(:attempt_advisory_lock).and_return(false)
       described_class.reschedule_abandoned_jobs
       @dead_job.reload
       expect(@dead_job.run_at.to_i).to eq(initial_run_at.to_i)

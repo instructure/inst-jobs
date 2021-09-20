@@ -33,7 +33,7 @@ module Delayed
             # and we try to get an advisory lock when it runs.  If we succeed,
             # no other worker is trying to do this right now (and if we abandon the
             # operation, the transaction will end, releasing the advisory lock).
-            result = attempt_advisory_lock
+            result = Delayed::Job.attempt_advisory_lock("Delayed::Worker::HealthCheck#reschedule_abandoned_jobs")
             return unless result
 
             checker = Worker::HealthCheck.build(
@@ -64,13 +64,6 @@ module Delayed
               end
             end
           end
-        end
-
-        def attempt_advisory_lock
-          lock_name = "Delayed::Worker::HealthCheck#reschedule_abandoned_jobs"
-          conn = ActiveRecord::Base.connection
-          fn_name = conn.quote_table_name("half_md5_as_bigint")
-          conn.select_value("SELECT pg_try_advisory_xact_lock(#{fn_name}('#{lock_name}'));")
         end
       end
 

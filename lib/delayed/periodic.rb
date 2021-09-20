@@ -33,7 +33,13 @@ module Delayed
       # we used to queue up a job in a strand here, and perform the audit inside that job
       # however, now that we're using singletons for scheduling periodic jobs,
       # it's fine to just do the audit in-line here without risk of creating duplicates
-      perform_audit!
+      Delayed::Job.transaction do
+        # for db performance reasons, we only need one process doing this at a time
+        # so if we can't get an advisory lock, just abort. we'll try again soon
+        return unless Delayed::Job.attempt_advisory_lock("Delayed::Periodic#audit_queue")
+
+        perform_audit!
+      end
     end
 
     # make sure all periodic jobs are scheduled for their next run in the job queue

@@ -148,13 +148,19 @@ module Delayed
         end
 
         def unlock_orphaned_prefetched_jobs
-          horizon = db_time_now - (Settings.parent_process[:prefetched_jobs_timeout] * 4)
-          orphaned_jobs = running_jobs.select do |job|
-            job.locked_by.start_with?("prefetch:") && job.locked_at < horizon
-          end
-          return 0 if orphaned_jobs.empty?
+          transaction do
+            # for db performance reasons, we only need one process doing this at a time
+            # so if we can't get an advisory lock, just abort. we'll try again soon
+            return unless attempt_advisory_lock("Delayed::Job.unlock_orphaned_prefetched_jobs")
 
-          unlock(orphaned_jobs)
+            horizon = db_time_now - (Settings.parent_process[:prefetched_jobs_timeout] * 4)
+            orphaned_jobs = running_jobs.select do |job|
+              job.locked_by.start_with?("prefetch:") && job.locked_at < horizon
+            end
+            return 0 if orphaned_jobs.empty?
+
+            unlock(orphaned_jobs)
+          end
         end
 
         def unlock_orphaned_jobs(pid = nil, name = nil)
