@@ -463,9 +463,19 @@ module Delayed
           where("locked_by LIKE ?", "#{name}:%").pluck(:locked_by).map { |locked_by| locked_by.split(":").last.to_i }
         end
 
+        def self.prefetch_jobs_lock_name
+          "Delayed::Job.unlock_orphaned_prefetched_jobs"
+        end
+
         def self.unlock_orphaned_prefetched_jobs
-          horizon = db_time_now - (Settings.parent_process[:prefetched_jobs_timeout] * 4)
-          where("locked_by LIKE 'prefetch:%' AND locked_at<?", horizon).update_all(locked_at: nil, locked_by: nil)
+          transaction do
+            # for db performance reasons, we only need one process doing this at a time
+            # so if we can't get an advisory lock, just abort. we'll try again soon
+            return unless attempt_advisory_lock(prefetch_jobs_lock_name)
+
+            horizon = db_time_now - (Settings.parent_process[:prefetched_jobs_timeout] * 4)
+            where("locked_by LIKE 'prefetch:%' AND locked_at<?", horizon).update_all(locked_at: nil, locked_by: nil)
+          end
         end
 
         def self.unlock(jobs)

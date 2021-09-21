@@ -195,11 +195,13 @@ module Delayed
         def unlock_timed_out_prefetched_jobs
           @prefetched_jobs.each do |(worker_config, jobs)|
             next if jobs.empty?
+            next unless jobs.first.locked_at < Time.now.utc - Settings.parent_process[:prefetched_jobs_timeout]
 
-            if jobs.first.locked_at < Time.now.utc - Settings.parent_process[:prefetched_jobs_timeout]
+            Delayed::Job.transaction do
+              Delayed::Job.connection.execute("SELECT pg_advisory_xact_lock('#{Delayed::Job.prefetch_jobs_lock_name}')")
               Delayed::Job.unlock(jobs)
-              @prefetched_jobs[worker_config] = []
             end
+            @prefetched_jobs[worker_config] = []
           end
         end
 
@@ -207,7 +209,10 @@ module Delayed
           @prefetched_jobs.each do |(_worker_config, jobs)|
             next if jobs.empty?
 
-            Delayed::Job.unlock(jobs)
+            Delayed::Job.transaction do
+              Delayed::Job.connection.execute("SELECT pg_advisory_xact_lock('#{Delayed::Job.prefetch_jobs_lock_name}')")
+              Delayed::Job.unlock(jobs)
+            end
           end
           @prefetched_jobs = {}
         end
