@@ -198,7 +198,7 @@ module Delayed
             next unless jobs.first.locked_at < Time.now.utc - Settings.parent_process[:prefetched_jobs_timeout]
 
             Delayed::Job.transaction do
-              Delayed::Job.connection.execute("SELECT pg_advisory_xact_lock('#{Delayed::Job.prefetch_jobs_lock_name}')")
+              Delayed::Job.advisory_lock(Delayed::Job.prefetch_jobs_lock_name)
               Delayed::Job.unlock(jobs)
             end
             @prefetched_jobs[worker_config] = []
@@ -210,7 +210,7 @@ module Delayed
             next if jobs.empty?
 
             Delayed::Job.transaction do
-              Delayed::Job.connection.execute("SELECT pg_advisory_xact_lock('#{Delayed::Job.prefetch_jobs_lock_name}')")
+              Delayed::Job.advisory_lock(Delayed::Job.prefetch_jobs_lock_name)
               Delayed::Job.unlock(jobs)
             end
           end

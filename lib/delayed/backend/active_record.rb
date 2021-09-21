@@ -43,6 +43,11 @@ module Delayed
             fn_name = connection.quote_table_name("half_md5_as_bigint")
             connection.select_value("SELECT pg_try_advisory_xact_lock(#{fn_name}('#{lock_name}'));")
           end
+
+          def advisory_lock(lock_name)
+            fn_name = connection.quote_table_name("half_md5_as_bigint")
+            connection.execute("SELECT pg_advisory_xact_lock(#{fn_name}('#{lock_name}'));")
+          end
         end
 
         def single_step_create(on_conflict: nil)
