@@ -51,7 +51,7 @@ RSpec.describe Delayed::Worker::HealthCheck do
       end
     end
 
-    let(:initial_run_at) { Time.zone.now }
+    let(:initial_run_at) { 10.minutes.ago }
 
     before do
       klass.live_workers = %w[alive]
@@ -96,7 +96,13 @@ RSpec.describe Delayed::Worker::HealthCheck do
 
     it "ignores jobs that are re-locked after fetching from db" do
       Delayed::Job.where(id: @dead_job).update_all(locked_by: "someone_else")
-      allow(Delayed::Job).to receive(:running_jobs).and_return([@dead_job])
+      # we need to return @dead_job itself, which doesn't match the database
+      jobs_scope = double
+      allow(jobs_scope).to receive(:where).and_return(jobs_scope)
+      allow(jobs_scope).to receive(:not).and_return(jobs_scope)
+      allow(jobs_scope).to receive(:limit).and_return(jobs_scope)
+      allow(jobs_scope).to receive(:to_a).and_return([@dead_job], [])
+      allow(Delayed::Job).to receive(:running_jobs).and_return(jobs_scope)
       described_class.reschedule_abandoned_jobs
       @dead_job.reload
       expect(@dead_job.locked_by).to eq "someone_else"
@@ -104,7 +110,7 @@ RSpec.describe Delayed::Worker::HealthCheck do
 
     it "ignores jobs that are prefetched" do
       Delayed::Job.where(id: @dead_job).update_all(locked_by: "prefetch:some_node")
-      allow(Delayed::Job).to receive(:running_jobs).and_return([@dead_job])
+      allow(Delayed::Job).to receive(:running_jobs).and_return(Delayed::Job.where(id: @dead_job.id))
       described_class.reschedule_abandoned_jobs
       @dead_job.reload
       expect(@dead_job.locked_by).to eq "prefetch:some_node"

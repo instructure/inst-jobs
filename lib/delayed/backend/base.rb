@@ -166,17 +166,36 @@ module Delayed
           pid_regex = pid || '(\d+)'
           regex = Regexp.new("^#{Regexp.escape(name)}:#{pid_regex}$")
           unlocked_jobs = 0
+          escaped_name = name.gsub("\\", "\\\\")
+                             .gsub("%", "\\%")
+                             .gsub("_", "\\_")
+          locked_by_like = "#{escaped_name}:%"
           running = false if pid
-          running_jobs.each do |job|
-            next unless job.locked_by =~ regex
+          jobs = running_jobs.limit(100)
+          jobs = pid ? jobs.where(locked_by: "#{name}:#{pid}") : jobs.where("locked_by LIKE ?", locked_by_like)
+          ignores = []
+          loop do
+            batch_scope = ignores.empty? ? jobs : jobs.where.not(id: ignores)
+            batch = batch_scope.to_a
+            break if batch.empty?
 
-            unless pid
-              job_pid = $1.to_i
-              running = Process.kill(0, job_pid) rescue false
-            end
-            unless running
-              unlocked_jobs += 1
-              job.reschedule("process died")
+            batch.each do |job|
+              unless job.locked_by =~ regex
+                ignores << job.id
+                next
+              end
+
+              unless pid
+                job_pid = $1.to_i
+                running = Process.kill(0, job_pid) rescue false
+              end
+
+              if running
+                ignores << job.id
+              else
+                unlocked_jobs += 1
+                job.reschedule("process died")
+              end
             end
           end
           unlocked_jobs

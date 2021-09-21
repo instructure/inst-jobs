@@ -28,13 +28,15 @@ module Delayed
           Delayed::Job.transaction do
             # this action is a special case, and SHOULD NOT be a periodic job
             # because if it gets wiped out suddenly during execution
-            # it can't go clean up it's abandoned self.  Therefore,
+            # it can't go clean up its abandoned self.  Therefore,
             # we expect it to get run from it's own process forked from the job pool
             # and we try to get an advisory lock when it runs.  If we succeed,
             # no other worker is trying to do this right now (and if we abandon the
             # operation, the transaction will end, releasing the advisory lock).
             result = Delayed::Job.attempt_advisory_lock("Delayed::Worker::HealthCheck#reschedule_abandoned_jobs")
             return unless result
+
+            horizon = 5.minutes.ago
 
             checker = Worker::HealthCheck.build(
               type: Settings.worker_health_check_type,
@@ -43,13 +45,16 @@ module Delayed
             )
             live_workers = checker.live_workers
 
-            Delayed::Job.running_jobs.each do |job|
-              # prefetched jobs have their own way of automatically unlocking themselves
-              next if job.locked_by.start_with?("prefetch:")
+            loop do
+              batch = Delayed::Job.running_jobs
+                                  .where("locked_at<?", horizon)
+                                  .where.not("locked_by LIKE 'prefetch:%'")
+                                  .where.not(locked_by: live_workers)
+                                  .limit(100)
+                                  .to_a
+              break if batch.empty?
 
-              next if live_workers.include?(job.locked_by)
-
-              begin
+              batch.each do |job|
                 Delayed::Job.transaction do
                   # double check that the job is still there. locked_by will immediately be reset
                   # to nil in this transaction by Job#reschedule
@@ -59,9 +64,9 @@ module Delayed
 
                   job.reschedule
                 end
-              rescue
-                ::Rails.logger.error "Failure rescheduling abandoned job #{job.id} #{$!.inspect}"
               end
+            rescue
+              ::Rails.logger.error "Failure rescheduling abandoned job #{job.id} #{$!.inspect}"
             end
           end
         end
