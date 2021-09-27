@@ -15,8 +15,9 @@ class JobClass
 end
 
 RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
+  subject { described_class.new(listen_socket) }
+
   let(:parent) { Delayed::WorkQueue::ParentProcess.new }
-  let(:subject) { described_class.new(listen_socket) }
   let(:listen_socket) { Socket.unix_server_socket(parent.server_address) }
   let(:job) { JobClass.new }
   let(:worker_config) { { queue: "queue_name", min_priority: 1, max_priority: 2 } }

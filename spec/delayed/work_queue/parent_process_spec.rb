@@ -21,8 +21,6 @@ RSpec.describe Delayed::WorkQueue::ParentProcess do
     Delayed::Worker.lifecycle.reset!
   end
 
-  let(:subject) { described_class.new }
-
   describe "#initalize(config = Settings.parent_process)" do
     it "must expand a relative path to be within the Rails root" do
       queue = described_class.new("server_address" => "tmp/foo.sock")

@@ -11,7 +11,6 @@ RSpec.describe Delayed::WorkQueue::InProcess do
     Delayed::Worker.lifecycle.reset!
   end
 
-  let(:subject) { described_class.new }
   let(:worker_config) { { queue: "test", min_priority: 1, max_priority: 2 } }
   let(:args) { ["worker_name", worker_config] }
 

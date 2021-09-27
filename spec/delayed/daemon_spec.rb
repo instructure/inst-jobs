@@ -3,9 +3,10 @@
 require "spec_helper"
 
 RSpec.describe Delayed::Daemon do
+  subject { described_class.new(pid_folder) }
+
   let(:pid_folder) { "/test/pid/folder" }
   let(:pid) { 9999 }
-  let(:subject) { described_class.new(pid_folder) }
 
   before do
     allow(subject).to receive(:pid).and_return(pid)

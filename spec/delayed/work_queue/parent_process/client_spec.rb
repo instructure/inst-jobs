@@ -3,7 +3,8 @@
 require "spec_helper"
 
 RSpec.describe Delayed::WorkQueue::ParentProcess::Client do
-  let(:subject) { described_class.new(addrinfo).tap(&:init) }
+  subject { described_class.new(addrinfo).tap(&:init) }
+
   let(:addrinfo) { double("Addrinfo") }
   let(:connection) { double("Socket") }
   let(:job) { Delayed::Job.new(locked_by: "worker_name") }

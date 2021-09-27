@@ -31,8 +31,8 @@ describe "Delayed::Backed::ActiveRecord::Job" do
       expect(@job_copy_for_worker2.send(:lock_exclusively!, "worker2")).to eq(false)
     end
 
-    it "doesn't  allow a second worker to get exclusive access if failed to be processed by worker1 and
-        run_at time is now in future (due to backing off behaviour)" do
+    it "doesn't allow a second worker to get exclusive access if failed to be " \
+       "processed by worker1 and run_at time is now in future (due to backing off behaviour)" do
       @job.update(attempts: 1, run_at: 1.day.from_now)
       expect(@job_copy_for_worker2.send(:lock_exclusively!, "worker2")).to eq(false)
     end
