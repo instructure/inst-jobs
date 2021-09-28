@@ -24,6 +24,10 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
   let(:args) { ["worker_name", worker_config] }
   let(:job_args) { [["worker_name"], "queue_name", 1, 2, hash_including(prefetch: 4)] }
 
+  before do
+    Delayed::Worker.lifecycle.reset!
+  end
+
   before :all do
     Delayed.select_backend(Delayed::Backend::ActiveRecord::Job)
     Delayed::Settings.parent_process = {
@@ -37,6 +41,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
 
   after do
     File.unlink("/tmp/inst-jobs-test.sock") if File.exist?("/tmp/inst-jobs-test.sock")
+    Delayed::Worker.lifecycle.reset!
   end
 
   it "accepts new clients" do
@@ -204,5 +209,25 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
 
     expect(Marshal.load(client)).to eq(job)
     expect(called).to eq(true)
+  end
+
+  it "deletes the correct worker when transferring jobs" do
+    client1 = Socket.unix(subject.listen_socket.local_address.unix_path)
+    client2 = Socket.unix(subject.listen_socket.local_address.unix_path)
+    subject.run_once
+    subject.run_once
+
+    Marshal.dump(args, client1)
+    Marshal.dump(["worker_name2", worker_config], client2)
+    subject.run_once
+    subject.run_once
+
+    waiting_clients = subject.instance_variable_get(:@waiting_clients)
+    expect(waiting_clients.first.last.length).to eq 2
+
+    expect(Delayed::Job).to receive(:get_and_lock_next_available).and_return("worker_name" => job,
+                                                                             "worker_name2" => job)
+    subject.run_once
+    expect(waiting_clients.first.last).to be_empty
   end
 end

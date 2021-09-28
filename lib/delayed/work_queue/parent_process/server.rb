@@ -179,7 +179,7 @@ module Delayed
             end
 
             jobs_to_send.each do |(recipient, job_to_send)|
-              @waiting_clients[worker_config].delete(client)
+              @waiting_clients[worker_config].delete(recipient)
               begin
                 logger.debug("Sending job #{job_to_send.id} to #{recipient.name}")
                 client_timeout { Marshal.dump(job_to_send, recipient.socket) }

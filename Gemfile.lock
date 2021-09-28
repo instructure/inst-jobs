@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    inst-jobs (2.4.9)
+    inst-jobs (2.4.10)
       activerecord (>= 5.2)
       activesupport (>= 5.2)
       after_transaction_commit (>= 1.0, < 3)
