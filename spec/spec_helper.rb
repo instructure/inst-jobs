@@ -69,6 +69,11 @@ rescue ActiveRecord::StatementInvalid
   nil
 end
 ActiveRecord::Base.establish_connection(connection_config)
+
+# we need to ensure this callback is called for activerecord-pg-extensions,
+# which isn't running because we're not using Rails to setup the database
+ActiveRecord::PGExtensions::Railtie.run_initializers
+
 # TODO: reset db and migrate again, to test migrations
 
 migrate("db/migrate")

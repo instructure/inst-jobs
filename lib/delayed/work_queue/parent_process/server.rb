@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "activerecord-pg-extensions"
+
 module Delayed
   module WorkQueue
     class ParentProcess
@@ -192,29 +194,54 @@ module Delayed
           end
         end
 
-        def unlock_timed_out_prefetched_jobs
+        def unlock_prefetched_jobs
           @prefetched_jobs.each do |(worker_config, jobs)|
             next if jobs.empty?
-            next unless jobs.first.locked_at < Time.now.utc - Settings.parent_process[:prefetched_jobs_timeout]
+            next if block_given? && !yield(jobs)
 
-            Delayed::Job.transaction do
+            connection = Delayed::Job.connection
+            connection.transaction do
+              # make absolutely sure we don't get hung up and leave things
+              # locked in the database
+              if connection.postgresql_version >= 9_06_00 # rubocop:disable Style/NumericLiterals
+                connection.idle_in_transaction_session_timeout = 5
+              end
+              # relatively short timeout for acquiring the lock
+              connection.statement_timeout = Settings.sleep_delay
               Delayed::Job.advisory_lock(Delayed::Job.prefetch_jobs_lock_name)
+
+              # this query might take longer, and we really want to get it
+              # done if we got the lock, but still don't want an inadvertent
+              # hang
+              connection.statement_timeout = 30
               Delayed::Job.unlock(jobs)
+              @prefetched_jobs[worker_config] = []
             end
-            @prefetched_jobs[worker_config] = []
+          rescue ActiveRecord::QueryCanceled
+            # ignore; we'll retry anyway
+            logger.warn("unable to unlock prefetched jobs; skipping for now")
+          rescue ActiveRecord::StatementInvalid
+            # see if we dropped the connection
+            raise if connection.active?
+
+            # otherwise just reconnect and let it retry
+            logger.warn("failed to unlock prefetched jobs - connection terminated; skipping for now")
+            Delayed::Job.clear_all_connections!
+          end
+        end
+
+        def unlock_timed_out_prefetched_jobs
+          unlock_prefetched_jobs do |jobs|
+            jobs.first.locked_at < Time.now.utc - Settings.parent_process[:prefetched_jobs_timeout]
           end
         end
 
         def unlock_all_prefetched_jobs
-          @prefetched_jobs.each do |(_worker_config, jobs)|
-            next if jobs.empty?
-
-            Delayed::Job.transaction do
-              Delayed::Job.advisory_lock(Delayed::Job.prefetch_jobs_lock_name)
-              Delayed::Job.unlock(jobs)
-            end
+          # we try really hard; it may not have done any work if it timed out
+          10.times do
+            unlock_prefetched_jobs
+            break if @prefetched_jobs.each_value.all?(&:empty?)
           end
-          @prefetched_jobs = {}
         end
 
         def drop_socket(socket)

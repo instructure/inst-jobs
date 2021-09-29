@@ -104,6 +104,53 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     expect(Marshal.load(client)).to eq(job2)
   end
 
+  context "prefetched job unlocking" do
+    let(:job_args) do
+      [["worker_name1"], "queue_name", 1, 2,
+       { prefetch: 4, prefetch_owner: "prefetch:work_queue:X", forced_latency: 6.0 }]
+    end
+    let(:job2) { Delayed::Job.new(tag: "tag").tap { |j| j.create_and_lock!("prefetch:work_queue:X") } }
+    let(:job3) { Delayed::Job.new(tag: "tag").tap { |j| j.create_and_lock!("prefetch:work_queue:X") } }
+
+    before do
+      client = Socket.unix(subject.listen_socket.local_address.unix_path)
+      subject.run_once
+
+      jobs = { "worker_name1" => job, "prefetch:work_queue:X" => [job2, job3] }
+      allow(subject).to receive(:prefetch_owner).and_return("prefetch:work_queue:X")
+      allow(Delayed::Job).to receive(:get_and_lock_next_available).once.with(*job_args).and_return(jobs)
+      Marshal.dump(["worker_name1", worker_config], client)
+      subject.run_once
+    end
+
+    it "doesn't unlock anything if nothing is timed out" do
+      expect(Delayed::Job).not_to receive(:advisory_lock)
+      expect(Delayed::Job).not_to receive(:unlock)
+      subject.unlock_timed_out_prefetched_jobs
+    end
+
+    it "unlocks timed out prefetched jobs" do
+      allow(Delayed::Settings).to receive(:parent_process).and_return(prefetched_jobs_timeout: -1)
+      expect(Delayed::Job).to receive(:unlock).with([job2, job3])
+      subject.unlock_timed_out_prefetched_jobs
+      expect(subject.instance_variable_get(:@prefetched_jobs).values.sum(&:length)).to eq 0
+    end
+
+    it "fails gracefully if the lock times out" do
+      allow(Delayed::Settings).to receive(:parent_process).and_return(prefetched_jobs_timeout: -1)
+      expect(Delayed::Job).not_to receive(:unlock)
+      expect(Delayed::Job).to receive(:advisory_lock).and_raise(ActiveRecord::QueryCanceled)
+      subject.unlock_timed_out_prefetched_jobs
+      expect(subject.instance_variable_get(:@prefetched_jobs).values.sum(&:length)).to eq 2
+    end
+
+    it "unlocks all jobs" do
+      expect(Delayed::Job).to receive(:unlock).with([job2, job3])
+      subject.unlock_all_prefetched_jobs
+      expect(subject.instance_variable_get(:@prefetched_jobs).values.sum(&:length)).to eq 0
+    end
+  end
+
   it "doesn't respond immediately if there are no jobs available" do
     client = Socket.unix(subject.listen_socket.local_address.unix_path)
     subject.run_once

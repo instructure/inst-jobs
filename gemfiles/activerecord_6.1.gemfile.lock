@@ -3,6 +3,7 @@ PATH
   specs:
     inst-jobs (2.4.10)
       activerecord (>= 6.0)
+      activerecord-pg-extensions (~> 0.4)
       activesupport (>= 6.0)
       after_transaction_commit (>= 1.0, < 3)
       debug_inspector (~> 1.0)
@@ -58,6 +59,9 @@ GEM
     activerecord (6.1.4.1)
       activemodel (= 6.1.4.1)
       activesupport (= 6.1.4.1)
+    activerecord-pg-extensions (0.4.1)
+      activerecord (>= 6.0, < 6.2)
+      railties (>= 6.0, < 6.2)
     activestorage (6.1.4.1)
       actionpack (= 6.1.4.1)
       activejob (= 6.1.4.1)
