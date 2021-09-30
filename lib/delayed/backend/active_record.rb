@@ -62,14 +62,9 @@ module Delayed
             _write_attribute(column, current_time) unless attribute_present?(column)
           end
 
-          if Rails.version >= "6"
-            attribute_names = attribute_names_for_partial_writes
-            attribute_names = attributes_for_create(attribute_names)
-            values = attributes_with_values(attribute_names)
-          else
-            attribute_names = partial_writes? ? keys_for_partial_write : self.attribute_names
-            values = attributes_with_values_for_create(attribute_names)
-          end
+          attribute_names = attribute_names_for_partial_writes
+          attribute_names = attributes_for_create(attribute_names)
+          values = attributes_with_values(attribute_names)
 
           im = self.class.arel_table.compile_insert(self.class.send(:_substitute_values, values))
 

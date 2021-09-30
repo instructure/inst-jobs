@@ -58,11 +58,7 @@ connection_config = {
 }
 
 def migrate(file)
-  if ::Rails.version >= "6"
-    ActiveRecord::MigrationContext.new(file, ActiveRecord::SchemaMigration).migrate
-  else
-    ActiveRecord::MigrationContext.new(file).migrate
-  end
+  ActiveRecord::MigrationContext.new(file, ActiveRecord::SchemaMigration).migrate
 end
 
 # create the test db if it does not exist, to help out wwtd
