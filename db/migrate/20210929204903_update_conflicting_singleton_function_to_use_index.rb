@@ -5,9 +5,7 @@ class UpdateConflictingSingletonFunctionToUseIndex < ActiveRecord::Migration[5.2
     execute(<<~SQL)
       CREATE OR REPLACE FUNCTION delayed_jobs_before_unlock_delete_conflicting_singletons_row_fn () RETURNS trigger AS $$
       BEGIN
-        IF EXISTS (SELECT 1 FROM delayed_jobs j2 WHERE j2.singleton=OLD.singleton) THEN
-          DELETE FROM delayed_jobs WHERE id<>OLD.id AND singleton=OLD.singleton AND locked_by IS NULL;
-        END IF;
+        DELETE FROM delayed_jobs WHERE id<>OLD.id AND singleton=OLD.singleton AND locked_by IS NULL;
         RETURN NEW;
       END;
       $$ LANGUAGE plpgsql;
