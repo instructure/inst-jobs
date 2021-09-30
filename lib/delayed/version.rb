@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Delayed
-  VERSION = "2.4.10"
+  VERSION = "3.0.0"
 end
