@@ -548,7 +548,7 @@ module Delayed
 
         def fail!
           attrs = attributes
-          attrs["original_job_id"] = attrs.delete("id")
+          attrs["original_job_id"] = attrs.delete("id") if Failed.columns_hash.key?("original_job_id")
           attrs["failed_at"] ||= self.class.db_time_now
           attrs.delete("next_in_strand")
           attrs.delete("max_concurrent")
