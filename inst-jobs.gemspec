@@ -9,8 +9,8 @@ require "delayed/version"
 Gem::Specification.new do |s|
   s.name        = "inst-jobs"
   s.version     = Delayed::VERSION
-  s.authors     = ["Tobias Luetke", "Brian Palmer"]
-  s.email       = ["brianp@instructure.com"]
+  s.authors     = ["Cody Cutrer", "Ethan Vizitei", "Jacob Burroughs"]
+  s.email       = ["cody@instructure.com", "evizitei@instructure.com", "jburroughs@instructure.com"]
   s.homepage    = "https://github.com/instructure/inst-jobs"
   s.summary     = "Instructure-maintained fork of delayed_job"
 

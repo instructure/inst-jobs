@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    inst-jobs (3.0.0)
+    inst-jobs (3.0.1)
       activerecord (>= 6.0)
       activerecord-pg-extensions (~> 0.4)
       activesupport (>= 6.0)
@@ -59,7 +59,7 @@ GEM
     activerecord (6.1.4.1)
       activemodel (= 6.1.4.1)
       activesupport (= 6.1.4.1)
-    activerecord-pg-extensions (0.4.1)
+    activerecord-pg-extensions (0.4.2)
       activerecord (>= 6.0, < 6.2)
       railties (>= 6.0, < 6.2)
     activestorage (6.1.4.1)

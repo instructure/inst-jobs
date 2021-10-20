@@ -176,7 +176,9 @@ module Delayed
           ignores = []
           loop do
             batch_scope = ignores.empty? ? jobs : jobs.where.not(id: ignores)
-            batch = batch_scope.to_a
+            # if we don't reload this it's possible to keep getting the
+            # same array each loop even after the jobs have been deleted.
+            batch = batch_scope.reload.to_a
             break if batch.empty?
 
             batch.each do |job|

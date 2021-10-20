@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "timeout"
+
 module InDelayedJobTest
   def self.check_in_job
     Delayed::Job.in_delayed_job?.should == true
@@ -957,6 +959,21 @@ shared_examples_for "a backend" do
       expect(Delayed::Job.find(job4.id).locked_by).not_to be_nil
 
       expect(Delayed::Job.unlock_orphaned_jobs(nil, "Jobworker")).to eq(0)
+    end
+  end
+
+  it "removes an un-reschedulable job" do
+    change_setting(Delayed::Settings, :max_attempts, -1) do
+      job = Delayed::Job.new(tag: "tag")
+      `echo ''`
+      child_pid = $?.pid
+      job.create_and_lock!("Jobworker:#{child_pid}")
+      Timeout.timeout(1) do
+        # if this takes longer than a second it's hung
+        # in an infinite loop, which would be bad.
+        expect(Delayed::Job.unlock_orphaned_jobs(nil, "Jobworker")).to eq(1)
+      end
+      expect { Delayed::Job.find(job.id) }.to raise_error(ActiveRecord::RecordNotFound)
     end
   end
 
