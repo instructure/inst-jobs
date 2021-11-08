@@ -309,7 +309,7 @@ module Delayed
           if Settings.silence_periodic_log
             ::ActiveRecord::Base.logger.silence(&block)
           else
-            block.call
+            yield
           end
         end
 

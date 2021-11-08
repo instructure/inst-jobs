@@ -219,14 +219,14 @@ describe "Delayed::Backed::ActiveRecord::Job" do
   end
 
   it "gets process ids from locked_by" do
-    3.times.map { Delayed::Job.create payload_object: SimpleJob.new }
+    Array.new(3) { Delayed::Job.create payload_object: SimpleJob.new }
     Delayed::Job.get_and_lock_next_available(["job42:2", "job42:9001"])
     expect(Delayed::Job.processes_locked_locally(name: "job42").sort).to eq [2, 9001]
     expect(Delayed::Job.processes_locked_locally(name: "jobnotme")).to be_empty
   end
 
   it "allows fetching multiple jobs at once" do
-    jobs = 3.times.map { Delayed::Job.create payload_object: SimpleJob.new }
+    jobs = Array.new(3) { Delayed::Job.create payload_object: SimpleJob.new }
     locked_jobs = Delayed::Job.get_and_lock_next_available(%w[worker1 worker2])
     expect(locked_jobs.length).to eq(2)
     expect(locked_jobs.keys).to eq(%w[worker1 worker2])
@@ -235,7 +235,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
   end
 
   it "allows fetching extra jobs" do
-    jobs = 5.times.map { Delayed::Job.create payload_object: SimpleJob.new }
+    jobs = Array.new(5) { Delayed::Job.create payload_object: SimpleJob.new }
     locked_jobs = Delayed::Job.get_and_lock_next_available(["worker1"],
                                                            prefetch: 2,
                                                            prefetch_owner: "work_queue")

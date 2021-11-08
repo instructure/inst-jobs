@@ -5,10 +5,10 @@ module Delayed
     module ProcessHelper
       STAT_LINUX = "stat --format=%%Y /proc/$WORKER_PID"
       STAT_MAC = "ps -o lstart -p $WORKER_PID"
-      STAT = RUBY_PLATFORM =~ /darwin/ ? STAT_MAC : STAT_LINUX
+      STAT = RUBY_PLATFORM.include?("darwin") ? STAT_MAC : STAT_LINUX
       ALIVE_CHECK_LINUX = '[ -d "/proc/$WORKER_PID" ]'
       ALIVE_CHECK_MAC = "ps -p $WORKER_PID > /dev/null"
-      ALIVE_CHECK = RUBY_PLATFORM =~ /darwin/ ? ALIVE_CHECK_MAC : ALIVE_CHECK_LINUX
+      ALIVE_CHECK = RUBY_PLATFORM.include?("darwin") ? ALIVE_CHECK_MAC : ALIVE_CHECK_LINUX
       SCRIPT_TEMPLATE = <<-BASH
         WORKER_PID="%<pid>d" # an example, filled from ruby when the check is created
         ORIGINAL_MTIME="%<mtime>s" # an example, filled from ruby when the check is created
@@ -29,7 +29,7 @@ module Delayed
       BASH
 
       def self.mtime(pid)
-        if RUBY_PLATFORM =~ /darwin/
+        if RUBY_PLATFORM.include?("darwin")
           `ps -o lstart -p #{pid}`.sub(/\n$/, "").presence
         else
           File::Stat.new("/proc/#{pid}").mtime.to_i.to_s rescue nil
