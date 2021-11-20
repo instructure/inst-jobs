@@ -44,7 +44,7 @@ describe Delayed::Worker do
       expect(output_count).to eq(1)
     end
 
-    it "reloads" do
+    it "reloads Rails classes (never more than once)" do
       fake_application = double("Rails.application",
                                 config: double("Rails.application.config",
                                                cache_classes: false,
@@ -59,6 +59,11 @@ describe Delayed::Worker do
         expect(ActionDispatch::Reloader).to receive(:cleanup!).once
       end
       job = double(job_attrs)
+
+      # Create extra workers to make sure we don't reload multiple times
+      described_class.new(worker_config.dup)
+      described_class.new(worker_config.dup)
+
       subject.perform(job)
     end
   end
