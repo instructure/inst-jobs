@@ -390,6 +390,78 @@ shared_examples_for "a backend" do
       end
 
       context "next_in_strand management" do
+        it "handles transitions correctly when going from stranded to not stranded" do
+          @job1 = create_job(singleton: "myjobs", strand: "myjobs")
+          Delayed::Job.get_and_lock_next_available("w1")
+          @job2 = create_job(singleton: "myjobs")
+
+          expect(@job1.reload.next_in_strand).to eq true
+          expect(@job2.reload.next_in_strand).to eq false
+
+          @job1.destroy
+          expect(@job2.reload.next_in_strand).to eq true
+        end
+
+        it "handles transitions correctly when going from not stranded to stranded" do
+          @job1 = create_job(singleton: "myjobs2", strand: "myjobs")
+          @job2 = create_job(singleton: "myjobs")
+          Delayed::Job.get_and_lock_next_available("w1")
+          Delayed::Job.get_and_lock_next_available("w1")
+          @job3 = create_job(singleton: "myjobs", strand: "myjobs2")
+
+          expect(@job1.reload.next_in_strand).to eq true
+          expect(@job2.reload.next_in_strand).to eq true
+          expect(@job3.reload.next_in_strand).to eq false
+
+          @job2.destroy
+          expect(@job1.reload.next_in_strand).to eq true
+          expect(@job3.reload.next_in_strand).to eq true
+        end
+
+        it "does not violate n_strand=1 constraints when going from not stranded to stranded" do
+          @job1 = create_job(singleton: "myjobs2", strand: "myjobs")
+          @job2 = create_job(singleton: "myjobs")
+          Delayed::Job.get_and_lock_next_available("w1")
+          Delayed::Job.get_and_lock_next_available("w1")
+          @job3 = create_job(singleton: "myjobs", strand: "myjobs")
+
+          expect(@job1.reload.next_in_strand).to eq true
+          expect(@job2.reload.next_in_strand).to eq true
+          expect(@job3.reload.next_in_strand).to eq false
+
+          @job2.destroy
+          expect(@job1.reload.next_in_strand).to eq true
+          expect(@job3.reload.next_in_strand).to eq false
+        end
+
+        it "handles transitions correctly when going from stranded to another strand" do
+          @job1 = create_job(singleton: "myjobs", strand: "myjobs")
+          Delayed::Job.get_and_lock_next_available("w1")
+          @job2 = create_job(singleton: "myjobs", strand: "myjobs2")
+
+          expect(@job1.reload.next_in_strand).to eq true
+          expect(@job2.reload.next_in_strand).to eq false
+
+          @job1.destroy
+          expect(@job2.reload.next_in_strand).to eq true
+        end
+
+        it "does not violate n_strand=1 constraints when going from stranded to another strand" do
+          @job1 = create_job(singleton: "myjobs2", strand: "myjobs2")
+          @job2 = create_job(singleton: "myjobs", strand: "myjobs")
+          Delayed::Job.get_and_lock_next_available("w1")
+          Delayed::Job.get_and_lock_next_available("w1")
+          @job3 = create_job(singleton: "myjobs", strand: "myjobs2")
+
+          expect(@job1.reload.next_in_strand).to eq true
+          expect(@job2.reload.next_in_strand).to eq true
+          expect(@job3.reload.next_in_strand).to eq false
+
+          @job2.destroy
+          expect(@job1.reload.next_in_strand).to eq true
+          expect(@job3.reload.next_in_strand).to eq false
+        end
+
         it "creates first as true, and second as false, then transitions to second when deleted" do
           @job1 = create_job(singleton: "myjobs")
           Delayed::Job.get_and_lock_next_available("w1")
