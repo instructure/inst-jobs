@@ -54,7 +54,8 @@ connection_config = {
   host: ENV["TEST_DB_HOST"].presence,
   encoding: "utf8",
   username: ENV["TEST_DB_USERNAME"],
-  database: ENV["TEST_DB_DATABASE"]
+  database: ENV["TEST_DB_DATABASE"],
+  min_messages: "notice"
 }
 
 def migrate(file)
