@@ -389,6 +389,80 @@ shared_examples_for "a backend" do
         expect(job1.reload.handler).to include("ErrorJob")
       end
 
+      context "next_in_strand management - deadlocks", non_transactional: true do
+        # The following unit tests are fairly slow and non-deterministic. It may be
+        # easier to make them fail quicker and more consistently by adding a random
+        # sleep into the appropriate trigger(s).
+        #
+        # Example:
+        #   PERFORM pg_advisory_xact_lock(half_md5_as_bigint(OLD.strand));
+        #   PERFORM pg_sleep(random() * 2);
+
+        def loop_secs(val)
+          loop_start = Time.now.utc
+
+          loop do
+            break if Time.now.utc >= loop_start + val
+
+            yield
+          end
+        end
+
+        it "doesn't deadlock when transitioning from strand_a to strand_b" do
+          threads = []
+
+          def thread_body(j1_params, j2_params)
+            loop do
+              j1 = create_job(**j1_params)
+              j2 = create_job(**j2_params)
+
+              expect(j1.reload.next_in_strand).to eq(true)
+              expect(j2.reload.next_in_strand).to eq(false)
+
+              j1.delete
+
+              # In case we couldn't acquire a lock, we actually need to wait for
+              # the other thread to set this to true.
+              loop_secs(10.seconds) do
+                break if j2.reload.next_in_strand
+              end
+
+              expect(j2.reload.next_in_strand).to eq(true)
+
+              j2.delete
+            end
+          rescue
+            Thread.current.thread_variable_set(:fail, true)
+            raise
+          end
+
+          threads << Thread.new do
+            thread_body(
+              { singleton: "myjobs", strand: "myjobs2", locked_by: "w1" },
+              { singleton: "myjobs", strand: "myjobs" }
+            )
+          end
+
+          threads << Thread.new do
+            thread_body(
+              { singleton: "myjobs2", strand: "myjobs", locked_by: "w1" },
+              { singleton: "myjobs2", strand: "myjobs2" }
+            )
+          end
+
+          begin
+            loop_secs(60.seconds) do
+              if threads.any? { |x| x.thread_variable_get(:fail) }
+                raise "at least one thread hit a deadlock or other error"
+              end
+            end
+          ensure
+            threads.each(&:kill)
+            threads.each(&:join)
+          end
+        end
+      end
+
       context "next_in_strand management" do
         it "handles transitions correctly when going from stranded to not stranded" do
           @job1 = create_job(singleton: "myjobs", strand: "myjobs")

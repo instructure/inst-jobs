@@ -71,7 +71,10 @@ class UpdateAfterDeleteTriggerForSingletonTransitionCases < ActiveRecord::Migrat
 
             IF next_strand IS NOT NULL THEN
               -- if the singleton has a new strand defined, we need to lock it to ensure we obey n_strand constraints --
-              PERFORM pg_advisory_xact_lock(half_md5_as_bigint(next_strand));
+              IF NOT pg_try_advisory_xact_lock(half_md5_as_bigint(next_strand)) THEN
+                -- a failure to acquire the lock means that another process already has it and will thus handle this singleton --
+                RETURN OLD;
+              END IF;
             END IF;
           ELSIF OLD.strand IS NOT NULL THEN
             -- if there is no transition and there is a strand then we have already handled this singleton in the case above --
