@@ -389,14 +389,10 @@ shared_examples_for "a backend" do
         expect(job1.reload.handler).to include("ErrorJob")
       end
 
-      context "next_in_strand management - deadlocks", non_transactional: true do
+      context "next_in_strand management - deadlocks and race conditions", non_transactional: true do
         # The following unit tests are fairly slow and non-deterministic. It may be
         # easier to make them fail quicker and more consistently by adding a random
         # sleep into the appropriate trigger(s).
-        #
-        # Example:
-        #   PERFORM pg_advisory_xact_lock(half_md5_as_bigint(OLD.strand));
-        #   PERFORM pg_sleep(random() * 2);
 
         def loop_secs(val)
           loop_start = Time.now.utc
@@ -408,46 +404,119 @@ shared_examples_for "a backend" do
           end
         end
 
-        it "doesn't deadlock when transitioning from strand_a to strand_b" do
+        def loop_until_found(params)
+          found = false
+
+          loop_secs(10.seconds) do
+            if Delayed::Job.exists?(**params)
+              found = true
+              break
+            end
+          end
+
+          raise "timed out waiting for condition" unless found
+        end
+
+        def thread_body
+          yield
+        rescue
+          Thread.current.thread_variable_set(:fail, true)
+          raise
+        end
+
+        it "doesn't orphan the singleton when two are queued consecutively" do
+          # In order to reproduce this one efficiently, you'll probably want to add
+          # a sleep within delayed_jobs_before_insert_row_tr_fn.
+          # IF NEW.singleton IS NOT NULL THEN
+          #   ...
+          #   PERFORM pg_sleep(random() * 2);
+          # END IF;
+
           threads = []
 
-          def thread_body(j1_params, j2_params)
-            loop do
-              j1 = create_job(**j1_params)
-              j2 = create_job(**j2_params)
-
-              expect(j1.reload.next_in_strand).to eq(true)
-              expect(j2.reload.next_in_strand).to eq(false)
-
-              j1.delete
-
-              # In case we couldn't acquire a lock, we actually need to wait for
-              # the other thread to set this to true.
-              loop_secs(10.seconds) do
-                break if j2.reload.next_in_strand
+          threads << Thread.new do
+            thread_body do
+              loop do
+                create_job(singleton: "singleton_job")
+                create_job(singleton: "singleton_job")
               end
-
-              expect(j2.reload.next_in_strand).to eq(true)
-
-              j2.delete
             end
-          rescue
-            Thread.current.thread_variable_set(:fail, true)
-            raise
           end
 
           threads << Thread.new do
-            thread_body(
-              { singleton: "myjobs", strand: "myjobs2", locked_by: "w1" },
-              { singleton: "myjobs", strand: "myjobs" }
-            )
+            thread_body do
+              loop do
+                Delayed::Job.get_and_lock_next_available("w1")&.destroy
+              end
+            end
           end
 
           threads << Thread.new do
-            thread_body(
-              { singleton: "myjobs2", strand: "myjobs", locked_by: "w1" },
-              { singleton: "myjobs2", strand: "myjobs2" }
-            )
+            thread_body do
+              loop do
+                loop_until_found(singleton: "singleton_job", next_in_strand: true)
+              end
+            end
+          end
+
+          begin
+            loop_secs(60.seconds) do
+              if threads.any? { |x| x.thread_variable_get(:fail) }
+                raise "at least one job became orphaned or other error"
+              end
+            end
+          ensure
+            threads.each(&:kill)
+            threads.each(&:join)
+          end
+        end
+
+        it "doesn't deadlock when transitioning from strand_a to strand_b" do
+          # In order to reproduce this one efficiently, you'll probably want to add
+          # a sleep within delayed_jobs_after_delete_row_tr_fn.
+          # PERFORM pg_advisory_xact_lock(half_md5_as_bigint(OLD.strand));
+          # PERFORM pg_sleep(random() * 2);
+
+          threads = []
+
+          threads << Thread.new do
+            thread_body do
+              loop do
+                j1 = create_job(singleton: "myjobs", strand: "myjobs2", locked_by: "w1")
+                j2 = create_job(singleton: "myjobs", strand: "myjobs")
+
+                j1.delete
+                j2.delete
+              end
+            end
+          end
+
+          threads << Thread.new do
+            thread_body do
+              loop do
+                j1 = create_job(singleton: "myjobs2", strand: "myjobs", locked_by: "w1")
+                j2 = create_job(singleton: "myjobs2", strand: "myjobs2")
+
+                j1.delete
+                j2.delete
+              end
+            end
+          end
+
+          threads << Thread.new do
+            thread_body do
+              loop do
+                loop_until_found(singleton: "myjobs", next_in_strand: true)
+              end
+            end
+          end
+
+          threads << Thread.new do
+            thread_body do
+              loop do
+                loop_until_found(singleton: "myjobs2", next_in_strand: true)
+              end
+            end
           end
 
           begin
