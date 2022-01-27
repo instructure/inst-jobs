@@ -12,6 +12,7 @@ module Delayed
     end
 
     module Base
+      ON_HOLD_BLOCKER = "blocker job"
       ON_HOLD_LOCKED_BY = "on hold"
       ON_HOLD_COUNT = 50
 
