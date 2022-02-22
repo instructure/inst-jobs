@@ -135,7 +135,7 @@ module Delayed
     self.num_strands = ->(_strand_name) {}
     self.default_job_options = -> { {} }
     self.job_detailed_log_format = lambda { |job|
-      job.to_json(include_root: false, only: %w[tag strand priority attempts created_at max_attempts source])
+      job.to_json(include_root: false, only: %w[tag strand singleton priority attempts created_at max_attempts source])
     }
 
     # Send workers KILL after QUIT if they haven't exited within the

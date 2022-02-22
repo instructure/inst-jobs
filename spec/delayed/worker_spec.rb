@@ -81,7 +81,7 @@ describe Delayed::Worker do
       short_log_format = subject.log_job(job, :short)
       expect(short_log_format).to eq("RSpec::Mocks::Double")
       long_format = subject.log_job(job, :long)
-      expect(long_format).to eq("RSpec::Mocks::Double {\"priority\":25,\"attempts\":0,\"created_at\":null,\"tag\":\"RSpec::Mocks::Double#perform\",\"max_attempts\":null,\"strand\":\"test_jobs\",\"source\":null}") # rubocop:disable Layout/LineLength
+      expect(long_format).to eq("RSpec::Mocks::Double {\"priority\":25,\"attempts\":0,\"created_at\":null,\"tag\":\"RSpec::Mocks::Double#perform\",\"max_attempts\":null,\"strand\":\"test_jobs\",\"source\":null,\"singleton\":null}") # rubocop:disable Layout/LineLength
     end
 
     it "logging format can be changed with settings" do
