@@ -34,7 +34,7 @@ module Delayed
             # no other worker is trying to do this right now (and if we abandon the
             # operation, the transaction will end, releasing the advisory lock).
             result = Delayed::Job.attempt_advisory_lock("Delayed::Worker::HealthCheck#reschedule_abandoned_jobs")
-            return unless result
+            next unless result
 
             horizon = 5.minutes.ago
 

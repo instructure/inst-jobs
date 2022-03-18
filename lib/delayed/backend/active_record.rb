@@ -62,11 +62,21 @@ module Delayed
             _write_attribute(column, current_time) unless attribute_present?(column)
           end
 
-          attribute_names = attribute_names_for_partial_writes
+          attribute_names = if Rails.version < "7.0"
+                              attribute_names_for_partial_writes
+                            else
+                              attribute_names_for_partial_inserts
+                            end
           attribute_names = attributes_for_create(attribute_names)
           values = attributes_with_values(attribute_names)
 
-          im = self.class.arel_table.compile_insert(self.class.send(:_substitute_values, values))
+          im = if Rails.version < "7.0"
+                 self.class.arel_table.compile_insert(self.class.send(:_substitute_values, values))
+               else
+                 im = Arel::InsertManager.new(self.class.arel_table)
+                 im.insert(values.transform_keys { |name| self.class.arel_table[name] })
+                 im
+               end
 
           lock_and_insert = values["strand"] && instance_of?(Job)
           # can't use prepared statements if we're combining multiple statemenets
@@ -101,7 +111,8 @@ module Delayed
             # but we don't need to lock when inserting into Delayed::Failed
             if values["strand"] && instance_of?(Job)
               fn_name = connection.quote_table_name("half_md5_as_bigint")
-              sql = "SELECT pg_advisory_xact_lock(#{fn_name}(#{connection.quote(values['strand'])})); #{sql}"
+              quoted_strand = connection.quote(Rails.version < "7.0" ? values["strand"] : values["strand"].value)
+              sql = "SELECT pg_advisory_xact_lock(#{fn_name}(#{quoted_strand})); #{sql}"
             end
             result = connection.execute(sql, "#{self.class} Create")
             self.id = result.values.first&.first
@@ -471,7 +482,7 @@ module Delayed
           transaction do
             # for db performance reasons, we only need one process doing this at a time
             # so if we can't get an advisory lock, just abort. we'll try again soon
-            return unless attempt_advisory_lock(prefetch_jobs_lock_name)
+            next unless attempt_advisory_lock(prefetch_jobs_lock_name)
 
             horizon = db_time_now - (Settings.parent_process[:prefetched_jobs_timeout] * 4)
             where("locked_by LIKE 'prefetch:%' AND locked_at<?", horizon).update_all(locked_at: nil, locked_by: nil)

@@ -428,11 +428,6 @@ $> ./build.sh
 
 #### Running individual tests in Docker
 
-This repo uses `rvm` to run specs under a variety of ruby versions (specifically by following the matrix
-defined in .travis.yml using the gem "wwtd").
-For local testing, you probably just want to get things tested under _some_ ruby version.
-Here's how.
-
 First, you'll want a persistent gems volume, which you can get by:
 
 ```
@@ -442,20 +437,19 @@ $> cp docker-compose.override.yml.example docker-compose.override.yml
 Then you can install bundler and gems, which you'll want to do in your ruby version of choice:
 
 ```
-$> docker-compose run --rm app bash -lc "rvm-exec 2.7 gem install bundler -v 1.17.3"
-$> docker-compose run --rm app bash -lc "rvm-exec 2.7 bundle"
+$> docker-compose run --rm app bash -lc "bundle install"
 ```
 
 Now, to run an individual spec:
 
 ```
-$> docker-compose run --rm app bash -lc "rvm-exec 2.7 bundle exec rspec spec/delayed/worker_spec.rb"
+$> docker-compose run --rm app bash -lc "bundle exec rspec spec/delayed/worker_spec.rb"
 ```
 
 You can also run the whole suite, but under just one rvm context, with:
 
 ```
-$> docker-compose run --rm app bash -lc "rvm-exec 2.7 bundle exec rake spec"
+$> docker-compose run --rm app bash -lc "bundle exec rake spec"
 ```
 
 ### Writing Tests

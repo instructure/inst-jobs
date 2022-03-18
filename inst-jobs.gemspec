@@ -19,10 +19,12 @@ Gem::Specification.new do |s|
   s.files = Dir["{app,config,db,lib}/**/*"]
   s.test_files = Dir["spec/**/*"]
 
+  s.metadata["rubygems_mfa_required"] = "true"
+
   s.required_ruby_version = ">= 2.6"
 
   s.add_dependency "activerecord",               ">= 6.0"
-  s.add_dependency "activerecord-pg-extensions", "~> 0.4"
+  s.add_dependency "activerecord-pg-extensions", "~> 0.4.4"
   s.add_dependency "activesupport",              ">= 6.0"
   s.add_dependency "after_transaction_commit",   ">= 1.0", "<3"
   s.add_dependency "debug_inspector",            "~> 1.0"
@@ -50,5 +52,4 @@ Gem::Specification.new do |s|
   s.add_development_dependency "sinatra-contrib"
   s.add_development_dependency "timecop", "0.9.4"
   s.add_development_dependency "webmock"
-  s.add_development_dependency "wwtd", "~> 1.4.0"
 end

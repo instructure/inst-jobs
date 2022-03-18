@@ -28,13 +28,13 @@ describe "Delayed::Backed::ActiveRecord::Job" do
 
     it "does not allow a second worker to get exclusive access if already successfully processed by worker1" do
       @job.destroy
-      expect(@job_copy_for_worker2.send(:lock_exclusively!, "worker2")).to eq(false)
+      expect(@job_copy_for_worker2.send(:lock_exclusively!, "worker2")).to be(false)
     end
 
     it "doesn't allow a second worker to get exclusive access if failed to be " \
        "processed by worker1 and run_at time is now in future (due to backing off behaviour)" do
       @job.update(attempts: 1, run_at: 1.day.from_now)
-      expect(@job_copy_for_worker2.send(:lock_exclusively!, "worker2")).to eq(false)
+      expect(@job_copy_for_worker2.send(:lock_exclusively!, "worker2")).to be(false)
     end
 
     it "selects the next job at random if enabled" do
@@ -55,13 +55,13 @@ describe "Delayed::Backed::ActiveRecord::Job" do
 
   it "unlocks a successfully locked job and persist the job's unlocked state" do
     job = Delayed::Job.create payload_object: SimpleJob.new
-    expect(job.send(:lock_exclusively!, "worker1")).to eq(true)
+    expect(job.send(:lock_exclusively!, "worker1")).to be(true)
     job.reload
     job.unlock
     job.save!
     job.reload
-    expect(job.locked_by).to eq(nil)
-    expect(job.locked_at).to eq(nil)
+    expect(job.locked_by).to be_nil
+    expect(job.locked_at).to be_nil
   end
 
   describe "bulk_update failed jobs" do
@@ -85,7 +85,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
       before do
         2.times do
           j = Delayed::Job.create(payload_object: SimpleJob.new)
-          expect(j.send(:lock_exclusively!, "worker1")).to eq(true)
+          expect(j.send(:lock_exclusively!, "worker1")).to be(true)
           j.fail!
         end
       end
@@ -170,13 +170,13 @@ describe "Delayed::Backed::ActiveRecord::Job" do
       it "sets one job as next_in_strand at a time with max_concurrent of 1" do
         job1 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
         job1.reload
-        expect(job1.next_in_strand).to eq(true)
+        expect(job1.next_in_strand).to be(true)
         job2 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
         job2.reload
-        expect(job2.next_in_strand).to eq(false)
+        expect(job2.next_in_strand).to be(false)
         run_job(job1)
         job2.reload
-        expect(job2.next_in_strand).to eq(true)
+        expect(job2.next_in_strand).to be(true)
       end
 
       it "sets multiple jobs as next_in_strand at a time based on max_concurrent" do
@@ -187,16 +187,16 @@ describe "Delayed::Backed::ActiveRecord::Job" do
         }) do
           job1 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
           job1.reload
-          expect(job1.next_in_strand).to eq(true)
+          expect(job1.next_in_strand).to be(true)
           job2 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
           job2.reload
-          expect(job2.next_in_strand).to eq(true)
+          expect(job2.next_in_strand).to be(true)
           job3 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
           job3.reload
-          expect(job3.next_in_strand).to eq(false)
+          expect(job3.next_in_strand).to be(false)
           run_job(job1)
           job3.reload
-          expect(job3.next_in_strand).to eq(true)
+          expect(job3.next_in_strand).to be(true)
         end
       end
     end

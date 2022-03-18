@@ -13,10 +13,10 @@ shared_examples_for "Delayed::Batch" do
       batch_jobs = Delayed::Job.find_available(5)
       regular_jobs = Delayed::Job.list_jobs(:future, 5)
       expect(regular_jobs.size).to eq(1)
-      expect(regular_jobs.first.batch?).to eq(false)
+      expect(regular_jobs.first.batch?).to be(false)
       expect(batch_jobs.size).to eq(1)
       batch_job = batch_jobs.first
-      expect(batch_job.batch?).to eq(true)
+      expect(batch_job.batch?).to be(true)
       expect(batch_job.payload_object.mode).to eq(:serial)
       expect(batch_job.payload_object.jobs.map do |j|
                [j.payload_object.object, j.payload_object.method, j.payload_object.args]
@@ -50,7 +50,7 @@ shared_examples_for "Delayed::Batch" do
       expect(Delayed::Job.jobs_count(:current)).to eq(1)
 
       batch_job = Delayed::Job.find_available(1).first
-      expect(batch_job.batch?).to eq(true)
+      expect(batch_job.batch?).to be(true)
       jobs = batch_job.payload_object.jobs
       expect(jobs.size).to eq(2)
       expect(jobs[0]).to be_new_record

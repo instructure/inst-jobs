@@ -1,9 +1,9 @@
-version: "2"
+version: "2.2"
 services:
   app:
     volumes:
-      - "rvm:/home/docker/.rvm"
+      - "bundle:/usr/local/bundle"
       - ".:/usr/src/app"
 
 volumes:
-  rvm: {}
+  bundle: {}

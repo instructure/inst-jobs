@@ -255,7 +255,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     subject.run_once
 
     expect(Marshal.load(client)).to eq(job)
-    expect(called).to eq(true)
+    expect(called).to be(true)
   end
 
   it "deletes the correct worker when transferring jobs" do

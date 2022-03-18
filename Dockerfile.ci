@@ -1,20 +1,15 @@
-FROM instructure/rvm
+ARG  RUBY_VERSION=2.7
+FROM ruby:${RUBY_VERSION}
 
-USER root
 RUN apt-get update && apt-get install -y git
-USER docker
 
-RUN bash -lc "rvm use --default 2.6"
-RUN bash -lc "rvm 2.6,2.7,3.0 do gem install bundler -v 2.2.27"
+RUN bash -lc "gem install bundler -v 2.2.32"
 
-COPY --chown=docker:docker inst-jobs.gemspec Gemfile ./
-COPY --chown=docker:docker exe exe
-COPY --chown=docker:docker lib/delayed/version.rb lib/delayed/version.rb
+ARG BUNDLE_GEMFILE
+ENV BUNDLE_GEMFILE $BUNDLE_GEMFILE
 
-RUN bash -lc "rvm 2.6,2.7,3.0 do bundle install --jobs 6"
-
-COPY --chown=docker:docker . /usr/src/app
+WORKDIR /usr/src/app
+COPY . /usr/src/app
+RUN bash -lc "bundle install"
 
 ENV TEST_DB_USERNAME postgres
-
-CMD bash -lc "bundle exec wwtd"

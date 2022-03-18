@@ -233,7 +233,7 @@ shared_examples_for "a backend" do
   describe "#transfer_lock" do
     it "works" do
       job = create_job(locked_by: "worker", locked_at: Delayed::Job.db_time_now)
-      expect(job.transfer_lock!(from: "worker", to: "worker2")).to eq true
+      expect(job.transfer_lock!(from: "worker", to: "worker2")).to be true
       expect(Delayed::Job.find(job.id).locked_by).to eq "worker2"
     end
   end
@@ -243,13 +243,13 @@ shared_examples_for "a backend" do
       job1 = create_job(strand: "myjobs")
       job2 = create_job(strand: "myjobs")
       expect(Delayed::Job.get_and_lock_next_available("w1")).to eq(job1)
-      expect(Delayed::Job.get_and_lock_next_available("w2")).to eq(nil)
+      expect(Delayed::Job.get_and_lock_next_available("w2")).to be_nil
       job1.destroy
       # update time since the failed lock pushed it forward
       job2.run_at = 1.minute.ago
       job2.save!
       expect(Delayed::Job.get_and_lock_next_available("w3")).to eq(job2)
-      expect(Delayed::Job.get_and_lock_next_available("w4")).to eq(nil)
+      expect(Delayed::Job.get_and_lock_next_available("w4")).to be_nil
     end
 
     it "fails to lock if an earlier job gets locked" do
@@ -301,7 +301,7 @@ shared_examples_for "a backend" do
       locked = [Delayed::Job.get_and_lock_next_available("w1"),
                 Delayed::Job.get_and_lock_next_available("w2")]
       expect(jobs).to eq locked
-      expect(Delayed::Job.get_and_lock_next_available("w3")).to eq(nil)
+      expect(Delayed::Job.get_and_lock_next_available("w3")).to be_nil
     end
 
     it "does not interfere with jobs in other strands" do
@@ -309,7 +309,7 @@ shared_examples_for "a backend" do
       locked = [Delayed::Job.get_and_lock_next_available("w1"),
                 Delayed::Job.get_and_lock_next_available("w2")]
       expect(jobs).to eq locked
-      expect(Delayed::Job.get_and_lock_next_available("w3")).to eq(nil)
+      expect(Delayed::Job.get_and_lock_next_available("w3")).to be_nil
     end
 
     it "does not find next jobs when given no priority" do
@@ -317,7 +317,7 @@ shared_examples_for "a backend" do
       first = Delayed::Job.get_and_lock_next_available("w1", Delayed::Settings.queue, nil, nil)
       second = Delayed::Job.get_and_lock_next_available("w2", Delayed::Settings.queue, nil, nil)
       expect(first).to eq jobs.first
-      expect(second).to eq nil
+      expect(second).to be_nil
     end
 
     it "complains if you pass more than one strand-based option" do
@@ -538,11 +538,11 @@ shared_examples_for "a backend" do
           Delayed::Job.get_and_lock_next_available("w1")
           @job2 = create_job(singleton: "myjobs")
 
-          expect(@job1.reload.next_in_strand).to eq true
-          expect(@job2.reload.next_in_strand).to eq false
+          expect(@job1.reload.next_in_strand).to be true
+          expect(@job2.reload.next_in_strand).to be false
 
           @job1.destroy
-          expect(@job2.reload.next_in_strand).to eq true
+          expect(@job2.reload.next_in_strand).to be true
         end
 
         it "handles transitions correctly when going from not stranded to stranded" do
@@ -552,13 +552,13 @@ shared_examples_for "a backend" do
           Delayed::Job.get_and_lock_next_available("w1")
           @job3 = create_job(singleton: "myjobs", strand: "myjobs2")
 
-          expect(@job1.reload.next_in_strand).to eq true
-          expect(@job2.reload.next_in_strand).to eq true
-          expect(@job3.reload.next_in_strand).to eq false
+          expect(@job1.reload.next_in_strand).to be true
+          expect(@job2.reload.next_in_strand).to be true
+          expect(@job3.reload.next_in_strand).to be false
 
           @job2.destroy
-          expect(@job1.reload.next_in_strand).to eq true
-          expect(@job3.reload.next_in_strand).to eq true
+          expect(@job1.reload.next_in_strand).to be true
+          expect(@job3.reload.next_in_strand).to be true
         end
 
         it "does not violate n_strand=1 constraints when going from not stranded to stranded" do
@@ -568,13 +568,13 @@ shared_examples_for "a backend" do
           Delayed::Job.get_and_lock_next_available("w1")
           @job3 = create_job(singleton: "myjobs", strand: "myjobs")
 
-          expect(@job1.reload.next_in_strand).to eq true
-          expect(@job2.reload.next_in_strand).to eq true
-          expect(@job3.reload.next_in_strand).to eq false
+          expect(@job1.reload.next_in_strand).to be true
+          expect(@job2.reload.next_in_strand).to be true
+          expect(@job3.reload.next_in_strand).to be false
 
           @job2.destroy
-          expect(@job1.reload.next_in_strand).to eq true
-          expect(@job3.reload.next_in_strand).to eq false
+          expect(@job1.reload.next_in_strand).to be true
+          expect(@job3.reload.next_in_strand).to be false
         end
 
         it "handles transitions correctly when going from stranded to another strand" do
@@ -582,11 +582,11 @@ shared_examples_for "a backend" do
           Delayed::Job.get_and_lock_next_available("w1")
           @job2 = create_job(singleton: "myjobs", strand: "myjobs2")
 
-          expect(@job1.reload.next_in_strand).to eq true
-          expect(@job2.reload.next_in_strand).to eq false
+          expect(@job1.reload.next_in_strand).to be true
+          expect(@job2.reload.next_in_strand).to be false
 
           @job1.destroy
-          expect(@job2.reload.next_in_strand).to eq true
+          expect(@job2.reload.next_in_strand).to be true
         end
 
         it "does not violate n_strand=1 constraints when going from stranded to another strand" do
@@ -596,24 +596,24 @@ shared_examples_for "a backend" do
           Delayed::Job.get_and_lock_next_available("w1")
           @job3 = create_job(singleton: "myjobs", strand: "myjobs2")
 
-          expect(@job1.reload.next_in_strand).to eq true
-          expect(@job2.reload.next_in_strand).to eq true
-          expect(@job3.reload.next_in_strand).to eq false
+          expect(@job1.reload.next_in_strand).to be true
+          expect(@job2.reload.next_in_strand).to be true
+          expect(@job3.reload.next_in_strand).to be false
 
           @job2.destroy
-          expect(@job1.reload.next_in_strand).to eq true
-          expect(@job3.reload.next_in_strand).to eq false
+          expect(@job1.reload.next_in_strand).to be true
+          expect(@job3.reload.next_in_strand).to be false
         end
 
         it "creates first as true, and second as false, then transitions to second when deleted" do
           @job1 = create_job(singleton: "myjobs")
           Delayed::Job.get_and_lock_next_available("w1")
           @job2 = create_job(singleton: "myjobs")
-          expect(@job1.reload.next_in_strand).to eq true
-          expect(@job2.reload.next_in_strand).to eq false
+          expect(@job1.reload.next_in_strand).to be true
+          expect(@job2.reload.next_in_strand).to be false
 
           @job1.destroy
-          expect(@job2.reload.next_in_strand).to eq true
+          expect(@job2.reload.next_in_strand).to be true
         end
 
         it "when combined with a strand" do
@@ -834,9 +834,9 @@ shared_examples_for "a backend" do
 
   it "sets in_delayed_job?" do
     job = InDelayedJobTest.delay(ignore_transaction: true).check_in_job
-    expect(Delayed::Job.in_delayed_job?).to eq(false)
+    expect(Delayed::Job.in_delayed_job?).to be(false)
     job.invoke_job
-    expect(Delayed::Job.in_delayed_job?).to eq(false)
+    expect(Delayed::Job.in_delayed_job?).to be(false)
   end
 
   it "fails on job creation if an unsaved AR object is used" do

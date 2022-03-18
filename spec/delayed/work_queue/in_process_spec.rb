@@ -26,6 +26,6 @@ RSpec.describe Delayed::WorkQueue::InProcess do
     end
     job = subject.get_and_lock_next_available(*args)
     expect(job).to eq(:job)
-    expect(called).to eq(true)
+    expect(called).to be(true)
   end
 end

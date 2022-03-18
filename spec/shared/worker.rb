@@ -244,7 +244,7 @@ shared_examples_for "Delayed::Worker" do
       end
 
       it "is failed if it failed more than Settings.max_attempts times" do
-        expect(@job.failed_at).to eq(nil)
+        expect(@job.failed_at).to be_nil
         Delayed::Settings.max_attempts.times { @job.reschedule }
         expect(Delayed::Job.list_jobs(:failed, 100).size).to eq(1)
       end
@@ -252,7 +252,7 @@ shared_examples_for "Delayed::Worker" do
       it "is not failed if it failed fewer than Settings.max_attempts times" do
         (Delayed::Settings.max_attempts - 1).times { @job.reschedule }
         @job = Delayed::Job.find(@job.id)
-        expect(@job.failed_at).to eq(nil)
+        expect(@job.failed_at).to be_nil
       end
 
       it "is failed if it has expired" do
@@ -396,7 +396,7 @@ shared_examples_for "Delayed::Worker" do
       expect(@worker).to receive(:exit?).and_return(true)
       Delayed::Worker.lifecycle.before(:execute) { |w| w == @worker && fired = true }
       @worker.start
-      expect(fired).to eq(true)
+      expect(fired).to be(true)
     end
   end
 

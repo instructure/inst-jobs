@@ -140,7 +140,7 @@ shared_examples_for "random ruby objects" do
         obj.test_method(7, synchronous: true)
         expect(obj.ran).to eq([7])
         obj.ran = nil
-        expect(obj.ran).to eq(nil)
+        expect(obj.ran).to be_nil
         obj.test_method(8, 9, synchronous: true)
         expect(obj.ran).to eq([8, 9])
       end

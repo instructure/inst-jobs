@@ -55,14 +55,16 @@ connection_config = {
   encoding: "utf8",
   username: ENV["TEST_DB_USERNAME"],
   database: ENV["TEST_DB_DATABASE"],
-  min_messages: "notice"
+  min_messages: "notice",
+  # Ensure the pool is big enough the deadlock tests don't get starved for connections by rails instead
+  pool: 20
 }
 
 def migrate(file)
   ActiveRecord::MigrationContext.new(file, ActiveRecord::SchemaMigration).migrate
 end
 
-# create the test db if it does not exist, to help out wwtd
+# create the test db if it does not exist
 ActiveRecord::Base.establish_connection(connection_config.merge(database: "postgres"))
 begin
   ActiveRecord::Base.connection.create_database(connection_config[:database])

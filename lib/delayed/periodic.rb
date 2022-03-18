@@ -36,7 +36,7 @@ module Delayed
       Delayed::Job.transaction do
         # for db performance reasons, we only need one process doing this at a time
         # so if we can't get an advisory lock, just abort. we'll try again soon
-        return unless Delayed::Job.attempt_advisory_lock("Delayed::Periodic#audit_queue")
+        next unless Delayed::Job.attempt_advisory_lock("Delayed::Periodic#audit_queue")
 
         perform_audit!
       end

@@ -3,7 +3,7 @@ PATH
   specs:
     inst-jobs (3.0.9)
       activerecord (>= 6.0)
-      activerecord-pg-extensions (~> 0.4)
+      activerecord-pg-extensions (~> 0.4.4)
       activesupport (>= 6.0)
       after_transaction_commit (>= 1.0, < 3)
       debug_inspector (~> 1.0)
@@ -57,9 +57,9 @@ GEM
     activerecord (6.0.4.1)
       activemodel (= 6.0.4.1)
       activesupport (= 6.0.4.1)
-    activerecord-pg-extensions (0.4.2)
-      activerecord (>= 6.0, < 6.2)
-      railties (>= 6.0, < 6.2)
+    activerecord-pg-extensions (0.4.4)
+      activerecord (>= 6.0, < 7.1)
+      railties (>= 6.0, < 7.1)
     activestorage (6.0.4.1)
       actionpack (= 6.0.4.1)
       activejob (= 6.0.4.1)
@@ -101,7 +101,7 @@ GEM
       deep_merge (~> 1.2)
       faraday (>= 0.9)
     erubi (1.10.0)
-    et-orbi (1.2.5)
+    et-orbi (1.2.6)
       tzinfo
     faraday (1.7.2)
       faraday-em_http (~> 1.0)
@@ -266,6 +266,7 @@ GEM
     zeitwerk (2.4.2)
 
 PLATFORMS
+  x86_64-darwin-19
   x86_64-darwin-20
   x86_64-linux
 
@@ -297,4 +298,4 @@ DEPENDENCIES
   wwtd (~> 1.4.0)
 
 BUNDLED WITH
-   2.2.27
+   2.2.32
