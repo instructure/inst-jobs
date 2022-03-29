@@ -37,10 +37,12 @@ pipeline {
         stages {
           stage('Build') {
             steps {
-              // Allow postgres to initialize while the build runs
-              sh 'docker-compose up -d postgres'
-              sh "docker-compose build --pull --build-arg RUBY_VERSION=${RUBY_VERSION} --build-arg BUNDLE_GEMFILE=gemfiles/activerecord_${RAILS_VERSION}.gemfile app"
-              sh 'docker-compose run --rm app rake'
+              timeout(10) {
+                // Allow postgres to initialize while the build runs
+                sh 'docker-compose up -d postgres'
+                sh "docker-compose build --pull --build-arg RUBY_VERSION=${RUBY_VERSION} --build-arg BUNDLE_GEMFILE=gemfiles/activerecord_${RAILS_VERSION}.gemfile app"
+                sh 'docker-compose run --rm app rspec --tag \\~slow'
+              }
             }
           }
         }
