@@ -100,6 +100,15 @@ describe "Delayed::Backed::ActiveRecord::Job" do
         failed_count = Delayed::Job::Failed.count
         expect(Delayed::Job.bulk_update("destroy", flavor: "failed", query: @query)).to eq(failed_count)
       end
+
+      it "deletes all failed jobs before a given date" do
+        Delayed::Job::Failed.first.update!(failed_at: 3.hours.ago)
+        Delayed::Job::Failed.last.update!(failed_at: 1.hour.ago)
+
+        expect(Delayed::Job::Failed.count).to eq 2
+        Delayed::Job::Failed.cleanup_old_jobs(2.hours.ago)
+        expect(Delayed::Job::Failed.count).to eq 1
+      end
     end
   end
 

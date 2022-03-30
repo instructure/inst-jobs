@@ -579,6 +579,10 @@ module Delayed
         class Failed < Job
           include Delayed::Backend::Base
           self.table_name = :failed_jobs
+
+          def self.cleanup_old_jobs(before_date, batch_size: 10_000)
+            where("failed_at < ?", before_date).in_batches(of: batch_size).delete_all
+          end
         end
       end
     end
