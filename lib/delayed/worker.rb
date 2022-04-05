@@ -220,7 +220,7 @@ module Delayed
             end
             job.destroy
           end
-          logger.info("Completed #{log_job(job)} #{format('%.0fms', (runtime * 1000))}")
+          logger.info("Completed #{log_job(job, :short)} #{format('%.0fms', (runtime * 1000))}")
         end
       rescue ::Delayed::RetriableError => e
         can_retry = job.attempts + 1 < job.inferred_max_attempts
@@ -269,7 +269,7 @@ module Delayed
       when :long
         "#{job.full_name} #{Settings.job_detailed_log_format.call(job)}"
       else
-        job.full_name
+        "#{job.full_name} #{Settings.job_short_log_format.call(job)}".strip
       end
     end
 

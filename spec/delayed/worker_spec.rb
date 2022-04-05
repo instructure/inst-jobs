@@ -85,13 +85,14 @@ describe Delayed::Worker do
     end
 
     it "logging format can be changed with settings" do
-      Delayed::Settings.job_detailed_log_format = ->(job) { "override format #{job.strand}" }
+      Delayed::Settings.job_detailed_log_format = ->(job) { "override format detailed #{job.strand}" }
+      Delayed::Settings.job_short_log_format = ->(_job) { "override format short" }
       payload = double(perform: nil)
       job = Delayed::Job.new(payload_object: payload, priority: 25, strand: "test_jobs")
       short_log_format = subject.log_job(job, :short)
-      expect(short_log_format).to eq("RSpec::Mocks::Double")
+      expect(short_log_format).to eq("RSpec::Mocks::Double override format short")
       long_format = subject.log_job(job, :long)
-      expect(long_format).to eq("RSpec::Mocks::Double override format test_jobs")
+      expect(long_format).to eq("RSpec::Mocks::Double override format detailed test_jobs")
     end
   end
 

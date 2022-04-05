@@ -33,6 +33,7 @@ module Delayed
 
     SETTINGS_WITH_ARGS = %i[
       job_detailed_log_format
+      job_short_log_format
       num_strands
     ].freeze
 
@@ -137,6 +138,7 @@ module Delayed
     self.job_detailed_log_format = lambda { |job|
       job.to_json(include_root: false, only: %w[tag strand singleton priority attempts created_at max_attempts source])
     }
+    self.job_short_log_format = ->(_job) { "" }
 
     # Send workers KILL after QUIT if they haven't exited within the
     # slow_exit_timeout
