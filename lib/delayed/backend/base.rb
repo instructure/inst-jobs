@@ -86,8 +86,12 @@ module Delayed
             kwargs.merge!(n_strand_options(full_strand_name, num_strands))
           end
 
+          job = nil
+
           if singleton
-            job = create(**kwargs)
+            Delayed::Worker.lifecycle.run_callbacks(:create, kwargs) do
+              job = create(**kwargs)
+            end
           elsif batches && strand.nil? && run_at.nil?
             batch_enqueue_args = kwargs.slice(*self.batch_enqueue_args)
             batches[batch_enqueue_args] << kwargs
@@ -95,7 +99,9 @@ module Delayed
           else
             raise ArgumentError, "on_conflict can only be provided with singleton" if kwargs[:on_conflict]
 
-            job = create(**kwargs)
+            Delayed::Worker.lifecycle.run_callbacks(:create, kwargs) do
+              job = create(**kwargs)
+            end
           end
 
           JobTracking.job_created(job)

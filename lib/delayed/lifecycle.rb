@@ -5,6 +5,7 @@ module Delayed
 
   class Lifecycle
     EVENTS = {
+      create: [:args],
       error: %i[worker job exception],
       exceptional_exit: %i[worker exception],
       execute: [:worker],

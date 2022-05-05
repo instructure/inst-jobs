@@ -35,6 +35,22 @@ shared_examples_for "a backend" do
     expect(Delayed::Job.jobs_count(:current)).to eq(1)
   end
 
+  it "triggers the lifecycle event around the create" do
+    called = false
+    called_args = nil
+
+    Delayed::Worker.lifecycle.after(:create) do |args|
+      called = true
+      called_args = args
+    end
+
+    job = SimpleJob.new
+    Delayed::Job.enqueue(job)
+
+    expect(called).to be_truthy
+    expect(called_args[:payload_object]).to eq job
+  end
+
   it "is able to set priority when enqueuing items" do
     @job = Delayed::Job.enqueue SimpleJob.new, priority: 5
     expect(@job.priority).to eq(5)
