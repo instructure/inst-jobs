@@ -47,14 +47,14 @@ RSpec::Core::ExampleGroup.include(NoYamlDump)
 
 ENV["TEST_ENV_NUMBER"] ||= "1"
 ENV["TEST_DB_HOST"] ||= "localhost"
-ENV["TEST_DB_DATABASE"] ||= "inst-jobs-test-#{ENV['TEST_ENV_NUMBER']}"
+ENV["TEST_DB_DATABASE"] ||= "inst-jobs-test-#{ENV.fetch('TEST_ENV_NUMBER', nil)}"
 
 connection_config = {
   adapter: :postgresql,
   host: ENV["TEST_DB_HOST"].presence,
   encoding: "utf8",
-  username: ENV["TEST_DB_USERNAME"],
-  database: ENV["TEST_DB_DATABASE"],
+  username: ENV.fetch("TEST_DB_USERNAME", nil),
+  database: ENV.fetch("TEST_DB_DATABASE", nil),
   min_messages: "notice",
   # Ensure the pool is big enough the deadlock tests don't get starved for connections by rails instead
   pool: 20

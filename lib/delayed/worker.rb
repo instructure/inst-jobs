@@ -276,7 +276,7 @@ module Delayed
     # set up the session context information, so that it gets logged with the job log lines
     # also set up a unique tmpdir, which will get removed at the end of the job.
     def configure_for_job(job)
-      previous_tmpdir = ENV["TMPDIR"]
+      previous_tmpdir = ENV.fetch("TMPDIR", nil)
 
       self.class.running_job(job) do
         dir = Dir.mktmpdir("job-#{job.id}-#{name.gsub(/[^\w.]/, '.')}-")

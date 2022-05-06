@@ -16,7 +16,7 @@ module Delayed
       # Rails will take care of establishing the DB connection for us if there is
       # an application present
       if using_active_record? && !ActiveRecord::Base.connected?
-        ActiveRecord::Base.establish_connection(ENV["DATABASE_URL"])
+        ActiveRecord::Base.establish_connection(ENV.fetch("DATABASE_URL", nil))
       end
 
       @allow_update = args.length.positive? && args[0][:update]
