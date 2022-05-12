@@ -37,18 +37,19 @@ shared_examples_for "a backend" do
 
   it "triggers the lifecycle event around the create" do
     called = false
-    called_args = nil
+    created_job = nil
 
-    Delayed::Worker.lifecycle.after(:create) do |args|
+    Delayed::Worker.lifecycle.after(:create) do |_, result:|
       called = true
-      called_args = args
+      created_job = result
     end
 
     job = SimpleJob.new
     Delayed::Job.enqueue(job)
 
     expect(called).to be_truthy
-    expect(called_args[:payload_object]).to eq job
+    expect(created_job).to be_kind_of Delayed::Job
+    expect(created_job.tag).to eq "SimpleJob#perform"
   end
 
   it "is able to set priority when enqueuing items" do
