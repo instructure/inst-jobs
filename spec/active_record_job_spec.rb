@@ -300,4 +300,27 @@ describe "Delayed::Backed::ActiveRecord::Job" do
       allow(Delayed::Job.connection).to receive(:execute).and_call_original
     end
   end
+
+  context "Failed#requeue!" do
+    it "requeues a failed job" do
+      j = create_job(attempts: 1, max_attempts: 1)
+      fj = j.fail!
+
+      lifecycle_args = nil
+      Delayed::Worker.lifecycle.after(:create) do |args|
+        lifecycle_args = args
+      end
+      j2 = fj.requeue!
+      expect(lifecycle_args["payload_object"].class).to eq SimpleJob
+      expect(fj.reload.requeued_job_id).to eq j2.id
+
+      orig_atts = j.attributes.except("id", "locked_at", "locked_by")
+      new_atts = j2.attributes.except("id", "locked_at", "locked_by")
+      expect(orig_atts).to eq(new_atts)
+
+      # ensure the requeued job actually runs even though `attempts` are maxed out
+      # (so it will not be retried after being manually requeued)
+      expect { run_job(j2) }.to change(SimpleJob, :runs).by(1)
+    end
+  end
 end

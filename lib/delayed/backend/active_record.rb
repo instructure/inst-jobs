@@ -583,6 +583,21 @@ module Delayed
           def self.cleanup_old_jobs(before_date, batch_size: 10_000)
             where("failed_at < ?", before_date).in_batches(of: batch_size).delete_all
           end
+
+          def requeue!
+            attrs = attributes.except("id", "last_error", "locked_at", "failed_at", "locked_by", "original_job_id",
+                                      "requeued_job_id")
+            self.class.transaction do
+              job = nil
+              Delayed::Worker.lifecycle.run_callbacks(:create, attrs.merge("payload_object" => payload_object)) do
+                job = Job.create(attrs)
+              end
+              self.requeued_job_id = job.id
+              save!
+              JobTracking.job_created(job)
+              job
+            end
+          end
         end
       end
     end
