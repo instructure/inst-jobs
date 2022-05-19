@@ -51,6 +51,7 @@ pipeline {
 
     stage('Lint') {
       steps {
+        sh "docker-compose build --pull"
         sh "docker-compose run --rm app bin/rubocop"
       }
     }

@@ -347,7 +347,7 @@ shared_examples_for "Delayed::Worker" do
 
     it "does not run expired jobs" do
       Delayed::Job.enqueue SimpleJob.new, expires_at: Delayed::Job.db_time_now - 1.day
-      expect { @worker.run }.to change(SimpleJob, :runs).by(0)
+      expect { @worker.run }.not_to change(SimpleJob, :runs)
     end
 
     it "reports a permanent failure when an expired job is dequeued" do

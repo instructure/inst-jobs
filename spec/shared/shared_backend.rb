@@ -82,7 +82,7 @@ shared_examples_for "a backend" do
   it "works with jobs in modules" do
     M::ModuleJob.runs = 0
     job = Delayed::Job.enqueue M::ModuleJob.new
-    expect { job.invoke_job }.to change { M::ModuleJob.runs }.from(0).to(1)
+    expect { job.invoke_job }.to change(M::ModuleJob, :runs).from(0).to(1)
   end
 
   it "raises an DeserializationError when the job class is totally unknown" do
