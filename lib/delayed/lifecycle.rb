@@ -77,7 +77,13 @@ module Delayed
     def execute(*args, &block)
       @before.each { |c| c.call(*args) }
       result = @around.call(*args, &block)
-      @after.each { |c| c.call(*args, result: result) }
+      @after.each do |c|
+        if c.arity == args.length + 1 # don't fail for methods that don't define `result:`
+          c.call(*args, result: result)
+        else
+          c.call(*args)
+        end
+      end
       result
     end
 

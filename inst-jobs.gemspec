@@ -17,7 +17,6 @@ Gem::Specification.new do |s|
   s.bindir = "exe"
   s.executables = ["inst_jobs"]
   s.files = Dir["{app,config,db,lib}/**/*"]
-  s.test_files = Dir["spec/**/*"]
 
   s.metadata["rubygems_mfa_required"] = "true"
 

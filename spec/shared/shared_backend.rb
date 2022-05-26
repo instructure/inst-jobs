@@ -8,6 +8,8 @@ module InDelayedJobTest
   end
 end
 
+def no_op_callback(_); end
+
 shared_examples_for "a backend" do
   def create_job(opts = {})
     Delayed::Job.enqueue(SimpleJob.new, **{ queue: nil }.merge(opts))
@@ -50,6 +52,12 @@ shared_examples_for "a backend" do
     expect(called).to be_truthy
     expect(created_job).to be_kind_of Delayed::Job
     expect(created_job.tag).to eq "SimpleJob#perform"
+  end
+
+  it "doesn't fail when `after` callback method is missing `result:` parameter" do
+    Delayed::Worker.lifecycle.after(:create, &method(:no_op_callback)) # rubocop:disable Performance/MethodObjectAsBlock
+
+    expect { Delayed::Job.enqueue(SimpleJob.new) }.not_to raise_error
   end
 
   it "is able to set priority when enqueuing items" do
