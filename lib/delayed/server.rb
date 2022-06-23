@@ -37,7 +37,13 @@ module Delayed
 
     # Release any used connections back to the pool
     after do
-      ActiveRecord::Base.clear_active_connections! if using_active_record?
+      if using_active_record?
+        if Rails.version < "6.1"
+          ::ActiveRecord::Base.clear_active_connections!
+        else
+          ::ActiveRecord::Base.clear_active_connections!(nil)
+        end
+      end
     end
 
     configure :development do

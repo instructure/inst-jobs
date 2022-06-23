@@ -28,7 +28,11 @@ module Delayed
         scope :next_in_strand_order, -> { order(:strand_order_override, :id) }
 
         def self.reconnect!
-          clear_all_connections!
+          if Rails.version < "6.1"
+            ActiveRecord::Base.connection_handler.clear_all_connections!
+          else
+            ActiveRecord::Base.connection_handler.clear_all_connections!(nil)
+          end
         end
 
         class << self
