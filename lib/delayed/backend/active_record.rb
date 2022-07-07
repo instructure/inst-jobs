@@ -29,9 +29,9 @@ module Delayed
 
         def self.reconnect!
           if Rails.version < "6.1"
-            ActiveRecord::Base.connection_handler.clear_all_connections!
+            ::ActiveRecord::Base.connection_handler.clear_all_connections!
           else
-            ActiveRecord::Base.connection_handler.clear_all_connections!(nil)
+            ::ActiveRecord::Base.connection_handler.clear_all_connections!(nil)
           end
         end
 
