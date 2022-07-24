@@ -99,6 +99,16 @@ shared_examples_for "a backend" do
     Delayed::Job.default_priority = 0
   end
 
+  it "uses the default priority when a priority of nil is explicitly specified" do
+    Delayed::Job.default_priority = 0
+    @job = Delayed::Job.enqueue SimpleJob.new, priority: nil
+    expect(@job.priority).to be 0
+    Delayed::Job.default_priority = 10
+    @job = Delayed::Job.enqueue SimpleJob.new, priority: nil
+    expect(@job.priority).to be 10
+    Delayed::Job.default_priority = 0
+  end
+
   it "is able to set run_at when enqueuing items" do
     later = Delayed::Job.db_time_now + 5.minutes
     @job = Delayed::Job.enqueue SimpleJob.new, priority: 5, run_at: later
