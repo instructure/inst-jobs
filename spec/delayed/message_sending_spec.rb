@@ -41,12 +41,14 @@ RSpec.describe Delayed::MessageSending do
   let(:klass) { SpecClass }
 
   it "allows an object to send a private message to itself" do
-    job = klass.new.call_private(ignore_transaction: true)
-    job.invoke_job
+    expect do
+      job = klass.new.call_private(ignore_transaction: true)
+      job.invoke_job
+    end.not_to raise_error
   end
 
   it "allows an object to send a private message to itself synchronouosly" do
-    klass.new.call_private(synchronous: true)
+    expect { klass.new.call_private(synchronous: true) }.not_to raise_error
   end
 
   it "warns about directly sending a private message asynchronously" do
@@ -60,22 +62,22 @@ RSpec.describe Delayed::MessageSending do
   it "does not warn about directly sending a private message in production" do
     allow(::Rails.env).to receive(:test?).and_return(false)
     allow(::Rails.env).to receive(:development?).and_return(false)
-    klass.new.delay.private_method
+    expect { klass.new.delay.private_method }.not_to raise_error
   end
 
   it "does not warn about directly sending a private message synchronously in production" do
     allow(::Rails.env).to receive(:test?).and_return(false)
     allow(::Rails.env).to receive(:development?).and_return(false)
-    klass.new.delay(synchronous: true).private_method
+    expect { klass.new.delay(synchronous: true).private_method }.not_to raise_error
   end
 
   it "allows an object to send a protected message to itself" do
     job = klass.new.call_protected(ignore_transaction: true)
-    job.invoke_job
+    expect { job.invoke_job }.not_to raise_error
   end
 
   it "allows an object to send a protected message to itself synchronouosly" do
-    klass.new.call_protected(synchronous: true)
+    expect { klass.new.call_protected(synchronous: true) }.not_to raise_error
   end
 
   it "directly calls a public method on an object with kwargs" do

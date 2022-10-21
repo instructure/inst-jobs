@@ -22,8 +22,8 @@ shared_examples_for "random ruby objects" do
     Delayed::Settings.queue = old_name
   end
 
-  it "respond_toes :delay method" do
-    Object.new.respond_to?(:delay)
+  it "responds to :delay method" do
+    expect(Object.new).to respond_to :delay
   end
 
   it "raises a ArgumentError if delay is called but the target method doesn't exist" do

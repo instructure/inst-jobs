@@ -50,7 +50,7 @@ shared_examples_for "a backend" do
     Delayed::Job.enqueue(job)
 
     expect(called).to be_truthy
-    expect(created_job).to be_kind_of Delayed::Job
+    expect(created_job).to be_a Delayed::Job
     expect(created_job.tag).to eq "SimpleJob#perform"
   end
 
@@ -449,6 +449,7 @@ shared_examples_for "a backend" do
           raise
         end
 
+        # rubocop:disable RSpec/NoExpectationExample
         it "doesn't orphan the singleton when two are queued consecutively" do
           # In order to reproduce this one efficiently, you'll probably want to add
           # a sleep within delayed_jobs_before_insert_row_tr_fn.
@@ -555,6 +556,7 @@ shared_examples_for "a backend" do
             threads.each(&:join)
           end
         end
+        # rubocop:enable RSpec/NoExpectationExample
       end
 
       context "next_in_strand management" do
