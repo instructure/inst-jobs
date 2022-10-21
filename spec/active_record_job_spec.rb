@@ -261,6 +261,29 @@ describe "Delayed::Backed::ActiveRecord::Job" do
     expect(Delayed::Job.get_and_lock_next_available("worker")).to eq job
   end
 
+  context "apply_temp_strand!" do
+    it "applies strand" do
+      5.times { "1".delay.to_i }
+      scope = Delayed::Job.where(tag: "String#to_i")
+      count, new_strand = Delayed::Job.apply_temp_strand!(scope, max_concurrent: 2)
+      expect(count).to eq 5
+      expect(Delayed::Job.where(strand: new_strand).count).to eq 5
+      expect(Delayed::Job.where(strand: new_strand, next_in_strand: true).count).to eq 2
+    end
+
+    it "raises ArgumentError if job scope contains strand" do
+      "1".delay(strand: "foo").to_i
+      scope = Delayed::Job.where(tag: "String#to_i")
+      expect { Delayed::Job.apply_temp_strand!(scope) }.to raise_error(ArgumentError)
+    end
+
+    it "raises ArgumentError if job scope contains singleton" do
+      "1".delay(singleton: "baz").to_i
+      scope = Delayed::Job.where(tag: "String#to_i")
+      expect { Delayed::Job.apply_temp_strand!(scope) }.to raise_error(ArgumentError)
+    end
+  end
+
   context "non-transactional", non_transactional: true do
     it "creates a stranded job in a single statement" do
       allow(Delayed::Job.connection).to receive(:prepared_statements).and_return(false)

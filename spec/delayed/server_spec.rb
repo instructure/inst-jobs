@@ -51,7 +51,7 @@ RSpec.describe Delayed::Server, sinatra: true do
 
       it "must only return the job with the id specified in the search_term param" do
         jobs = parsed_body["data"]
-        job_ids = jobs.map { |j| j["id"] }
+        job_ids = jobs.pluck("id")
         expect(job_ids).to eq [job2.id]
       end
 

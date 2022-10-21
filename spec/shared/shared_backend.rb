@@ -256,7 +256,7 @@ shared_examples_for "a backend" do
   end
 
   describe "#transfer_lock" do
-    it "works" do
+    it "transfers lock" do
       job = create_job(locked_by: "worker", locked_at: Delayed::Job.db_time_now)
       expect(job.transfer_lock!(from: "worker", to: "worker2")).to be true
       expect(Delayed::Job.find(job.id).locked_by).to eq "worker2"

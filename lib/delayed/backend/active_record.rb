@@ -320,6 +320,24 @@ module Delayed
           scope.order(Arel.sql("COUNT(tag) DESC")).count.map { |t, c| { tag: t, count: c } }
         end
 
+        # given a scope of non-stranded queued jobs, apply a temporary strand to throttle their execution
+        # returns [job_count, new_strand]
+        # (this is designed for use in a Rails console or the Canvas Jobs interface)
+        def self.apply_temp_strand!(job_scope, max_concurrent: 1)
+          if job_scope.where("strand IS NOT NULL OR singleton IS NOT NULL").exists?
+            raise ArgumentError, "can't apply strand to already stranded jobs"
+          end
+
+          job_count = 0
+          new_strand = "tmp_strand_#{SecureRandom.alphanumeric(16)}"
+          ::Delayed::Job.transaction do
+            job_count = job_scope.update_all(strand: new_strand, max_concurrent: max_concurrent, next_in_strand: false)
+            ::Delayed::Job.where(strand: new_strand).order(:id).limit(max_concurrent).update_all(next_in_strand: true)
+          end
+
+          [job_count, new_strand]
+        end
+
         def self.maybe_silence_periodic_log(&block)
           if Settings.silence_periodic_log
             ::ActiveRecord::Base.logger.silence(&block)
