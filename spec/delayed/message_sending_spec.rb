@@ -5,7 +5,7 @@ require "debug_inspector"
 
 RSpec.describe Delayed::MessageSending do
   before do
-    allow(::Rails.env).to receive(:test?).and_return(true)
+    allow(Rails.env).to receive(:test?).and_return(true)
   end
 
   before(:all) do
@@ -60,14 +60,14 @@ RSpec.describe Delayed::MessageSending do
   end
 
   it "does not warn about directly sending a private message in production" do
-    allow(::Rails.env).to receive(:test?).and_return(false)
-    allow(::Rails.env).to receive(:development?).and_return(false)
+    allow(Rails.env).to receive(:test?).and_return(false)
+    allow(Rails.env).to receive(:development?).and_return(false)
     expect { klass.new.delay.private_method }.not_to raise_error
   end
 
   it "does not warn about directly sending a private message synchronously in production" do
-    allow(::Rails.env).to receive(:test?).and_return(false)
-    allow(::Rails.env).to receive(:development?).and_return(false)
+    allow(Rails.env).to receive(:test?).and_return(false)
+    allow(Rails.env).to receive(:development?).and_return(false)
     expect { klass.new.delay(synchronous: true).private_method }.not_to raise_error
   end
 

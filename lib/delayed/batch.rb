@@ -44,7 +44,7 @@ module Delayed
         Delayed::Job.batches = nil
         batch_args = opts.slice(:priority)
         batches.each do |enqueue_args, batch|
-          next if batch.size.zero?
+          next if batch.empty?
 
           if batch.size == 1
             args = batch.first.merge(batch_args)

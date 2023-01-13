@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class TestPlugin < ::Delayed::Plugin
+class TestPlugin < Delayed::Plugin
   cattr_accessor :runs
   self.runs = 0
   callbacks do |lifecycle|

@@ -269,7 +269,7 @@ module Delayed
       end
 
       def payload_object
-        @payload_object ||= deserialize(self["handler"].untaint)
+        @payload_object ||= deserialize(self["handler"])
       end
 
       def name

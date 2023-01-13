@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "debug_inspector" if ::Rails.env.test? || ::Rails.env.development?
+require "debug_inspector" if Rails.env.test? || Rails.env.development?
 
 module Delayed
   module MessageSending
