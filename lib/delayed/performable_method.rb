@@ -1,7 +1,15 @@
 # frozen_string_literal: true
 
 module Delayed
-  PerformableMethod = Struct.new(:object, :method, :args, :kwargs, :fail_cb, :permanent_fail_cb, :sender) do # rubocop:disable Lint/StructNewOverride
+  PerformableMethod = Struct.new(:object,
+                                 :method, # rubocop:disable Lint/StructNewOverride
+                                 :args,
+                                 :kwargs,
+                                 :fail_cb,
+                                 :permanent_fail_cb,
+                                 :sender,
+                                 :sender_is_object,
+                                 :sender_is_class) do
     def initialize(object, method, args: [], kwargs: {}, on_failure: nil, on_permanent_failure: nil, sender: nil)
       raise NoMethodError, "undefined method `#{method}' for #{object.inspect}" unless object.respond_to?(method, true)
 
@@ -11,13 +19,8 @@ module Delayed
       self.method = method.to_sym
       self.fail_cb           = on_failure
       self.permanent_fail_cb = on_permanent_failure
-      self.sender = sender
-      begin
-        YAML.load(YAML.dump(sender))
-      rescue
-        # if for some reason you can't dump the sender, just drop it
-        self.sender = nil
-      end
+      self.sender_is_object = sender.equal?(object)
+      self.sender_is_class = sender.is_a?(object.class)
     end
 
     def display_name
@@ -32,14 +35,15 @@ module Delayed
     def perform
       kwargs = self.kwargs || {}
 
-      sender_is_object = sender == object
-      sender_is_class = sender.is_a?(object.class)
+      # back-compat for jobs queued before we assigned these in initialize
+      self.sender_is_object = sender == object if sender_is_object.nil?
+      self.sender_is_class = sender.is_a?(object.class) if sender_is_class.nil?
 
-      if sender.nil? || sender_is_object || (sender_is_class && object.protected_methods.include?(method))
+      if sender_is_object || (sender_is_class && object.protected_methods.include?(method))
         if kwargs.empty?
-          object.send(method, *args)
+          object.__send__(method, *args)
         else
-          object.send(method, *args, **kwargs)
+          object.__send__(method, *args, **kwargs)
         end
       elsif kwargs.empty?
         object.public_send(method, *args)
