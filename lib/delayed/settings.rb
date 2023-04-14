@@ -26,6 +26,7 @@ module Delayed
       :sleep_delay,
       :sleep_delay_stagger,
       :slow_exit_timeout,
+      :stranded_run_at_grace_period,
       :worker_health_check_type,
       :worker_health_check_config,
       :worker_procname_prefix
@@ -132,6 +133,7 @@ module Delayed
     self.fetch_batch_size = 5
     self.select_random_from_batch = false
     self.silence_periodic_log = false
+    self.stranded_run_at_grace_period = 10
 
     self.num_strands = ->(_strand_name) {}
     self.default_job_options = -> { {} }

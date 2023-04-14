@@ -62,6 +62,9 @@ module Delayed
           kwargs[:singleton] = singleton
 
           raise ArgumentError, "Only one of strand or n_strand can be used" if strand && n_strand
+          if (strand || n_strand) && run_at && run_at > Job.db_time_now + Settings.stranded_run_at_grace_period
+            raise ArgumentError, "Do not use run_at with strand; you may inadvertently clog the strand"
+          end
 
           # If two parameters are given to n_strand, the first param is used
           # as the strand name for looking up the Setting, while the second

@@ -81,6 +81,18 @@ shared_examples_for "a backend" do
     expect(@job.run_at).to be_within(1).of(later)
   end
 
+  it "disallows setting a run_at with a strand" do
+    later = Delayed::Job.db_time_now + 15.minutes
+    expect { Delayed::Job.enqueue(SimpleJob.new, run_at: later, strand: "stranded") }
+      .to raise_error(ArgumentError)
+  end
+
+  it "gives some grace for near-future run_at with a strand" do
+    later = Delayed::Job.db_time_now + 5.seconds
+    job = Delayed::Job.enqueue(SimpleJob.new, run_at: later, strand: "stranded")
+    expect(job.run_at).to be_within(1).of(later)
+  end
+
   it "is able to set expires_at when enqueuing items" do
     later = Delayed::Job.db_time_now + 1.day
     @job = Delayed::Job.enqueue SimpleJob.new, expires_at: later
@@ -922,7 +934,7 @@ shared_examples_for "a backend" do
     strand_jobs = []
     3.times { strand_jobs << create_job(strand: "test1") }
     2.times { create_job(strand: "test2") }
-    strand_jobs << create_job(strand: "test1", run_at: 5.hours.from_now)
+    strand_jobs << create_job(strand: "test1", run_at: 2.seconds.from_now)
     create_job
 
     jobs = Delayed::Job.list_jobs(:strand, 3, 0, "test1")
@@ -1062,10 +1074,10 @@ shared_examples_for "a backend" do
         @query = "s1"
         Timecop.freeze(5.minutes.ago) do
           @affected_jobs << create_job(strand: "s1")
-          @affected_jobs << create_job(strand: "s1", run_at: 2.hours.from_now)
+          @affected_jobs << create_job(strand: "s1", run_at: 3.seconds.from_now)
           @ignored_jobs << create_job
           @ignored_jobs << create_job(strand: "s2")
-          @ignored_jobs << create_job(strand: "s2", run_at: 2.hours.from_now)
+          @ignored_jobs << create_job(strand: "s2", run_at: 3.seconds.from_now)
         end
       end
     end
