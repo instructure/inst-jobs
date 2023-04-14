@@ -1,11 +1,9 @@
 /.bundle/
 /.yardoc
 /Dockerfile.ci
-/Gemfile.lock
 /coverage/
 /docker-compose.yml
 /docker-compose.override.yml
 /pkg/
 /tmp/
 /spec/gemfiles/.bundle
-/spec/gemfiles/*.lock
