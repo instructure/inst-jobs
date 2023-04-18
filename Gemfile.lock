@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    inst-jobs (3.1.7)
+    inst-jobs (3.1.8)
       activerecord (>= 6.0)
       activerecord-pg-extensions (~> 0.4.4)
       activesupport (>= 6.0)
@@ -137,7 +137,7 @@ GEM
     faraday-patron (1.0.0)
     faraday-rack (1.0.0)
     faraday-retry (1.0.3)
-    fugit (1.8.0)
+    fugit (1.8.1)
       et-orbi (~> 1, >= 1.2.7)
       raabro (~> 1.4)
     globalid (1.0.0)
