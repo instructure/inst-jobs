@@ -19,7 +19,7 @@ module Delayed
                          @object.protected_methods.exclude?(method) &&
                          @object.private_methods.exclude?(method)
 
-        sender_is_object = @sender == @object
+        sender_is_object = @sender.equal?(@object)
         sender_is_class = @sender.is_a?(@object.class)
 
         # even if the call is async, if the call is _going_ to generate an error, we make it synchronous

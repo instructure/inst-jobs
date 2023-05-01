@@ -36,7 +36,7 @@ module Delayed
       kwargs = self.kwargs || {}
 
       # back-compat for jobs queued before we assigned these in initialize
-      self.sender_is_object = sender == object if sender_is_object.nil?
+      self.sender_is_object = sender.equal?(object) if sender_is_object.nil?
       self.sender_is_class = sender.is_a?(object.class) if sender_is_class.nil?
 
       if sender_is_object || (sender_is_class && object.protected_methods.include?(method))
