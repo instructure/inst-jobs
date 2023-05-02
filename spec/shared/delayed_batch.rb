@@ -25,7 +25,9 @@ shared_examples_for "Delayed::Batch" do
                             "string", :size, []
                           ],
                           [
-                            "string", :gsub, [
+                            "string",
+                            :gsub,
+                            [
                               /./, "!"
                             ]
                           ]

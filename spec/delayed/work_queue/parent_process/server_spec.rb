@@ -84,7 +84,10 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     subject.run_once
 
     allow(subject).to receive(:prefetch_owner).and_return("work_queue:X")
-    job_args = [["worker_name1"], "queue_name", 1, 2,
+    job_args = [["worker_name1"],
+                "queue_name",
+                1,
+                2,
                 { prefetch: 4, prefetch_owner: "work_queue:X", forced_latency: 6.0 }]
     job2 = Delayed::Job.new(tag: "tag")
     job2.create_and_lock!("work_queue:X")
@@ -106,7 +109,10 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
 
   context "prefetched job unlocking" do
     let(:job_args) do
-      [["worker_name1"], "queue_name", 1, 2,
+      [["worker_name1"],
+       "queue_name",
+       1,
+       2,
        { prefetch: 4, prefetch_owner: "prefetch:work_queue:X", forced_latency: 6.0 }]
     end
     let(:job2) { Delayed::Job.new(tag: "tag").tap { |j| j.create_and_lock!("prefetch:work_queue:X") } }

@@ -49,7 +49,7 @@ module Delayed
         daemon.daemonize!
         start
       when nil
-        puts option_parser.to_s
+        puts option_parser.help
       else
         raise("Unknown command: #{command.inspect}")
       end
@@ -82,7 +82,8 @@ module Delayed
         opts.on("-c", "--config [CONFIG_PATH]", "Use alternate config file (default #{@options[:config_file]})") do |c|
           @options[:config_file] = c
         end
-        opts.on("-p", "--pid [PID_PATH]",
+        opts.on("-p",
+                "--pid [PID_PATH]",
                 "Use alternate folder for PID files (default #{@options[:pid_folder]})") do |p|
           @options[:pid_folder] = p
         end

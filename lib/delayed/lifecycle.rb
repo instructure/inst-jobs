@@ -46,7 +46,7 @@ module Delayed
       missing_callback(event) unless @callbacks.key?(event)
 
       unless EVENTS[event].size == args.size
-        raise ArgumentError, "Callback #{event} expects #{EVENTS[event].size} parameter(s): #{EVENTS[event].join(', ')}"
+        raise ArgumentError, "Callback #{event} expects #{EVENTS[event].size} parameter(s): #{EVENTS[event].join(", ")}"
       end
 
       @callbacks[event].execute(*args, &block)

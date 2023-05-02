@@ -163,7 +163,7 @@ module Delayed
                 forced_latency: forced_latency
               )
               logger.debug(
-                "Fetched and locked #{response.values.flatten.size} new jobs for workers (#{response.keys.join(', ')})."
+                "Fetched and locked #{response.values.flatten.size} new jobs for workers (#{response.keys.join(", ")})."
               )
               response.each do |(worker_name, locked_jobs)|
                 if worker_name == prefetch_owner
@@ -267,7 +267,7 @@ module Delayed
         end
 
         def prefetch_owner
-          "prefetch:#{Socket.gethostname rescue 'X'}"
+          "prefetch:#{Socket.gethostname rescue "X"}"
         end
 
         def parent_exited?

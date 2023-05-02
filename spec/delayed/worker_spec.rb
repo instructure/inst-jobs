@@ -12,9 +12,15 @@ describe Delayed::Worker do
   end
   let(:job_attrs) do
     {
-      id: 42, name: "testjob", full_name: "testfullname", :last_error= => nil,
-      attempts: 1, reschedule: nil, :expired? => false,
-      payload_object: {}, priority: 25
+      :id => 42,
+      :name => "testjob",
+      :full_name => "testfullname",
+      :last_error= => nil,
+      :attempts => 1,
+      :reschedule => nil,
+      :expired? => false,
+      :payload_object => {},
+      :priority => 25
     }.freeze
   end
 

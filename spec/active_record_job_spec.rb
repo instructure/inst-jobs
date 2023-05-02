@@ -92,8 +92,10 @@ describe "Delayed::Backed::ActiveRecord::Job" do
 
       it "deletes failed jobs by id" do
         target_ids = Delayed::Job::Failed.all[0..2].map(&:id)
-        expect(Delayed::Job.bulk_update("destroy", ids: target_ids, flavor: "failed",
-                                                   query: @query)).to eq(target_ids.length)
+        expect(Delayed::Job.bulk_update("destroy",
+                                        ids: target_ids,
+                                        flavor: "failed",
+                                        query: @query)).to eq(target_ids.length)
       end
 
       it "deletes all failed jobs" do

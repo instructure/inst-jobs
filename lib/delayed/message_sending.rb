@@ -54,8 +54,10 @@ module Delayed
 
           if ::Delayed::Job != ::Delayed::Backend::ActiveRecord::Job || connection != ::Delayed::Job.connection
             connection.after_transaction_commit do
-              ::Delayed::Job.enqueue(::Delayed::PerformableMethod.new(@object, method,
-                                                                      args: args, kwargs: kwargs,
+              ::Delayed::Job.enqueue(::Delayed::PerformableMethod.new(@object,
+                                                                      method,
+                                                                      args: args,
+                                                                      kwargs: kwargs,
                                                                       on_failure: on_failure,
                                                                       on_permanent_failure: on_permanent_failure,
                                                                       sender: @sender),
@@ -65,7 +67,8 @@ module Delayed
           end
         end
 
-        result = ::Delayed::Job.enqueue(::Delayed::PerformableMethod.new(@object, method,
+        result = ::Delayed::Job.enqueue(::Delayed::PerformableMethod.new(@object,
+                                                                         method,
                                                                          args: args,
                                                                          kwargs: kwargs,
                                                                          on_failure: on_failure,

@@ -77,7 +77,7 @@ module Delayed
     end
 
     def name
-      @name ||= "#{Socket.gethostname rescue 'X'}:#{id}"
+      @name ||= "#{Socket.gethostname rescue "X"}:#{id}"
     end
 
     def process_name=(new_name)
@@ -100,7 +100,7 @@ module Delayed
     def start
       logger.info "Starting worker"
       self.process_name =
-        "start:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || 'max'}"
+        "start:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || "max"}"
       @self_pipe = IO.pipe
       work_queue.init
 
@@ -170,7 +170,7 @@ module Delayed
 
       self.class.lifecycle.run_callbacks(:loop, self) do
         self.process_name =
-          "pop:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || 'max'}"
+          "pop:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || "max"}"
         job = self.class.lifecycle.run_callbacks(:pop, self) do
           work_queue.get_and_lock_next_available(name, config)
         end
@@ -196,7 +196,7 @@ module Delayed
           end
         else
           self.process_name =
-            "wait:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || 'max'}"
+            "wait:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || "max"}"
           sleep(Settings.sleep_delay + (rand * Settings.sleep_delay_stagger)) unless exit?
         end
       end
@@ -220,7 +220,7 @@ module Delayed
             end
             job.destroy
           end
-          logger.info("Completed #{log_job(job, :short)} #{format('%.0fms', (runtime * 1000))}")
+          logger.info("Completed #{log_job(job, :short)} #{format("%.0fms", (runtime * 1000))}")
         end
       rescue ::Delayed::RetriableError => e
         can_retry = job.attempts + 1 < job.inferred_max_attempts
@@ -279,7 +279,7 @@ module Delayed
       previous_tmpdir = ENV.fetch("TMPDIR", nil)
 
       self.class.running_job(job) do
-        dir = Dir.mktmpdir("job-#{job.id}-#{name.gsub(/[^\w.]/, '.')}-")
+        dir = Dir.mktmpdir("job-#{job.id}-#{name.gsub(/[^\w.]/, ".")}-")
         begin
           ENV["TMPDIR"] = dir
           yield

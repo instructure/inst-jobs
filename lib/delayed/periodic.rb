@@ -83,7 +83,7 @@ module Delayed
     def tag
       "periodic: #{@name}"
     end
-    alias display_name tag
+    alias_method :display_name, :tag
 
     def self.now
       Time.zone.now

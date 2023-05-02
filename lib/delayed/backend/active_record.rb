@@ -115,7 +115,7 @@ module Delayed
             # but we don't need to lock when inserting into Delayed::Failed
             if values["strand"] && instance_of?(Job)
               fn_name = connection.quote_table_name("half_md5_as_bigint")
-              quoted_strand = connection.quote(Rails.version < "7.0" ? values["strand"] : values["strand"].value)
+              quoted_strand = connection.quote((Rails.version < "7.0") ? values["strand"] : values["strand"].value)
               sql = "SELECT pg_advisory_xact_lock(#{fn_name}(#{quoted_strand})); #{sql}"
             end
             result = connection.execute(sql, "#{self.class} Create")
@@ -253,7 +253,7 @@ module Delayed
                            offset = 0,
                            query = nil)
           scope = scope_for_flavor(flavor, query)
-          order = flavor.to_s == "future" ? "run_at" : "id desc"
+          order = (flavor.to_s == "future") ? "run_at" : "id desc"
           scope.order(order).limit(limit).offset(offset).to_a
         end
 
@@ -607,7 +607,12 @@ module Delayed
           end
 
           def requeue!
-            attrs = attributes.except("id", "last_error", "locked_at", "failed_at", "locked_by", "original_job_id",
+            attrs = attributes.except("id",
+                                      "last_error",
+                                      "locked_at",
+                                      "failed_at",
+                                      "locked_by",
+                                      "original_job_id",
                                       "requeued_job_id")
             self.class.transaction do
               job = nil

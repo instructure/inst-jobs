@@ -5,8 +5,8 @@ module Delayed
     def run
       if Rails.logger.respond_to?(:log_path)
         log_path = Rails.logger.log_path
-      elsif Rails.logger.instance_variable_get("@logdev").try(:instance_variable_get, "@dev").try(:path)
-        log_path = Rails.logger.instance_variable_get("@logdev").instance_variable_get("@dev").path
+      elsif Rails.logger.instance_variable_get(:@logdev).try(:instance_variable_get, "@dev").try(:path)
+        log_path = Rails.logger.instance_variable_get(:@logdev).instance_variable_get(:@dev).path
       else
         return
       end

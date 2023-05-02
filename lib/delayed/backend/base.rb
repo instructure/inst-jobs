@@ -116,7 +116,7 @@ module Delayed
         # effectively balancing the load during queueing
         # overwritten in ActiveRecord::Job to use triggers to balance at run time
         def n_strand_options(strand_name, num_strands)
-          strand_num = num_strands > 1 ? rand(num_strands) + 1 : 1
+          strand_num = (num_strands > 1) ? rand(num_strands) + 1 : 1
           strand_name += ":#{strand_num}" if strand_num > 1
           { strand: strand_name }
         end
@@ -217,7 +217,7 @@ module Delayed
       def failed?
         failed_at
       end
-      alias failed failed?
+      alias_method :failed, :failed?
 
       def expired?
         expires_at && (self.class.db_time_now >= expires_at)

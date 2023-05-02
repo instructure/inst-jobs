@@ -57,11 +57,14 @@ shared_examples_for "Delayed::Worker" do
         expect(bar).to receive(:scan).with("a").ordered
         expect(bar).to receive(:scan).with("r").ordered
         batch = Delayed::Batch::PerformableBatch.new(:serial, [
-                                                       { payload_object: Delayed::PerformableMethod.new(bar, :scan,
+                                                       { payload_object: Delayed::PerformableMethod.new(bar,
+                                                                                                        :scan,
                                                                                                         args: ["b"]) },
-                                                       { payload_object: Delayed::PerformableMethod.new(bar, :scan,
+                                                       { payload_object: Delayed::PerformableMethod.new(bar,
+                                                                                                        :scan,
                                                                                                         args: ["a"]) },
-                                                       { payload_object: Delayed::PerformableMethod.new(bar, :scan,
+                                                       { payload_object: Delayed::PerformableMethod.new(bar,
+                                                                                                        :scan,
                                                                                                         args: ["r"]) }
                                                      ])
 
@@ -75,9 +78,11 @@ shared_examples_for "Delayed::Worker" do
           batch = Delayed::Batch::PerformableBatch.new(:serial, [
                                                          { payload_object: Delayed::PerformableMethod.new("foo",
                                                                                                           :reverse) },
-                                                         { payload_object: Delayed::PerformableMethod.new(1, :/,
+                                                         { payload_object: Delayed::PerformableMethod.new(1,
+                                                                                                          :/,
                                                                                                           args: [0]) },
-                                                         { payload_object: Delayed::PerformableMethod.new("bar", :scan,
+                                                         { payload_object: Delayed::PerformableMethod.new("bar",
+                                                                                                          :scan,
                                                                                                           args: ["r"]) }
                                                        ])
           batch_job = Delayed::Job.create payload_object: batch
@@ -379,14 +384,14 @@ shared_examples_for "Delayed::Worker" do
   describe "custom deserialization errors" do
     it "reschedules with more attempts left" do
       job = Delayed::Job.create({ payload_object: DeserializeErrorJob.new, max_attempts: 2 })
-      job.instance_variable_set("@payload_object", nil)
+      job.instance_variable_set(:@payload_object, nil)
       worker = Delayed::Worker.new(max_priority: nil, min_priority: nil, quiet: true)
       expect { worker.perform(job) }.not_to raise_error
     end
 
     it "run permanent failure code on last attempt" do
       job = Delayed::Job.create({ payload_object: DeserializeErrorJob.new, max_attempts: 1 })
-      job.instance_variable_set("@payload_object", nil)
+      job.instance_variable_set(:@payload_object, nil)
       worker = Delayed::Worker.new(max_priority: nil, min_priority: nil, quiet: true)
       expect { worker.perform(job) }.not_to raise_error
     end

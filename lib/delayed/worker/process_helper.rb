@@ -9,9 +9,9 @@ module Delayed
       ALIVE_CHECK_LINUX = '[ -d "/proc/$WORKER_PID" ]'
       ALIVE_CHECK_MAC = "ps -p $WORKER_PID > /dev/null"
       ALIVE_CHECK = RUBY_PLATFORM.include?("darwin") ? ALIVE_CHECK_MAC : ALIVE_CHECK_LINUX
-      SCRIPT_TEMPLATE = <<-BASH
-        WORKER_PID="%<pid>d" # an example, filled from ruby when the check is created
-        ORIGINAL_MTIME="%<mtime>s" # an example, filled from ruby when the check is created
+      SCRIPT_TEMPLATE = <<~SH
+        WORKER_PID="%{pid}" # an example, filled from ruby when the check is created
+        ORIGINAL_MTIME="%{mtime}" # an example, filled from ruby when the check is created
 
         if #{ALIVE_CHECK}; then
             CURRENT_MTIME=$(#{STAT})
@@ -26,7 +26,7 @@ module Delayed
         else
             exit 255 # The process is no more, trigger a "critical" state.
         fi
-      BASH
+      SH
 
       def self.mtime(pid)
         if RUBY_PLATFORM.include?("darwin")

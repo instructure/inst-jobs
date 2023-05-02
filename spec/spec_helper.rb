@@ -47,7 +47,7 @@ RSpec::Core::ExampleGroup.include(NoYamlDump)
 
 ENV["TEST_ENV_NUMBER"] ||= "1"
 ENV["TEST_DB_HOST"] ||= "localhost"
-ENV["TEST_DB_DATABASE"] ||= "inst-jobs-test-#{ENV.fetch('TEST_ENV_NUMBER', nil)}"
+ENV["TEST_DB_DATABASE"] ||= "inst-jobs-test-#{ENV.fetch("TEST_ENV_NUMBER", nil)}"
 
 connection_config = {
   adapter: :postgresql,

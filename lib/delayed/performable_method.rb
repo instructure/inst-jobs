@@ -63,9 +63,9 @@ module Delayed
     def deep_de_ar_ize(arg)
       case arg
       when Hash
-        "{#{arg.map { |k, v| "#{deep_de_ar_ize(k)} => #{deep_de_ar_ize(v)}" }.join(', ')}}"
+        "{#{arg.map { |k, v| "#{deep_de_ar_ize(k)} => #{deep_de_ar_ize(v)}" }.join(", ")}}"
       when Array
-        "[#{arg.map { |a| deep_de_ar_ize(a) }.join(', ')}]"
+        "[#{arg.map { |a| deep_de_ar_ize(a) }.join(", ")}]"
       when ActiveRecord::Base
         "#{arg.class}.find(#{arg.id})"
       else
@@ -77,7 +77,7 @@ module Delayed
       obj_name = object.is_a?(ActiveRecord::Base) ? "#{object.class}.find(#{object.id}).#{method}" : display_name
       kgs = kwargs || {}
       kwargs_str = kgs.map { |(k, v)| ", #{k}: #{deep_de_ar_ize(v)}" }.join
-      "#{obj_name}(#{args.map { |a| deep_de_ar_ize(a) }.join(', ')}#{kwargs_str})"
+      "#{obj_name}(#{args.map { |a| deep_de_ar_ize(a) }.join(", ")}#{kwargs_str})"
     end
   end
 end
