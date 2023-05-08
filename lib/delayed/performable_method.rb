@@ -21,6 +21,8 @@ module Delayed
       self.permanent_fail_cb = on_permanent_failure
       self.sender_is_object = sender.equal?(object)
       self.sender_is_class = sender.is_a?(object.class)
+      # bypass visibility checks (see MessageSending#__calculate_sender_for_delay)
+      self.sender_is_object = true if sender.nil?
     end
 
     def display_name
