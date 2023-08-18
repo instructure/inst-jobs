@@ -166,7 +166,7 @@ To pass parameters to the jobs engine, send them to the  `delay` method:
 
 `handle_asynchronously` and `delay` take these parameters:
 
-- `:priority` (number): lower numbers run first; default is 0 but can be
+- `:priority` (number): lower numbers run first; default is 10 but can be
   reconfigured.
 - `:run_at` (Time): run the job on or after this time; default is now.
 - `:queue` (string): named queue to put this job in, if using separate queues.
