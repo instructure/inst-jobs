@@ -231,8 +231,7 @@ module Delayed
       # Uses an exponential scale depending on the number of failed attempts.
       def reschedule(error = nil, time = nil)
         begin
-          obj = payload_object
-          return_code = obj.on_failure(error) if obj.respond_to?(:on_failure)
+          return_code = invoke_payload_object_cb(:on_failure, error)
         rescue
           # don't allow a failed deserialization to prevent rescheduling
         end
@@ -254,8 +253,7 @@ module Delayed
       def permanent_failure(error)
         begin
           # notify the payload_object of a permanent failure
-          obj = payload_object
-          obj.on_permanent_failure(error) if obj.respond_to?(:on_permanent_failure)
+          invoke_payload_object_cb(:on_permanent_failure, error)
         rescue
           # don't allow a failed deserialization to prevent destroying the job
         end
@@ -408,6 +406,11 @@ module Delayed
         return unless (md = PARSE_OBJECT_FROM_YAML.match(source))
 
         md[1].constantize
+      end
+
+      def invoke_payload_object_cb(method, ...)
+        obj = payload_object
+        obj.public_send(method, ...) if obj.respond_to?(method)
       end
 
       public
