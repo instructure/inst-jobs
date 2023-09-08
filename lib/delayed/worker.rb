@@ -64,6 +64,7 @@ module Delayed
       @max_priority = options[:max_priority]
       @max_job_count = options[:worker_max_job_count].to_i
       @max_memory_usage = options[:worker_max_memory_usage].to_i
+      @memory_high_water = options[:worker_memory_high_water]&.to_i || (@max_memory_usage / 2)
       @work_queue = options.delete(:work_queue) || WorkQueue::InProcess.new
       @health_check_type = Settings.worker_health_check_type
       @health_check_config = Settings.worker_health_check_config
@@ -99,6 +100,11 @@ module Delayed
 
     def start
       logger.info "Starting worker"
+      begin
+        Process.setrlimit(:DATA, @max_memory_usage, @max_memory_usage * 2) if @max_memory_usage.positive?
+      rescue Errno::EINVAL
+        # couldn't set an OS-level limit
+      end
       self.process_name =
         "start:#{Settings.worker_procname_prefix}#{@queue_name}:#{min_priority || 0}:#{max_priority || "max"}"
       @self_pipe = IO.pipe
@@ -184,10 +190,10 @@ module Delayed
               @exit = true
             end
 
-            if @max_memory_usage.positive?
+            if @memory_high_water.positive?
               memory = sample_memory
-              if memory > @max_memory_usage
-                logger.debug "Memory usage of #{memory} exceeds max of #{@max_memory_usage}, dying"
+              if memory > @memory_high_water
+                logger.debug "Memory usage of #{memory} exceeds high water of #{@memory_high_water}, dying"
                 @exit = true
               else
                 logger.debug "Memory usage: #{memory}"
@@ -233,6 +239,11 @@ module Delayed
         # still reschedule the job though.
         job.reschedule(e)
       rescue Exception => e # rubocop:disable Lint/RescueException
+        if e.is_a?(NoMemoryError)
+          GC.start # try and free up some memory before reporting the error
+          logger.debug "Could not allocate memory (max is #{@max_memory_usage}), dying"
+          @exit = true
+        end
         self.class.lifecycle.run_callbacks(:error, self, job, e) do
           handle_failed_job(job, e)
         end
