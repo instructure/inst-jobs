@@ -1,9 +1,9 @@
 PATH
   remote: ..
   specs:
-    inst-jobs (3.1.8)
+    inst-jobs (3.1.13)
       activerecord (>= 6.0)
-      activerecord-pg-extensions (~> 0.4.4)
+      activerecord-pg-extensions (~> 0.4)
       activesupport (>= 6.0)
       after_transaction_commit (>= 1.0, < 3)
       debug_inspector (~> 1.0)
@@ -66,9 +66,9 @@ GEM
     activerecord (7.0.3.1)
       activemodel (= 7.0.3.1)
       activesupport (= 7.0.3.1)
-    activerecord-pg-extensions (0.4.4)
-      activerecord (>= 6.0, < 7.1)
-      railties (>= 6.0, < 7.1)
+    activerecord-pg-extensions (0.5.2)
+      activerecord (~> 7.0.0)
+      railties (~> 7.0.0)
     activestorage (7.0.3.1)
       actionpack (= 7.0.3.1)
       activejob (= 7.0.3.1)
