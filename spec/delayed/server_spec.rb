@@ -3,7 +3,7 @@
 require "spec_helper"
 require "delayed/server"
 
-RSpec.describe Delayed::Server, sinatra: true do
+RSpec.describe Delayed::Server, :sinatra do
   include Rack::Test::Methods
 
   @update = false
@@ -32,7 +32,7 @@ RSpec.describe Delayed::Server, sinatra: true do
       get "/running"
     end
 
-    it "must return a json object with the running job data in an array", aggregate_failures: true do
+    it "must return a json object with the running job data in an array", :aggregate_failures do
       expect(last_response).to be_ok
       expect(parsed_body["data"]).to be_an Array
       expect(parsed_body["data"].size).to eq 3

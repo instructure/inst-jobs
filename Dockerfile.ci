@@ -3,7 +3,7 @@ FROM ruby:${RUBY_VERSION}
 
 RUN apt-get update && apt-get install -y git
 
-RUN bash -lc "gem install bundler -v 2.4.19"
+RUN bash -lc "gem install bundler -v 2.4.20"
 
 WORKDIR /usr/src/app
 COPY . /usr/src/app

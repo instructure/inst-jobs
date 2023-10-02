@@ -98,9 +98,7 @@ RSpec.describe Delayed::Worker::HealthCheck do
       Delayed::Job.where(id: @dead_job).update_all(locked_by: "someone_else")
       # we need to return @dead_job itself, which doesn't match the database
       jobs_scope = double
-      allow(jobs_scope).to receive(:where).and_return(jobs_scope)
-      allow(jobs_scope).to receive(:not).and_return(jobs_scope)
-      allow(jobs_scope).to receive(:limit).and_return(jobs_scope)
+      allow(jobs_scope).to receive_messages(where: jobs_scope, not: jobs_scope, limit: jobs_scope)
       allow(jobs_scope).to receive(:to_a).and_return([@dead_job], [])
       allow(Delayed::Job).to receive(:running_jobs).and_return(jobs_scope)
       described_class.reschedule_abandoned_jobs

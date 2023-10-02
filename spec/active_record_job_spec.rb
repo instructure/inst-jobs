@@ -242,7 +242,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
     expect(locked_jobs.length).to eq(2)
     expect(locked_jobs.keys).to eq(%w[worker1 worker2])
     expect(locked_jobs.values).to eq(jobs[0..1])
-    expect(jobs.map(&:reload).map(&:locked_by)).to eq(["worker1", "worker2", nil])
+    expect(jobs.map { |j| j.reload.locked_by }).to eq(["worker1", "worker2", nil])
   end
 
   it "allows fetching extra jobs" do
@@ -254,7 +254,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
     expect(locked_jobs.keys).to eq %w[worker1 work_queue]
     expect(locked_jobs["worker1"]).to eq jobs[0]
     expect(locked_jobs["work_queue"]).to eq jobs[1..2]
-    expect(jobs.map(&:reload).map(&:locked_by)).to eq(["worker1", "work_queue", "work_queue", nil, nil])
+    expect(jobs.map { |j| j.reload.locked_by }).to eq(["worker1", "work_queue", "work_queue", nil, nil])
   end
 
   it "does not find jobs scheduled for now when we have forced latency" do
@@ -286,7 +286,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
     end
   end
 
-  context "non-transactional", non_transactional: true do
+  context "non-transactional", :non_transactional do
     it "creates a stranded job in a single statement" do
       allow(Delayed::Job.connection).to receive(:prepared_statements).and_return(false)
       allow(Delayed::Job.connection).to receive(:execute).with(be_include("pg_advisory_xact_lock"),

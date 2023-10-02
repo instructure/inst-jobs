@@ -94,7 +94,7 @@ module Delayed
     def __calculate_sender_for_delay
       # enforce public send in dev and test, but not prod (since it uses
       # debug APIs, it's expensive)
-      return sender(1) if ::Rails.env.test? || ::Rails.env.development?
+      sender(1) if ::Rails.env.test? || ::Rails.env.development?
     end
 
     module ClassMethods

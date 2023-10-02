@@ -426,7 +426,7 @@ shared_examples_for "a backend" do
         expect(job1.reload.handler).to include("ErrorJob")
       end
 
-      context "next_in_strand management - deadlocks and race conditions", non_transactional: true, slow: true do
+      context "next_in_strand management - deadlocks and race conditions", :non_transactional, :slow do
         # The following unit tests are fairly slow and non-deterministic. It may be
         # easier to make them fail quicker and more consistently by adding a random
         # sleep into the appropriate trigger(s).

@@ -171,8 +171,7 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
       .with(*job_args)
       .and_return("worker_name" => job)
       .ordered
-    allow(Delayed::Settings).to receive(:sleep_delay).and_return(0)
-    allow(Delayed::Settings).to receive(:sleep_delay_stagger).and_return(0)
+    allow(Delayed::Settings).to receive_messages(sleep_delay: 0, sleep_delay_stagger: 0)
     subject.run_once
     expect(client).to be_ready
     expect(Marshal.load(client)).to eq(job)
