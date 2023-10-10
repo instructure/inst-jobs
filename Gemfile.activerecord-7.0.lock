@@ -214,7 +214,6 @@ PLATFORMS
 
 DEPENDENCIES
   activerecord (~> 7.0.0)
-  activerecord-pg-extensions (~> 0.5)
   bump
   byebug
   database_cleaner (~> 2.0)

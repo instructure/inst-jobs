@@ -18,8 +18,8 @@ pipeline {
             values '2.7', '3.0', '3.1', '3.2'
           }
           axis {
-            name 'RAILS_VERSION'
-            values '6.0', '6.1', '7.0', '7.1'
+            name 'LOCKFILE'
+            values 'activerecord-6.0', 'activerecord-6.1', 'activerecord-7.0', 'Gemfile.lock'
           }
         }
         excludes {
@@ -29,8 +29,8 @@ pipeline {
               values '3.2'
             }
             axis {
-              name 'RAILS_VERSION'
-              values '6.0'
+              name 'LOCKFILE'
+              values 'activerecord-6.0'
             }
           }
         }
@@ -41,7 +41,7 @@ pipeline {
                 // Allow postgres to initialize while the build runs
                 sh 'docker-compose up -d postgres'
                 sh "docker-compose build --pull --build-arg RUBY_VERSION=${RUBY_VERSION} app"
-                sh "BUNDLE_LOCKFILE=activerecord-${RAILS_VERSION} docker-compose run --rm app rspec --tag \\~slow"
+                sh "BUNDLE_LOCKFILE=${LOCKFILE} docker-compose run --rm app rspec --tag \\~slow"
               }
             }
           }
