@@ -426,6 +426,56 @@ shared_examples_for "a backend" do
         expect(job1.reload.handler).to include("ErrorJob")
       end
 
+      context "enqueue_result" do
+        it "is :inserted if there's no jobs on the strand" do
+          create_job(singleton: "different_singleton")
+          job = create_job(singleton: "myjobs", on_conflict: :overwrite)
+          expect(job.enqueue_result).to be :inserted
+        end
+
+        it "is :updated if there's already a singleton and on_conflict: :overwrite" do
+          create_job(singleton: "myjobs", run_at: 1.hour.from_now)
+          job = create_job(singleton: "myjobs", run_at: 2.hours.from_now, on_conflict: :overwrite)
+          expect(job.enqueue_result).to be :updated
+        end
+
+        it "is :updated if there's already a singleton and on_conflict: :use_earliest and the job is updated" do
+          create_job(singleton: "myjobs", run_at: 2.hours.from_now)
+          job = create_job(singleton: "myjobs", run_at: 1.hour.from_now, on_conflict: :use_earliest)
+          expect(job.enqueue_result).to be :updated
+        end
+
+        it "is :dropped if there's already a singleton and on_conflict: :use_earliest and the job is not updated" do
+          create_job(singleton: "myjobs", run_at: 1.hour.from_now)
+          job = create_job(singleton: "myjobs", run_at: 2.hours.from_now, on_conflict: :use_earliest)
+          expect(job.enqueue_result).to be :dropped
+        end
+
+        it "is :dropped if there's already a singleton and on_conflict: :loose" do
+          create_job(singleton: "myjobs")
+          job = create_job(singleton: "myjobs", on_conflict: :loose)
+          expect(job.enqueue_result).to be :dropped
+        end
+
+        it "is :updated if a job with a singleton and strand is overwritten" do
+          create_job(singleton: "myjobs", strand: "mystrand")
+          job = create_job(singleton: "myjobs", strand: "mystrand", on_conflict: :overwrite)
+          expect(job.enqueue_result).to be :updated
+        end
+
+        it "is :dropped if a job with a singleton and strand is not overwritten" do
+          create_job(singleton: "myjobs", strand: "mystrand")
+          job = create_job(singleton: "myjobs", strand: "mystrand", on_conflict: :loose)
+          expect(job.enqueue_result).to be :dropped
+        end
+
+        it "is :inserted if there's no singleton" do
+          create_job(strand: "mystrand")
+          job = create_job(strand: "mystrand")
+          expect(job.enqueue_result).to be :inserted
+        end
+      end
+
       context "next_in_strand management - deadlocks and race conditions", :non_transactional, :slow do
         # The following unit tests are fairly slow and non-deterministic. It may be
         # easier to make them fail quicker and more consistently by adding a random

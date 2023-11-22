@@ -25,6 +25,8 @@ module Delayed
         include Delayed::Backend::Base
         self.table_name = :delayed_jobs
 
+        attr_accessor :enqueue_result
+
         scope :next_in_strand_order, -> { order(:strand_order_override, :id) }
 
         def self.reconnect!
@@ -106,7 +108,8 @@ module Delayed
           end
 
           # https://www.postgresql.org/docs/9.5/libpq-exec.html
-          sql << " RETURNING id"
+          # https://stackoverflow.com/questions/39058213/differentiate-inserted-and-updated-rows-in-upsert-using-system-columns
+          sql << " RETURNING id, (xmax = 0) AS inserted"
 
           if lock_and_insert
             # > Multiple queries sent in a single PQexec call are processed in a single transaction,
@@ -120,11 +123,21 @@ module Delayed
             end
             result = connection.execute(sql, "#{self.class} Create")
             self.id = result.values.first&.first
+            inserted = result.values.first&.second
             result.clear
           else
             result = connection.exec_query(sql, "#{self.class} Create", binds)
             self.id = connection.send(:last_inserted_id, result)
+            inserted = result.rows.first&.second
           end
+
+          self.enqueue_result = if id.present? && inserted
+                                  :inserted
+                                elsif id.present? && !inserted
+                                  :updated
+                                else
+                                  :dropped
+                                end
 
           # it might not get set if there was an existing record, and we didn't update it
           if id

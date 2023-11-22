@@ -263,6 +263,17 @@ trigger action calms down. This is also useful if the arguments to the job
 might change, and you want it to run with the latest version of those
 arguments.
 
+The last option is `:loose`, which will drop the new job if there is already a
+job queued.
+
+After enqueuing a job, the job object will have a hint indicating if a new
+job was inserted, an existing job was updated, or the new job was dropped:
+- `:inserted` - a new job was inserted into the queue
+- `:updated` - an existing job was updated (both `:use_earliest` and `:overwrite`
+  can update the existing job's `run_at`, but only `:overwrite` will update the
+  handler)
+- `:dropped` - the new job was dropped due to an existing job in the queue
+
 #### Mixing N-Strand and Singleton
 
 It is allowed to use both n_strand and singleton at the same time. This could
