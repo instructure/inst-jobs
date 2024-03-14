@@ -3,7 +3,12 @@
 module Delayed
   class LogTailer
     def run
-      if Rails.logger.respond_to?(:log_path)
+      if Rails.logger.respond_to?(:broadcast_to)
+        return if ActiveSupport::Logger.logger_outputs_to?(Rails.logger, $stdout)
+
+        Rails.logger.broadcast_to(ActiveSupport::Logger.new($stdout))
+        return
+      elsif Rails.logger.respond_to?(:log_path)
         log_path = Rails.logger.log_path
       elsif Rails.logger.instance_variable_get(:@logdev).try(:instance_variable_get, "@dev").try(:path)
         log_path = Rails.logger.instance_variable_get(:@logdev).instance_variable_get(:@dev).path
