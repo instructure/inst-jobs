@@ -78,6 +78,19 @@ module Delayed
         result = nil unless ignore_transaction
         result
       end
+      # public_send is the same thing as method_missing - just unwraps one level
+      # of calls so that we don't end up calling public_send with public_send
+      alias_method :public_send, :method_missing
+
+      # send is similar to method-missing - it unwraps one level of calls so
+      # that we don't call send with send. it also bypasses visibility checks
+      def send(method, *args, **kwargs)
+        old_sender = @sender
+        @sender = @object
+        method_missing(method, *args, **kwargs)
+      ensure
+        @sender = old_sender
+      end
     end
 
     def delay(sender: nil, **enqueue_args)

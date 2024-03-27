@@ -105,4 +105,23 @@ RSpec.describe Delayed::MessageSending do
     expect { YAML.dump(obj) }.to raise_error("yaml encoding failed")
     expect { obj.delay_something }.not_to raise_error
   end
+
+  it "queues the method call directly when using public_send" do
+    klass.new.delay.public_send(:call_public)
+    expect(Delayed::Job.last.tag).to eq "SpecClass#call_public"
+  end
+
+  it "does visibility checks immediately when using public_send" do
+    expect { klass.new.delay.public_send(:private_method) }.to raise_error(NoMethodError)
+  end
+
+  it "queues the method call directly when using send" do
+    klass.new.delay.send(:call_public)
+    expect(Delayed::Job.last.tag).to eq "SpecClass#call_public"
+  end
+
+  it "bypasses visibility checks when using send" do
+    klass.new.delay.send(:private_method)
+    expect(Delayed::Job.last.tag).to eq "SpecClass#private_method"
+  end
 end
