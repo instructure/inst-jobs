@@ -47,11 +47,13 @@ module Delayed
 
           def attempt_advisory_lock(lock_name)
             fn_name = connection.quote_table_name("half_md5_as_bigint")
+            lock_name = connection.quote_string(lock_name)
             connection.select_value("SELECT pg_try_advisory_xact_lock(#{fn_name}('#{lock_name}'));")
           end
 
           def advisory_lock(lock_name)
             fn_name = connection.quote_table_name("half_md5_as_bigint")
+            lock_name = connection.quote_string(lock_name)
             connection.execute("SELECT pg_advisory_xact_lock(#{fn_name}('#{lock_name}'));")
           end
         end
@@ -409,7 +411,36 @@ module Delayed
                   RETURNING #{quoted_table_name}.*
                 SQL
 
-                jobs = find_by_sql(query)
+                begin
+                  jobs = find_by_sql(query)
+                rescue ::ActiveRecord::RecordNotUnique => e
+                  # if we got a unique violation on a singleton, it's because next_in_strand
+                  # somehow got set to true on the non-running job when there is a running
+                  # job. AFAICT this is not possible from inst-jobs itself, but has happened
+                  # in production - either due to manual manipulation of jobs, or possibly
+                  # a process in something like switchman-inst-jobs
+                  raise unless e.message.include?('"index_delayed_jobs_on_singleton_running"')
+
+                  # just repair the "strand"
+                  singleton = e.message.match(/Key \(singleton\)=\((.+)\) already exists.$/)[1]
+                  raise unless singleton
+
+                  transaction do
+                    # very conservatively lock the locked job, so that it won't unlock from underneath us and
+                    # leave an orphaned strand
+                    advisory_lock("singleton:#{singleton}")
+                    locked_jobs = where(singleton: singleton).where.not(locked_by: nil).lock.pluck(:id)
+                    # if it's already gone, then we're good and should be able to just retry
+                    if locked_jobs.length == 1
+                      updated = where(singleton: singleton, next_in_strand: true)
+                                .where(locked_by: nil)
+                                .update_all(next_in_strand: false)
+                      raise if updated.zero?
+                    end
+                  end
+
+                  retry
+                end
                 # because this is an atomic query, we don't have to return more jobs than we needed
                 # to try and lock them, nor is there a possibility we need to try again because
                 # all of the jobs we tried to lock had already been locked by someone else

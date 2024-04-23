@@ -324,6 +324,43 @@ describe "Delayed::Backed::ActiveRecord::Job" do
       j.fail!
       allow(Delayed::Job.connection).to receive(:execute).and_call_original
     end
+
+    it "recovers gracefully when multiple singleton jobs have next_in_strand set to true" do
+      j1 = create_job(singleton: "(te(\"')st)")
+      expect(j1).not_to be_new_record
+      expect(Delayed::Job.get_and_lock_next_available("worker")).to eq j1
+      j2 = create_job(singleton: "(te(\"')st)")
+      expect(j2).not_to be_new_record
+      j2.reload
+      expect(j1).not_to eq j2
+      expect(j2).not_to be_next_in_strand
+      # set the flag incorrectly, out-of-band
+      j2.update!(next_in_strand: true)
+      # j2 can't be locked yet, even though next_in_strand is true
+      expect(Delayed::Job.get_and_lock_next_available("worker")).to be_nil
+      # the invalid data was repaired
+      expect(j2.reload).not_to be_next_in_strand
+    end
+
+    it "recovers gracefully when multiple singleton jobs have next_in_strand set to true, " \
+       "and it finishes while fixing it" do
+      j1 = create_job(singleton: "test")
+      expect(j1).not_to be_new_record
+      expect(Delayed::Job.get_and_lock_next_available("worker")).to eq j1
+      j2 = create_job(singleton: "test")
+      expect(j2).not_to be_new_record
+      j2.reload
+      expect(j1).not_to eq j2
+      expect(j2).not_to be_next_in_strand
+      # set the flag incorrectly, out-of-band
+      j2.update!(next_in_strand: true)
+      expect(Delayed::Job).to receive(:advisory_lock) do
+        j1.destroy
+      end
+      # j1 will go away while we're trying to fix it, so we should be able to lock it
+      expect(Delayed::Job.get_and_lock_next_available("worker")).to eq j2
+      expect { j1.reload }.to raise_error(ActiveRecord::RecordNotFound)
+    end
   end
 
   context "Failed#requeue!" do
