@@ -9,8 +9,7 @@ require "rack/test"
 require "timecop"
 require "webmock/rspec"
 
-require "pry"
-require "byebug"
+require "debug/prelude"
 
 RSpec.configure do |config|
   config.expect_with(:rspec) do |c|

@@ -31,12 +31,11 @@ Gem::Specification.new do |s|
   s.add_dependency "railties",                   ">= 6.0"
 
   s.add_development_dependency "bump"
-  s.add_development_dependency "byebug"
   s.add_development_dependency "database_cleaner", "~> 2.0"
   s.add_development_dependency "database_cleaner-active_record", "~> 2.0"
+  s.add_development_dependency "debug"
   s.add_development_dependency "diplomat", "~> 2.6.3"
   s.add_development_dependency "pg"
-  s.add_development_dependency "pry"
   s.add_development_dependency "rack-test"
   s.add_development_dependency "rake"
   s.add_development_dependency "rspec", "~> 3.10"
