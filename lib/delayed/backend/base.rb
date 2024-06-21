@@ -307,6 +307,7 @@ module Delayed
 
       # Moved into its own method so that new_relic can trace it.
       def invoke_job
+        ActiveSupport::ExecutionContext[:job] = self
         Delayed::Worker.lifecycle.run_callbacks(:invoke_job, self) do
           Delayed::Job.in_delayed_job = true
           begin

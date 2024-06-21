@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "delayed/rails_reloader_plugin"
-
 module Delayed
   class TimeoutError < RuntimeError; end
 
@@ -73,7 +71,6 @@ module Delayed
 
       @signal_queue = []
 
-      plugins << Delayed::RailsReloaderPlugin
       plugins.each(&:inject!)
     end
 

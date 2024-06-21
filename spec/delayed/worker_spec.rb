@@ -49,29 +49,6 @@ describe Delayed::Worker do
       expect(retry_fired).to be_truthy
       expect(output_count).to eq(1)
     end
-
-    it "reloads Rails classes (never more than once)" do
-      fake_application = double("Rails.application",
-                                config: double("Rails.application.config",
-                                               cache_classes: false,
-                                               reload_classes_only_on_change: false),
-                                reloader: double)
-
-      allow(Rails).to receive(:application).and_return(fake_application)
-      if Rails::VERSION::MAJOR >= 5
-        expect(Rails.application.reloader).to receive(:reload!).once
-      else
-        expect(ActionDispatch::Reloader).to receive(:prepare!).once
-        expect(ActionDispatch::Reloader).to receive(:cleanup!).once
-      end
-      job = double(job_attrs)
-
-      # Create extra workers to make sure we don't reload multiple times
-      described_class.new(worker_config.dup)
-      described_class.new(worker_config.dup)
-
-      subject.perform(job)
-    end
   end
 
   describe "#log_job" do
