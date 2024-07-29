@@ -171,7 +171,9 @@ To pass parameters to the jobs engine, send them to the  `delay` method:
 - `:run_at` (Time): run the job on or after this time; default is now.
 - `:queue` (string): named queue to put this job in, if using separate queues.
 - `:max_attempts` (number): the max number of attempts to make before
-  permanently failing the job; default is 1.
+  permanently failing the job; default is 1. For a job to be retried, it should
+  raise an error. By default, an exponential backoff algorithm is used to determine
+  the run_at for retried jobs (5 + attempt**4 seconds later).
 - `:strand` (string): [strand](#strands) to assign this job to; default is not
   to assign to a strand.
 - `:n_strand` (string): [n_strand](#n-strands) to assign this job to; default is
@@ -180,6 +182,13 @@ To pass parameters to the jobs engine, send them to the  `delay` method:
   to; default is none.
 - `:on_conflict` (:use_earliest|:overwrite|:loose): option for how to handle the
   new job if a singleton[#singleton-jobs] job of the same type already exists.
+- `:on_failure` (symbol): method name to call on failure. The method should accept
+   a single argument (the error). Note that if max_attempts is greater than 1, this
+   method will be invoked each time the job fails, prior to rescheduling. Also note that
+   upon permanent failure (see :max_attempts for definition of 'permanent failure'), both
+   the :on_failure and :on_permanent_failure methods will be invoked.
+- `:on_permanent_failure` (symbol): method name to call on permanent failure (see :max_attempts
+   for definition of 'permanent failure'). The method should accept a single argument (the error).
 
 ## Features
 
