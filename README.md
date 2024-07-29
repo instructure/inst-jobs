@@ -180,6 +180,9 @@ To pass parameters to the jobs engine, send them to the  `delay` method:
   to; default is none.
 - `:on_conflict` (:use_earliest|:overwrite|:loose): option for how to handle the
   new job if a singleton[#singleton-jobs] job of the same type already exists.
+- `:on_permanent_failure` (symbol): method name to call if this job permanently
+  fails (see :max_attempts for definition of 'permanent failure'). The method should
+  accept a single argument (the error).
 
 ## Features
 
