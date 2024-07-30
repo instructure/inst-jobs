@@ -31,7 +31,7 @@ module Delayed
         # :priority, :run_at, :queue, :strand, :singleton
         # Example: Delayed::Job.enqueue(object, priority: 0, run_at: time, queue: queue)
         def enqueue(object,
-                    priority: default_priority,
+                    priority: nil,
                     run_at: nil,
                     expires_at: nil,
                     queue: Delayed::Settings.queue,
@@ -45,6 +45,7 @@ module Delayed
             raise ArgumentError, "Cannot enqueue items which do not respond to perform"
           end
 
+          priority ||= default_priority
           strand ||= singleton if Settings.infer_strand_from_singleton
 
           kwargs = Settings.default_job_options.merge(kwargs)
