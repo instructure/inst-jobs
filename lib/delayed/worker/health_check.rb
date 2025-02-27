@@ -19,7 +19,7 @@ module Delayed
           klass = @subclasses.find { |sc| sc.type_name == type }
           raise ArgumentError, "Unable to build a HealthCheck for type #{type}" unless klass
 
-          klass.new(worker_name: worker_name, config: config)
+          klass.new(worker_name:, config:)
         end
 
         def reschedule_abandoned_jobs

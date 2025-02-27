@@ -32,7 +32,7 @@ RSpec.describe Delayed::Worker::HealthCheck do
 
     it "must initiaize the specified class using the supplied config" do
       config = { foo: "bar" }.with_indifferent_access
-      check = described_class.build(type: "test", worker_name: "foobar", config: config)
+      check = described_class.build(type: "test", worker_name: "foobar", config:)
       expect(check.config).to eq config
     end
   end

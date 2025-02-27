@@ -89,7 +89,7 @@ module Delayed
       parent_pid = Process.pid
       pid = fork_with_reconnects do
         $0 = "delayed_jobs_work_queue#{Settings.pool_procname_suffix}"
-        @work_queue.server(parent_pid: parent_pid).run
+        @work_queue.server(parent_pid:).run
       end
       workers[pid] = :work_queue
     end

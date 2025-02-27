@@ -51,7 +51,7 @@ module Delayed
 
     # stop the currently running daemon (not this current process, the one in the pid_file)
     def stop(kill: false, pid: self.pid)
-      alive = status(pid: pid, print: false)
+      alive = status(pid:, print: false)
       if alive == :running || (kill && alive == :draining)
         puts "Stopping pool #{pid}..."
         signal = kill ? "TERM" : "QUIT"
@@ -68,9 +68,9 @@ module Delayed
 
     def wait(kill)
       if kill
-        sleep(0.5) while status(pid: pid, print: false)
+        sleep(0.5) while status(pid:, print: false)
       else
-        sleep(0.5) while status(pid: pid, print: false) == :running
+        sleep(0.5) while status(pid:, print: false) == :running
       end
     end
 

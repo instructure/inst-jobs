@@ -56,10 +56,10 @@ module Delayed
             connection.after_transaction_commit do
               ::Delayed::Job.enqueue(::Delayed::PerformableMethod.new(@object,
                                                                       method,
-                                                                      args: args,
-                                                                      kwargs: kwargs,
-                                                                      on_failure: on_failure,
-                                                                      on_permanent_failure: on_permanent_failure,
+                                                                      args:,
+                                                                      kwargs:,
+                                                                      on_failure:,
+                                                                      on_permanent_failure:,
                                                                       sender: @sender),
                                      **@enqueue_args)
             end
@@ -69,10 +69,10 @@ module Delayed
 
         result = ::Delayed::Job.enqueue(::Delayed::PerformableMethod.new(@object,
                                                                          method,
-                                                                         args: args,
-                                                                         kwargs: kwargs,
-                                                                         on_failure: on_failure,
-                                                                         on_permanent_failure: on_permanent_failure,
+                                                                         args:,
+                                                                         kwargs:,
+                                                                         on_failure:,
+                                                                         on_permanent_failure:,
                                                                          sender: @sender),
                                         **@enqueue_args)
         result = nil unless ignore_transaction
@@ -101,7 +101,7 @@ module Delayed
 
       sender ||= __calculate_sender_for_delay
 
-      DelayProxy.new(self, sender: sender, **enqueue_args)
+      DelayProxy.new(self, sender:, **enqueue_args)
     end
 
     def __calculate_sender_for_delay

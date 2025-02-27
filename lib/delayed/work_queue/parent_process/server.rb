@@ -75,7 +75,7 @@ module Delayed
           readable, = IO.select(handles, nil, nil, timeout)
           readable&.each { |s| handle_read(s) }
           Delayed::Worker.lifecycle.run_callbacks(:check_for_work, self) do
-            check_for_work(forced_latency: forced_latency)
+            check_for_work(forced_latency:)
           end
           unlock_timed_out_prefetched_jobs
         end
@@ -159,8 +159,8 @@ module Delayed
                 worker_config[:min_priority],
                 worker_config[:max_priority],
                 prefetch: (Settings.fetch_batch_size * (worker_config[:workers] || 1)) - recipients.length,
-                prefetch_owner: prefetch_owner,
-                forced_latency: forced_latency
+                prefetch_owner:,
+                forced_latency:
               )
               logger.debug(
                 "Fetched and locked #{response.values.flatten.size} new jobs for workers (#{response.keys.join(", ")})."
@@ -270,8 +270,8 @@ module Delayed
           @parent_pid && @parent_pid != Process.ppid
         end
 
-        def client_timeout(&block)
-          Timeout.timeout(@client_timeout, &block)
+        def client_timeout(&)
+          Timeout.timeout(@client_timeout, &)
         end
 
         ClientState = Struct.new(:working, :socket, :name)

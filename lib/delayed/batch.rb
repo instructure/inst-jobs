@@ -25,8 +25,8 @@ module Delayed
     end
 
     class << self
-      def serial_batch(opts = {}, &block)
-        prepare_batches(:serial, opts, &block)
+      def serial_batch(opts = {}, &)
+        prepare_batches(:serial, opts, &)
       end
 
       private

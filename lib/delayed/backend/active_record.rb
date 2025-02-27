@@ -34,11 +34,11 @@ module Delayed
         end
 
         class << self
-          def create(attributes, &block)
+          def create(attributes, &)
             on_conflict = attributes.delete(:on_conflict)
             # modified from ActiveRecord::Persistence.create and ActiveRecord::Persistence#_insert_record
-            job = new(attributes, &block)
-            job.single_step_create(on_conflict: on_conflict)
+            job = new(attributes, &)
+            job.single_step_create(on_conflict:)
           end
 
           def attempt_advisory_lock(lock_name)
@@ -212,7 +212,7 @@ module Delayed
         end
 
         def self.strand_size(strand)
-          where(strand: strand).count
+          where(strand:).count
         end
 
         def self.running_jobs
@@ -237,7 +237,7 @@ module Delayed
 
           if %w[current future].include?(flavor.to_s)
             queue = query.presence || Delayed::Settings.queue
-            scope = scope.where(queue: queue)
+            scope = scope.where(queue:)
           end
 
           scope
@@ -333,16 +333,16 @@ module Delayed
           job_count = 0
           new_strand = "tmp_strand_#{SecureRandom.alphanumeric(16)}"
           ::Delayed::Job.transaction do
-            job_count = job_scope.update_all(strand: new_strand, max_concurrent: max_concurrent, next_in_strand: false)
+            job_count = job_scope.update_all(strand: new_strand, max_concurrent:, next_in_strand: false)
             ::Delayed::Job.where(strand: new_strand).order(:id).limit(max_concurrent).update_all(next_in_strand: true)
           end
 
           [job_count, new_strand]
         end
 
-        def self.maybe_silence_periodic_log(&block)
+        def self.maybe_silence_periodic_log(&)
           if Settings.silence_periodic_log
-            ::ActiveRecord::Base.logger.silence(&block)
+            ::ActiveRecord::Base.logger.silence(&)
           else
             yield
           end
@@ -373,7 +373,7 @@ module Delayed
                 target_jobs = all_available(queue,
                                             min_priority,
                                             max_priority,
-                                            forced_latency: forced_latency)
+                                            forced_latency:)
                               .limit(effective_worker_names.length + prefetch)
                               .lock(lock)
                 jobs_with_row_number = all.from(target_jobs)
@@ -416,10 +416,10 @@ module Delayed
                     # very conservatively lock the locked job, so that it won't unlock from underneath us and
                     # leave an orphaned strand
                     advisory_lock("singleton:#{singleton}")
-                    locked_jobs = where(singleton: singleton).where.not(locked_by: nil).lock.pluck(:id)
+                    locked_jobs = where(singleton:).where.not(locked_by: nil).lock.pluck(:id)
                     # if it's already gone, then we're good and should be able to just retry
                     if locked_jobs.length == 1
-                      updated = where(singleton: singleton, next_in_strand: true)
+                      updated = where(singleton:, next_in_strand: true)
                                 .where(locked_by: nil)
                                 .update_all(next_in_strand: false)
                       raise if updated.zero?
@@ -486,8 +486,8 @@ module Delayed
           check_queue(queue)
           check_priorities(min_priority, max_priority)
 
-          ready_to_run(forced_latency: forced_latency)
-            .where(priority: min_priority..max_priority, queue: queue)
+          ready_to_run(forced_latency:)
+            .where(priority: min_priority..max_priority, queue:)
             .by_priority
         end
 
@@ -500,7 +500,7 @@ module Delayed
           on_conflict = options.delete(:on_conflict) || :use_earliest
 
           transaction_for_singleton(singleton, on_conflict) do
-            job = where(strand: strand, locked_at: nil).next_in_strand_order.first
+            job = where(strand:, locked_at: nil).next_in_strand_order.first
             new_job = new(options)
             if job
               new_job.initialize_defaults

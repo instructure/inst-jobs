@@ -30,34 +30,34 @@ module Delayed
       Delayed::Worker.plugins.each(&:reset!)
     end
 
-    def before(event, &block)
-      add(:before, event, &block)
+    def before(event, &)
+      add(:before, event, &)
     end
 
-    def after(event, &block)
-      add(:after, event, &block)
+    def after(event, &)
+      add(:after, event, &)
     end
 
-    def around(event, &block)
-      add(:around, event, &block)
+    def around(event, &)
+      add(:around, event, &)
     end
 
-    def run_callbacks(event, *args, &block)
+    def run_callbacks(event, *args, &)
       missing_callback(event) unless @callbacks.key?(event)
 
       unless EVENTS[event].size == args.size
         raise ArgumentError, "Callback #{event} expects #{EVENTS[event].size} parameter(s): #{EVENTS[event].join(", ")}"
       end
 
-      @callbacks[event].execute(*args, &block)
+      @callbacks[event].execute(*args, &)
     end
 
     private
 
-    def add(type, event, &block)
+    def add(type, event, &)
       missing_callback(event) unless @callbacks.key?(event)
 
-      @callbacks[event].add(type, &block)
+      @callbacks[event].add(type, &)
     end
 
     def missing_callback(event)
@@ -74,12 +74,12 @@ module Delayed
       @around = ->(*args, &block) { block.call(*args) }
     end
 
-    def execute(*args, &block)
+    def execute(*args, &)
       @before.each { |c| c.call(*args) }
-      result = @around.call(*args, &block)
+      result = @around.call(*args, &)
       @after.each do |c|
         if c.arity == args.length + 1 # don't fail for methods that don't define `result:`
-          c.call(*args, result: result)
+          c.call(*args, result:)
         else
           c.call(*args)
         end

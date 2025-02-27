@@ -17,8 +17,8 @@ module Delayed
       end
     end
 
-    def self.track_created(&block)
-      job_tracking = JobTracking.track(&block)
+    def self.track_created(&)
+      job_tracking = JobTracking.track(&)
       job_tracking.created
     end
 

@@ -369,7 +369,7 @@ module Delayed
 
       private
 
-      PARSE_OBJECT_FROM_YAML = %r{!ruby/\w+:([^\s]+)}.freeze
+      PARSE_OBJECT_FROM_YAML = %r{!ruby/\w+:([^\s]+)}
       private_constant :PARSE_OBJECT_FROM_YAML
 
       def deserialize(source)

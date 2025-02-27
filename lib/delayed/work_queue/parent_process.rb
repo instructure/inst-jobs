@@ -43,7 +43,7 @@ module Delayed
         # The unix_server_socket method takes care of cleaning up any existing
         # socket for us if the work queue process dies and is restarted.
         listen_socket = Socket.unix_server_socket(@server_address)
-        Server.new(listen_socket, parent_pid: parent_pid, config: @config)
+        Server.new(listen_socket, parent_pid:, config: @config)
       end
 
       def client

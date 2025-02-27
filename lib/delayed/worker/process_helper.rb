@@ -9,7 +9,7 @@ module Delayed
       ALIVE_CHECK_LINUX = '[ -d "/proc/$WORKER_PID" ]'
       ALIVE_CHECK_MAC = "ps -p $WORKER_PID > /dev/null"
       ALIVE_CHECK = RUBY_PLATFORM.include?("darwin") ? ALIVE_CHECK_MAC : ALIVE_CHECK_LINUX
-      SCRIPT_TEMPLATE = <<~SH
+      SCRIPT_TEMPLATE = <<~SH.freeze
         WORKER_PID="%{pid}" # an example, filled from ruby when the check is created
         ORIGINAL_MTIME="%{mtime}" # an example, filled from ruby when the check is created
 
@@ -37,7 +37,7 @@ module Delayed
       end
 
       def self.check_script(pid, mtime)
-        format(SCRIPT_TEMPLATE, { pid: pid, mtime: mtime })
+        format(SCRIPT_TEMPLATE, { pid:, mtime: })
       end
 
       def self.process_is_still_running?(pid, mtime)
