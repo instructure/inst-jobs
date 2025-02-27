@@ -45,9 +45,7 @@ RSpec.describe Delayed::Worker::HealthCheck do
           attr_accessor :live_workers
         end
 
-        def live_workers
-          self.class.live_workers
-        end
+        delegate :live_workers, to: :class
       end
     end
 

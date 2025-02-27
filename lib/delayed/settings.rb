@@ -88,7 +88,7 @@ module Delayed
 
       def apply_worker_config!(config)
         SETTINGS.each do |setting|
-          send("#{setting}=", config[setting.to_s]) if config.key?(setting.to_s)
+          send(:"#{setting}=", config[setting.to_s]) if config.key?(setting.to_s)
         end
         if config.key?("parent_process_client_timeout")
           parent_process.client_timeout = config["parent_process_client_timeout"]

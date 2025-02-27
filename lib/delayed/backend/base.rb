@@ -40,7 +40,6 @@ module Delayed
                     n_strand: nil,
                     max_attempts: Delayed::Settings.max_attempts,
                     **kwargs)
-
           unless object.respond_to?(:perform)
             raise ArgumentError, "Cannot enqueue items which do not respond to perform"
           end

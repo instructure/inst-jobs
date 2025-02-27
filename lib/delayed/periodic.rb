@@ -15,7 +15,7 @@ module Delayed
     self.overrides = {}
 
     def self.add_overrides(overrides)
-      overrides.each do |_name, cron_line|
+      overrides.each_value do |cron_line|
         # throws error if the line is malformed
         Fugit.do_parse_cron(cron_line)
       end
@@ -45,7 +45,7 @@ module Delayed
     # make sure all periodic jobs are scheduled for their next run in the job queue
     # this auditing should run on the strand
     def self.perform_audit!
-      scheduled.each { |_name, periodic| periodic.enqueue }
+      scheduled.each_value(&:enqueue)
     end
 
     def initialize(name, cron_line, job_args, block)

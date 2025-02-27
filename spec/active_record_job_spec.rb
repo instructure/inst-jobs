@@ -289,7 +289,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
   context "non-transactional", :non_transactional do
     it "creates a stranded job in a single statement" do
       allow(Delayed::Job.connection).to receive(:prepared_statements).and_return(false)
-      allow(Delayed::Job.connection).to receive(:execute).with(be_include("pg_advisory_xact_lock"),
+      allow(Delayed::Job.connection).to receive(:execute).with(include("pg_advisory_xact_lock"),
                                                                anything).and_call_original.once
       expect(Delayed::Job.connection).not_to receive(:insert)
       j = create_job(strand: "test1")

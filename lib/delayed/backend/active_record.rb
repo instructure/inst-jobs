@@ -355,7 +355,6 @@ module Delayed
                                              prefetch: 0,
                                              prefetch_owner: nil,
                                              forced_latency: nil)
-
           check_queue(queue)
           check_priorities(min_priority, max_priority)
 
@@ -634,7 +633,7 @@ module Delayed
           self.table_name = :failed_jobs
 
           def self.cleanup_old_jobs(before_date, batch_size: 10_000)
-            where("failed_at < ?", before_date).in_batches(of: batch_size).delete_all
+            where(failed_at: ...before_date).in_batches(of: batch_size).delete_all
           end
 
           def requeue!

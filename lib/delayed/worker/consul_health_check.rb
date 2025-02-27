@@ -22,7 +22,7 @@ module Delayed
         if config.keys.any? { |k| CONSUL_CONFIG_KEYS.include?(k) }
           consul_config = Diplomat::Configuration.new.tap do |conf|
             CONSUL_CONFIG_KEYS.each do |key|
-              conf.send("#{key}=", config[key]) if config[key]
+              conf.send(:"#{key}=", config[key]) if config[key]
             end
           end
           @service_client = Diplomat::Service.new(configuration: consul_config)

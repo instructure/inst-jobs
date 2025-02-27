@@ -42,9 +42,9 @@ Gem::Specification.new do |s|
   s.add_development_dependency "rubocop-inst", "~> 1"
   s.add_development_dependency "rubocop-rails", "~> 2.11"
   s.add_development_dependency "rubocop-rake", "~> 0.6"
-  s.add_development_dependency "rubocop-rspec", "~> 2.4"
+  s.add_development_dependency "rubocop-rspec", "~> 3.0"
   s.add_development_dependency "sinatra"
-  s.add_development_dependency "sinatra-contrib"
+  s.add_development_dependency "sinatra-contrib", "~> 3.1"
   s.add_development_dependency "timecop", "~> 0.9"
   s.add_development_dependency "webmock"
 end
