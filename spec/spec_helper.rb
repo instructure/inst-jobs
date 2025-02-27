@@ -62,7 +62,12 @@ connection_config = {
 }
 
 def migrate(file)
-  ActiveRecord::MigrationContext.new(file, ActiveRecord::SchemaMigration).migrate
+  if Rails.version < "7.2"
+    ActiveRecord::MigrationContext.new(file, ActiveRecord::SchemaMigration).migrate
+  else
+    ActiveRecord::MigrationContext.new(file,
+                                       ActiveRecord::SchemaMigration.new(ActiveRecord::Base.connection.pool)).migrate
+  end
 end
 
 # create the test db if it does not exist

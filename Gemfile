@@ -14,8 +14,14 @@ lockfile "activerecord-7.0" do
   gem "railties", "~> 7.0.0"
 end
 
-lockfile do
+lockfile "activerecord-7.1" do
   gem "activerecord", "~> 7.1.0"
   gem "activerecord-pg-extensions", "~> 0.5"
   gem "railties", "~> 7.1.0"
+end
+
+lockfile do
+  gem "activerecord", "~> 7.2.0"
+  gem "activerecord-pg-extensions", "~> 0.5"
+  gem "railties", "~> 7.2.0"
 end
