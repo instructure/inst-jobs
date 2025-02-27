@@ -1,0 +1,66 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  test:
+    name: Run tests (Ruby ${{ matrix.ruby }}, ${{ matrix.lockfile }})
+    runs-on: ubuntu-latest
+    env:
+      BUNDLE_LOCKFILE: ${{ matrix.lockfile }}
+      RAILS_ENV: test
+      TEST_DB_HOST: localhost
+      TEST_DB_USERNAME: postgres
+      TEST_DB_PASSWORD: postgres
+
+    strategy:
+      matrix:
+        ruby: ['3.1', '3.2', '3.3']
+        lockfile: ['activerecord-7.0', 'Gemfile.lock']
+
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+
+      - name: Run tests
+        run: bin/rspec --tag ~slow
+
+  lint:
+    name: Run linters
+    runs-on: ubuntu-latest
+    env:
+      BUNDLE_LOCKFILE: Gemfile.lock
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.2
+          bundler-cache: true
+
+      - name: Run RuboCop
+        run: bin/rubocop --format github

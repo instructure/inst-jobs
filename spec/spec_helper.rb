@@ -53,6 +53,7 @@ connection_config = {
   host: ENV["TEST_DB_HOST"].presence,
   encoding: "utf8",
   username: ENV.fetch("TEST_DB_USERNAME", nil),
+  password: ENV.fetch("TEST_DB_PASSWORD", nil),
   database: ENV.fetch("TEST_DB_DATABASE", nil),
   min_messages: "notice",
   # Ensure the pool is big enough the deadlock tests don't get starved for connections by rails instead
