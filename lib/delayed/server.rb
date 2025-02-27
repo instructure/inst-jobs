@@ -37,7 +37,7 @@ module Delayed
 
     # Release any used connections back to the pool
     after do
-      ::ActiveRecord::Base.clear_active_connections!(nil) if using_active_record?
+      ::ActiveRecord::Base.connection_handler.clear_active_connections!(nil) if using_active_record?
     end
 
     configure :development do
