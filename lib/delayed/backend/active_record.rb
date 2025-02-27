@@ -30,11 +30,7 @@ module Delayed
         scope :next_in_strand_order, -> { order(:strand_order_override, :id) }
 
         def self.reconnect!
-          if Rails.version < "6.1"
-            ::ActiveRecord::Base.connection_handler.clear_all_connections!
-          else
-            ::ActiveRecord::Base.connection_handler.clear_all_connections!(nil)
-          end
+          ::ActiveRecord::Base.connection_handler.clear_all_connections!(nil)
         end
 
         class << self
@@ -70,21 +66,12 @@ module Delayed
             _write_attribute(column, current_time) unless attribute_present?(column)
           end
 
-          attribute_names = if Rails.version < "7.0"
-                              attribute_names_for_partial_writes
-                            else
-                              attribute_names_for_partial_inserts
-                            end
+          attribute_names = attribute_names_for_partial_inserts
           attribute_names = attributes_for_create(attribute_names)
           values = attributes_with_values(attribute_names)
 
-          im = if Rails.version < "7.0"
-                 self.class.arel_table.compile_insert(self.class.send(:_substitute_values, values))
-               else
-                 im = Arel::InsertManager.new(self.class.arel_table)
-                 im.insert(values.transform_keys { |name| self.class.arel_table[name] })
-                 im
-               end
+          im = Arel::InsertManager.new(self.class.arel_table)
+          im.insert(values.transform_keys { |name| self.class.arel_table[name] })
 
           lock_and_insert = values["strand"] && instance_of?(Job)
           # can't use prepared statements if we're combining multiple statemenets
@@ -120,7 +107,7 @@ module Delayed
             # but we don't need to lock when inserting into Delayed::Failed
             if values["strand"] && instance_of?(Job)
               fn_name = connection.quote_table_name("half_md5_as_bigint")
-              quoted_strand = connection.quote((Rails.version < "7.0") ? values["strand"] : values["strand"].value)
+              quoted_strand = connection.quote(values["strand"].value)
               sql = "SELECT pg_advisory_xact_lock(#{fn_name}(#{quoted_strand})); #{sql}"
             end
             result = connection.execute(sql, "#{self.class} Create")

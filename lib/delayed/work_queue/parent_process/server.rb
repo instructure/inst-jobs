@@ -226,11 +226,7 @@ module Delayed
 
             # otherwise just reconnect and let it retry
             logger.warn("failed to unlock prefetched jobs - connection terminated; skipping for now")
-            if Rails.version < "6.1"
-              ::Delayed::Job.clear_all_connections!
-            else
-              ::Delayed::Job.clear_all_connections!(nil)
-            end
+            ::Delayed::Job.clear_all_connections!(nil)
           end
         end
 

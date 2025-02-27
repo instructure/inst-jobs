@@ -19,19 +19,7 @@ pipeline {
           }
           axis {
             name 'LOCKFILE'
-            values 'activerecord-6.0', 'activerecord-6.1', 'activerecord-7.0', 'Gemfile.lock'
-          }
-        }
-        excludes {
-          exclude {
-            axis {
-              name 'RUBY_VERSION'
-              values '3.2'
-            }
-            axis {
-              name 'LOCKFILE'
-              values 'activerecord-6.0'
-            }
+            values 'activerecord-7.0', 'Gemfile.lock'
           }
         }
         stages {

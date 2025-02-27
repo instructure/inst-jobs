@@ -22,9 +22,9 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version = ">= 2.7"
 
-  s.add_dependency "activerecord",               ">= 6.0"
+  s.add_dependency "activerecord",               ">= 7.0"
   s.add_dependency "activerecord-pg-extensions", "~> 0.4"
-  s.add_dependency "activesupport",              ">= 6.0"
+  s.add_dependency "activesupport",              ">= 7.0"
   s.add_dependency "after_transaction_commit",   ">= 1.0", "<3"
   s.add_dependency "debug_inspector",            "~> 1.0"
   s.add_dependency "fugit",                      "~> 1.3"

@@ -69,19 +69,11 @@ module Delayed
       say "Unlocked #{unlocked_jobs} orphaned jobs" if unlocked_jobs.positive?
       return if Rails.env.test?
 
-      if Rails.version < "6.1"
-        ActiveRecord::Base.connection_handler.clear_all_connections!
-      else
-        ActiveRecord::Base.connection_handler.clear_all_connections!(nil)
-      end
+      ActiveRecord::Base.connection_handler.clear_all_connections!(nil)
     end
 
     def spawn_all_workers
-      if Rails.version < "6.1"
-        ActiveRecord::Base.connection_handler.clear_all_connections!
-      else
-        ActiveRecord::Base.connection_handler.clear_all_connections!(nil)
-      end
+      ActiveRecord::Base.connection_handler.clear_all_connections!(nil)
 
       if @config[:work_queue] == "parent_process"
         @work_queue = WorkQueue::ParentProcess.new

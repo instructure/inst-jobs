@@ -314,13 +314,7 @@ module Delayed
             payload_object.perform
           ensure
             Delayed::Job.in_delayed_job = false
-            unless Rails.env.test?
-              if Rails.version < "6.1"
-                ::ActiveRecord::Base.clear_active_connections!
-              else
-                ::ActiveRecord::Base.clear_active_connections!(nil)
-              end
-            end
+            ::ActiveRecord::Base.clear_active_connections!(nil) unless Rails.env.test?
           end
         end
       end
