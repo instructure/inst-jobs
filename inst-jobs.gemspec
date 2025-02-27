@@ -35,6 +35,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency "database_cleaner-active_record", "~> 2.0"
   s.add_development_dependency "debug"
   s.add_development_dependency "diplomat", "~> 2.6.3"
+  s.add_development_dependency "mutex_m"
   s.add_development_dependency "pg"
   s.add_development_dependency "rack-test"
   s.add_development_dependency "rake"

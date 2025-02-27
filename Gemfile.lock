@@ -270,6 +270,7 @@ DEPENDENCIES
   debug
   diplomat (~> 2.6.3)
   inst-jobs!
+  mutex_m
   pg
   rack-test
   railties (~> 7.1.0)
