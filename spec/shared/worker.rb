@@ -184,7 +184,11 @@ shared_examples_for "Delayed::Worker" do
       @worker.perform(@job)
       @job = Delayed::Job.find(@job.id)
       expect(@job.last_error).to match(/did not work/)
-      expect(@job.last_error).to match(/sample_jobs.rb:22:in `perform'/)
+      if RUBY_VERSION < "3.4"
+        expect(@job.last_error).to match(/sample_jobs.rb:22:in `perform'/)
+      else
+        expect(@job.last_error).to match(/sample_jobs.rb:22:in 'ErrorJob#perform'/)
+      end
       expect(@job.attempts).to eq(1)
       expect(@job.run_at).to be > Delayed::Job.db_time_now - 10.minutes
       expect(@job.run_at).to be < Delayed::Job.db_time_now + 10.minutes
