@@ -1,0 +1,44 @@
+name: Push to RubyGems
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  push:
+    name: Push gem to RubyGems.org
+    runs-on: ubuntu-latest
+    environment: rubygems
+    env:
+      BUNDLE_LOCKFILE: Gemfile.lock
+
+    permissions:
+      id-token: write
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.2
+          bundler-cache: true
+
+      - name: Check if version exists
+        id: version_check
+        run: |
+          current_version=$(ruby -e "require '$(pwd)/lib/delayed/version.rb'; puts Delayed::VERSION;")
+          existing_versions=$(gem list --exact inst-jobs --remote --all | grep -o '\((.*)\)$' | tr -d '() ')
+          if [[ $existing_versions == *$current_version* ]]; then
+            echo "Version $current_version already exists, skipping publish"
+            echo "skip_publish=true" >> $GITHUB_OUTPUT
+          else
+            echo "Version $current_version is new, will publish"
+            echo "skip_publish=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: rubygems/release-gem@v1
+        if: steps.version_check.outputs.skip_publish != 'true'
+        with:
+          attestations: "false"
