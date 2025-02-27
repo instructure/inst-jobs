@@ -51,7 +51,7 @@ module Delayed
             payload_object = args.delete(:payload_object)
             Delayed::Job.enqueue(payload_object, **args)
           else
-            Delayed::Job.enqueue(Delayed::Batch::PerformableBatch.new(mode, batch), **enqueue_args.merge(batch_args))
+            Delayed::Job.enqueue(Delayed::Batch::PerformableBatch.new(mode, batch), **enqueue_args, **batch_args)
           end
         end
       end

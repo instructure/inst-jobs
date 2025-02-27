@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "logger"
 require "delayed_job"
 require "delayed/testing"
 
@@ -124,10 +125,10 @@ end
 
 def change_setting(klass, setting_name, value)
   old_val = klass.send(setting_name)
-  klass.send("#{setting_name}=", value)
+  klass.send(:"#{setting_name}=", value)
   yield
 ensure
-  klass.send("#{setting_name}=", old_val)
+  klass.send(:"#{setting_name}=", old_val)
 end
 
 def run_job(job)

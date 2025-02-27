@@ -43,7 +43,7 @@ module Delayed
       # it somewhere useful
       last_ditch_logfile = Settings.last_ditch_logfile || "log/delayed_job.log"
       last_ditch_logfile = Settings.expand_rails_path(last_ditch_logfile) if last_ditch_logfile[0] != "|"
-      $stdin.reopen("/dev/null")
+      $stdin.reopen(File::NULL)
       $stdout.reopen(open(last_ditch_logfile, "a")) # rubocop:disable Security/Open
       $stderr.reopen($stdout)
       $stdout.sync = $stderr.sync = true

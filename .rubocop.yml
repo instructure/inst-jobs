@@ -1,4 +1,4 @@
-require:
+plugins:
   - rubocop-rails
   - rubocop-rake
 
@@ -8,6 +8,7 @@ inherit_gem:
   - rubocop-rspec.yml # if you use rspec and rubocop-rspec
 
 AllCops:
+  TargetRailsVersion: 7.0
   TargetRubyVersion: 3.1
   Exclude:
     - vendor/**/*
@@ -31,6 +32,10 @@ Naming/FileName:
 
 Rails/ApplicationRecord:
   Enabled: false
+Rails/Delegate:
+  Exclude:
+    - db/migrate/*
+    - spec/spec_helper.rb
 Rails/Exit:
   Enabled: false
 Rails/HttpPositionalArguments:

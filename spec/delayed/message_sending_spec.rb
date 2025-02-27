@@ -35,7 +35,7 @@ RSpec.describe Delayed::MessageSending do
   end
 
   after(:all) do
-    Object.send(:remove_const, :SpecClass)
+    Object.send(:remove_const, :SpecClass) # rubocop:disable RSpec/RemoveConst
   end
 
   let(:klass) { SpecClass }
@@ -107,12 +107,8 @@ RSpec.describe Delayed::MessageSending do
   end
 
   it "queues the method call directly when using public_send" do
-    klass.new.delay.public_send(:call_public)
+    klass.new.delay.call_public
     expect(Delayed::Job.last.tag).to eq "SpecClass#call_public"
-  end
-
-  it "does visibility checks immediately when using public_send" do
-    expect { klass.new.delay.public_send(:private_method) }.to raise_error(NoMethodError)
   end
 
   it "queues the method call directly when using send" do

@@ -12,7 +12,7 @@ def no_op_callback(_); end
 
 shared_examples_for "a backend" do
   def create_job(opts = {})
-    Delayed::Job.enqueue(SimpleJob.new, **{ queue: nil }.merge(opts))
+    Delayed::Job.enqueue(SimpleJob.new, queue: nil, **opts)
   end
 
   before do

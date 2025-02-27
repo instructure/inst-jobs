@@ -24,9 +24,7 @@ module Delayed
                 end
     end
 
-    def logger
-      Delayed::Logging.logger
-    end
+    delegate :logger, to: :"Delayed::Logging"
 
     def say(message, level = :debug)
       logger.send(level, message)
