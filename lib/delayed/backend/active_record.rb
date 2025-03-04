@@ -29,7 +29,7 @@ module Delayed
 
         scope :next_in_strand_order, -> { order(:strand_order_override, :id) }
         scope :locked, -> { where.not(locked_by: nil) }
-        scope :not_locked, -> { where(locked_at: nil) }
+        scope :not_locked, -> { where(locked_by: nil) }
         scope :prefetched, -> { where(arel_table[:locked_by].matches("prefetch%")) }
 
         def self.reconnect!
