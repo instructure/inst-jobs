@@ -32,7 +32,6 @@ module Delayed
         scope :not_locked, -> { where(locked_at: nil) }
         scope :prefetched, -> { where(arel_table[:locked_by].matches("prefetch%")) }
 
-
         def self.reconnect!
           ::ActiveRecord::Base.connection_handler.clear_all_connections!(nil)
         end
