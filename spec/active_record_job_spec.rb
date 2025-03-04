@@ -11,6 +11,45 @@ describe "Delayed::Backed::ActiveRecord::Job" do
 
   include_examples "a delayed_jobs implementation"
 
+  describe ".locked" do
+    subject(:locked_jobs) { Delayed::Job.locked }
+
+    let!(:not_locked_job) { Delayed::Job.create(payload_object: SimpleJob.new) }
+    let!(:locked_job) { Delayed::Job.create(payload_object: SimpleJob.new) }
+
+    before { locked_job.send(:lock_exclusively!, "worker-123") }
+
+    it "only includes locked jobs" do
+      expect(locked_jobs).to eq [locked_job]
+    end
+  end
+
+  describe ".not_locked" do
+    subject(:not_locked_jobs) { Delayed::Job.not_locked }
+
+    let!(:not_locked_job) { Delayed::Job.create(payload_object: SimpleJob.new) }
+    let!(:locked_job) { Delayed::Job.create(payload_object: SimpleJob.new) }
+
+    before { locked_job.send(:lock_exclusively!, "worker-123") }
+
+    it "only includes not locked jobs" do
+      expect(not_locked_jobs).to eq [not_locked_job]
+    end
+  end
+
+  describe ".prefetched" do
+    subject(:prefetched_jobs) { Delayed::Job.prefetched }
+
+    let!(:not_prefetched_job) { Delayed::Job.create(payload_object: SimpleJob.new) }
+    let!(:prefetched_job) { Delayed::Job.create(payload_object: SimpleJob.new) }
+
+    before { prefetched_job.update!(locked_by: "prefetch:worker-123") }
+
+    it "only includes prefetched jobs" do
+      expect(prefetched_jobs).to eq [prefetched_job]
+    end
+  end
+
   it "recovers as well as possible from a failure failing a job" do
     allow(Delayed::Job::Failed).to receive(:create).and_raise(RuntimeError)
     job = "test".delay(ignore_transaction: true).reverse
