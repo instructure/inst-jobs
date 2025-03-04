@@ -28,7 +28,6 @@ module Delayed
         attr_accessor :enqueue_result
 
         scope :next_in_strand_order, -> { order(:strand_order_override, :id) }
-        scope :next_in_strand_order, -> { order(:strand_order_override, :id) }
         scope :locked, -> { where.not(locked_by: nil) }
         scope :not_locked, -> { where(locked_at: nil) }
         scope :prefetched, -> { where(arel_table[:locked_by].matches("prefetch%")) }
