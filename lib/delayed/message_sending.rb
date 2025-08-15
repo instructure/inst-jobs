@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "debug_inspector" if Rails.env.test? || Rails.env.development?
+require "debug_inspector" if Rails.env.local?
 
 module Delayed
   module MessageSending
@@ -107,7 +107,7 @@ module Delayed
     def __calculate_sender_for_delay
       # enforce public send in dev and test, but not prod (since it uses
       # debug APIs, it's expensive)
-      sender(1) if ::Rails.env.test? || ::Rails.env.development?
+      sender(1) if Rails.env.local?
     end
 
     module ClassMethods

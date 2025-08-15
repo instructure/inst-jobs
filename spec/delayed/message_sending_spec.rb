@@ -60,12 +60,12 @@ RSpec.describe Delayed::MessageSending do
   end
 
   it "does not warn about directly sending a private message in production" do
-    allow(Rails.env).to receive_messages(test?: false, development?: false)
+    allow(Rails.env).to receive_messages(local?: false)
     expect { klass.new.delay.private_method }.not_to raise_error
   end
 
   it "does not warn about directly sending a private message synchronously in production" do
-    allow(Rails.env).to receive_messages(test?: false, development?: false)
+    allow(Rails.env).to receive_messages(local?: false)
     expect { klass.new.delay(synchronous: true).private_method }.not_to raise_error
   end
 
