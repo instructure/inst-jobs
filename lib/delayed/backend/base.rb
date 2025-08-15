@@ -52,7 +52,13 @@ module Delayed
           kwargs[:run_at] = run_at if run_at
           kwargs[:strand] = strand
           kwargs[:max_attempts] = max_attempts
-          if defined?(Marginalia) && Marginalia::Comment.components
+          if defined?(Rails) &&
+             Rails.application.respond_to?(:config) &&
+             Rails.application.config.respond_to?(:active_record) &&
+             Rails.application.config.active_record.query_log_tags_enabled
+            kwargs[:source] =
+              ::ActiveRecord::QueryLogs.send(:tag_content, ::Delayed::Job.connection)
+          elsif defined?(Marginalia) && Marginalia::Comment.components
             kwargs[:source] =
               Marginalia::Comment.construct_comment
           end

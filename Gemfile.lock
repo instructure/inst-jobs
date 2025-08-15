@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    inst-jobs (3.2)
+    inst-jobs (3.2.1)
       activerecord (>= 7.1)
       activerecord-pg-extensions (~> 0.4)
       activesupport (>= 7.1)

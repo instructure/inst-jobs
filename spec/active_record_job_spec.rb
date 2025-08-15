@@ -216,6 +216,40 @@ describe "Delayed::Backed::ActiveRecord::Job" do
       end
     end
 
+    context "source" do
+      it "sets the source from Marginalia if available" do
+        stub_const("Marginalia::Comment", Class.new)
+        allow(Marginalia::Comment).to receive_messages(
+          components: %i[value value2],
+          construct_comment: "static:value,static2:value2"
+        )
+
+        job = Delayed::Job.enqueue(SimpleJob.new)
+        expect(job.source).to eq("static:value,static2:value2")
+      end
+
+      it "sets the source from ActiveRecord query log tags if available" do
+        # rubocop:disable RSpec/MessageChain
+        allow(Rails).to receive_message_chain(
+          :application,
+          :config,
+          :active_record,
+          :query_log_tags_enabled
+        ).and_return(true)
+        # rubocop:enable RSpec/MessageChain
+
+        allow(ActiveRecord::QueryLogs).to receive(:tags).and_return(
+          [{
+            static: "value",
+            static2: "value2"
+          }]
+        )
+
+        job = Delayed::Job.enqueue(SimpleJob.new)
+        expect(job.source).to eq("static:value,static2:value2")
+      end
+    end
+
     context "max_concurrent triggers" do
       it "sets one job as next_in_strand at a time with max_concurrent of 1" do
         job1 = Delayed::Job.enqueue(SimpleJob.new, n_strand: ["njobs"])
