@@ -1,8 +1,5 @@
 # Instructure Delayed Jobs
 
-[![Build
-Status](https://travis-ci.org/instructure/inst-jobs.svg?branch=master)](https://travis-ci.org/instructure/inst-jobs)
-
 This gem was forked from
 [delayed_job](https://github.com/collectiveidea/delayed_job) in late 2010. While
 we have tried to maintain compatibility with delayed_job where possible, so much
@@ -43,8 +40,8 @@ those familiar with it:
 
 ## Installation
 
-inst-jobs requires Rails 3.2 or above, and Ruby 2.1 or above. It is
-tested through Rails 5.0 and Ruby 2.3.
+inst-jobs requires Rails 7.1 or above, and Ruby 3.1 or above. It is
+tested through Rails 7.2 and Ruby 3.4.
 
 Add this line to your Rails application's Gemfile:
 
@@ -377,14 +374,7 @@ or only implementation, eventually.
 
 ### Sentry Error Reporting
 
-The [standard delayed_job
-integration](https://github.com/getsentry/raven-ruby/blob/master/lib/raven/integrations/delayed_job.rb)
-will work with inst-jobs as well. Just add in an initializer along with your
-other raven-ruby configuration:
-
-```ruby
-require 'raven/integrations/delayed_job'
-```
+inst-jobs has a custom Sentry integration called [sentry-inst_jobs](https://github.com/instructure/sentry-inst_jobs), which requires both the sentry-ruby and inst-jobs gems.
 
 ### Worker Health Checking and Unlocking Orphaned Jobs
 
