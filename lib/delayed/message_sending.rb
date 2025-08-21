@@ -84,10 +84,10 @@ module Delayed
 
       # send is similar to method-missing - it unwraps one level of calls so
       # that we don't call send with send. it also bypasses visibility checks
-      def send(method, *args, **kwargs)
+      def send(method, *, **)
         old_sender = @sender
         @sender = @object
-        method_missing(method, *args, **kwargs)
+        method_missing(method, *, **)
       ensure
         @sender = old_sender
       end

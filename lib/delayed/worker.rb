@@ -16,7 +16,6 @@ module Delayed
   end
 
   require "tmpdir"
-  require "set"
 
   class Worker
     include Delayed::Logging
