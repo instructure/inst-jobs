@@ -40,7 +40,7 @@ those familiar with it:
 
 ## Installation
 
-inst-jobs requires Rails 7.1 or above, and Ruby 3.1 or above. It is
+inst-jobs requires Rails 7.1 or above, and Ruby 3.2 or above. It is
 tested through Rails 7.2 and Ruby 3.4.
 
 Add this line to your Rails application's Gemfile:
