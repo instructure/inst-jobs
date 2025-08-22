@@ -15,6 +15,7 @@ module Delayed
     # for this kind of error.
   end
 
+  require "benchmark"
   require "tmpdir"
 
   class Worker

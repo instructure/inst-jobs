@@ -238,15 +238,17 @@ describe "Delayed::Backed::ActiveRecord::Job" do
         ).and_return(true)
         # rubocop:enable RSpec/MessageChain
 
-        allow(ActiveRecord::QueryLogs).to receive(:tags).and_return(
-          [{
-            static: "value",
-            static2: "value2"
-          }]
-        )
+        old_tags = ActiveRecord::QueryLogs.tags
+
+        ActiveRecord::QueryLogs.tags = [{
+          static: "value",
+          static2: "value2"
+        }]
 
         job = Delayed::Job.enqueue(SimpleJob.new)
         expect(job.source).to eq("static:value,static2:value2")
+      ensure
+        ActiveRecord::QueryLogs.tags = old_tags
       end
     end
 

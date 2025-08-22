@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         ruby: ['3.2', '3.3', '3.4']
-        lockfile: ['activerecord-7.1', 'Gemfile.lock']
+        lockfile: ['activerecord-7.1', 'activerecord-7.2', 'Gemfile.lock']
 
     services:
       postgres:
