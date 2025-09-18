@@ -112,7 +112,12 @@ module Delayed
             end
           end
 
-          JobTracking.job_created(job)
+          if job.id
+            logger.info("Created #{Delayed::Logging.log_job(job, :long)}")
+            JobTracking.job_created(job)
+          else
+            logger.info("Dropped #{Delayed::Logging.log_job(job, :long)}")
+          end
 
           job
         end

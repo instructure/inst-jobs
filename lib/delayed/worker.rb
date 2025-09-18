@@ -272,15 +272,6 @@ module Delayed
       Process.pid
     end
 
-    def log_job(job, format = :short)
-      case format
-      when :long
-        "#{job.full_name} #{Settings.job_detailed_log_format.call(job)}"
-      else
-        "#{job.full_name} #{Settings.job_short_log_format.call(job)}".strip
-      end
-    end
-
     # set up the session context information, so that it gets logged with the job log lines
     # also set up a unique tmpdir, which will get removed at the end of the job.
     def configure_for_job(job)
