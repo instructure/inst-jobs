@@ -441,6 +441,16 @@ describe "Delayed::Backed::ActiveRecord::Job" do
   context "Failed#requeue!" do
     it "requeues a failed job" do
       j = create_job(attempts: 1, max_attempts: 1)
+
+      mock_logger = double("logger")
+      allow(Delayed::Job).to receive(:logger).and_return(mock_logger)
+
+      expect(mock_logger).to receive(:info) do |message|
+        expect(message).to match(/Requeued SimpleJob \(id=\d+\)/)
+        expect(message).to include("SimpleJob#perform")
+        expect(message).to include("priority")
+      end
+
       fj = j.fail!
 
       lifecycle_args = nil

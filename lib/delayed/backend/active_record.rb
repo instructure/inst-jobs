@@ -654,6 +654,7 @@ module Delayed
               end
               self.requeued_job_id = job.id
               save!
+              logger.info("Requeued #{Delayed::Logging.log_job(job, :long)}")
               JobTracking.job_created(job)
               job
             end

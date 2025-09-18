@@ -60,6 +60,34 @@ shared_examples_for "a backend" do
     expect { Delayed::Job.enqueue(SimpleJob.new) }.not_to raise_error
   end
 
+  it "logs job creation with full details" do
+    mock_logger = double("logger")
+    allow(Delayed::Job).to receive(:logger).and_return(mock_logger)
+
+    expect(mock_logger).to receive(:info) do |message|
+      expect(message).to match(/Created SimpleJob \(id=\d+\)/)
+      expect(message).to include("SimpleJob#perform")
+      expect(message).to include("priority")
+    end
+
+    Delayed::Job.enqueue(SimpleJob.new)
+  end
+
+  it "logs when a job was dropped" do
+    Delayed::Job.enqueue(SimpleJob.new, singleton: "singleton_job")
+
+    mock_logger = double("logger")
+    allow(Delayed::Job).to receive(:logger).and_return(mock_logger)
+
+    expect(mock_logger).to receive(:info) do |message|
+      expect(message).to match(/Dropped SimpleJob/)
+      expect(message).to include("SimpleJob#perform")
+      expect(message).to include("priority")
+    end
+
+    Delayed::Job.enqueue(SimpleJob.new, singleton: "singleton_job")
+  end
+
   it "is able to set priority when enqueuing items" do
     @job = Delayed::Job.enqueue SimpleJob.new, priority: 5
     expect(@job.priority).to eq(5)
