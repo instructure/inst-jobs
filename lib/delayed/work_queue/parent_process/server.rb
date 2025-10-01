@@ -9,6 +9,7 @@ module Delayed
         attr_reader :clients, :listen_socket
 
         include Delayed::Logging
+
         SIGNALS = %i[INT TERM QUIT].freeze
 
         def initialize(listen_socket, parent_pid: nil, config: Settings.parent_process)

@@ -23,6 +23,7 @@ module Delayed
       # Contains the work object as a YAML field.
       class Job < AbstractJob
         include Delayed::Backend::Base
+
         self.table_name = :delayed_jobs
 
         attr_accessor :enqueue_result
@@ -633,6 +634,7 @@ module Delayed
 
         class Failed < Job
           include Delayed::Backend::Base
+
           self.table_name = :failed_jobs
 
           def self.cleanup_old_jobs(before_date, batch_size: 10_000)
