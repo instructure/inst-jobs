@@ -29,6 +29,8 @@ Rails/SquishedSQLHeredocs:
 Naming/FileName:
   Exclude:
     - lib/inst-jobs.rb
+Naming/PredicateMethod:
+  AllowBangMethods: true
 
 Rails/ApplicationRecord:
   Enabled: false

@@ -35,6 +35,10 @@ RSpec.configure do |config|
   config.after do
     DatabaseCleaner.clean
   end
+
+  def create_job(opts = {})
+    Delayed::Job.enqueue(SimpleJob.new, queue: nil, **opts)
+  end
 end
 
 module NoYamlDump

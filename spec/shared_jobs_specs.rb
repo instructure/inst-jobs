@@ -8,10 +8,10 @@ require_relative "shared/testing"
 require_relative "shared/worker"
 
 shared_examples_for "a delayed_jobs implementation" do
-  include_examples "a backend"
-  include_examples "Delayed::Batch"
-  include_examples "random ruby objects"
-  include_examples "Delayed::PerformableMethod"
-  include_examples "Delayed::Worker"
-  include_examples "Delayed::Testing"
+  it_behaves_like "a backend"
+  it_behaves_like "Delayed::Batch"
+  it_behaves_like "random ruby objects"
+  it_behaves_like "Delayed::PerformableMethod"
+  it_behaves_like "Delayed::Worker"
+  it_behaves_like "Delayed::Testing"
 end

@@ -3,18 +3,14 @@
 require "timeout"
 
 module InDelayedJobTest
-  def self.check_in_job
-    Delayed::Job.in_delayed_job?.should == true
+  def self.check_in_job(hash)
+    hash[:in_job] = Delayed::Job.in_delayed_job?
   end
 end
 
 def no_op_callback(_); end
 
 shared_examples_for "a backend" do
-  def create_job(opts = {})
-    Delayed::Job.enqueue(SimpleJob.new, queue: nil, **opts)
-  end
-
   before do
     SimpleJob.runs = 0
   end
@@ -948,10 +944,12 @@ shared_examples_for "a backend" do
   end
 
   it "sets in_delayed_job?" do
-    job = InDelayedJobTest.delay(ignore_transaction: true).check_in_job
-    expect(Delayed::Job.in_delayed_job?).to be(false)
+    hash = {}
+    job = InDelayedJobTest.delay(ignore_transaction: true).check_in_job(hash)
+    expect(Delayed::Job).not_to be_in_delayed_job
     job.invoke_job
-    expect(Delayed::Job.in_delayed_job?).to be(false)
+    expect(hash[:in_job]).to be true
+    expect(Delayed::Job).not_to be_in_delayed_job
   end
 
   it "fails on job creation if an unsaved AR object is used" do
@@ -1122,55 +1120,59 @@ shared_examples_for "a backend" do
     end
 
     describe "scope: current" do
-      include_examples "scope"
-      before do # rubocop:disable RSpec/HooksBeforeExamples
-        @flavor = "current"
-        Timecop.freeze(5.minutes.ago) do
-          3.times { @affected_jobs << create_job }
-          @ignored_jobs << create_job(run_at: 2.hours.from_now)
-          @ignored_jobs << create_job(queue: "q2")
+      it_behaves_like "scope" do
+        before do
+          @flavor = "current"
+          Timecop.freeze(5.minutes.ago) do
+            3.times { @affected_jobs << create_job }
+            @ignored_jobs << create_job(run_at: 2.hours.from_now)
+            @ignored_jobs << create_job(queue: "q2")
+          end
         end
       end
     end
 
     describe "scope: future" do
-      include_examples "scope"
-      before do # rubocop:disable RSpec/HooksBeforeExamples
-        @flavor = "future"
-        Timecop.freeze(5.minutes.ago) do
-          3.times { @affected_jobs << create_job(run_at: 2.hours.from_now) }
-          @ignored_jobs << create_job
-          @ignored_jobs << create_job(queue: "q2", run_at: 2.hours.from_now)
+      it_behaves_like "scope" do
+        before do
+          @flavor = "future"
+          Timecop.freeze(5.minutes.ago) do
+            3.times { @affected_jobs << create_job(run_at: 2.hours.from_now) }
+            @ignored_jobs << create_job
+            @ignored_jobs << create_job(queue: "q2", run_at: 2.hours.from_now)
+          end
         end
       end
     end
 
     describe "scope: strand" do
-      include_examples "scope"
-      before do # rubocop:disable RSpec/HooksBeforeExamples
-        @flavor = "strand"
-        @query = "s1"
-        Timecop.freeze(5.minutes.ago) do
-          @affected_jobs << create_job(strand: "s1")
-          @affected_jobs << create_job(strand: "s1", run_at: 3.seconds.from_now)
-          @ignored_jobs << create_job
-          @ignored_jobs << create_job(strand: "s2")
-          @ignored_jobs << create_job(strand: "s2", run_at: 3.seconds.from_now)
+      it_behaves_like "scope" do
+        before do
+          @flavor = "strand"
+          @query = "s1"
+          Timecop.freeze(5.minutes.ago) do
+            @affected_jobs << create_job(strand: "s1")
+            @affected_jobs << create_job(strand: "s1", run_at: 3.seconds.from_now)
+            @ignored_jobs << create_job
+            @ignored_jobs << create_job(strand: "s2")
+            @ignored_jobs << create_job(strand: "s2", run_at: 3.seconds.from_now)
+          end
         end
       end
     end
 
     describe "scope: tag" do
-      include_examples "scope"
-      before do # rubocop:disable RSpec/HooksBeforeExamples
-        @flavor = "tag"
-        @query = "String#to_i"
-        Timecop.freeze(5.minutes.ago) do
-          @affected_jobs << "test".delay(ignore_transaction: true).to_i
-          @affected_jobs << "test".delay(strand: "s1", ignore_transaction: true).to_i
-          @affected_jobs << "test".delay(run_at: 2.hours.from_now, ignore_transaction: true).to_i
-          @ignored_jobs << create_job
-          @ignored_jobs << create_job(run_at: 1.hour.from_now)
+      it_behaves_like "scope" do
+        before do
+          @flavor = "tag"
+          @query = "String#to_i"
+          Timecop.freeze(5.minutes.ago) do
+            @affected_jobs << "test".delay(ignore_transaction: true).to_i
+            @affected_jobs << "test".delay(strand: "s1", ignore_transaction: true).to_i
+            @affected_jobs << "test".delay(run_at: 2.hours.from_now, ignore_transaction: true).to_i
+            @ignored_jobs << create_job
+            @ignored_jobs << create_job(run_at: 1.hour.from_now)
+          end
         end
       end
     end

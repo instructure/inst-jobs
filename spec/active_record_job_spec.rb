@@ -9,7 +9,7 @@ describe "Delayed::Backed::ActiveRecord::Job" do
     Delayed::Testing.clear_all!
   end
 
-  include_examples "a delayed_jobs implementation"
+  it_behaves_like "a delayed_jobs implementation"
 
   describe ".locked" do
     subject(:locked_jobs) { Delayed::Job.locked }
@@ -370,6 +370,8 @@ describe "Delayed::Backed::ActiveRecord::Job" do
       j = create_job(strand: "test1")
       allow(Delayed::Job.connection).to receive(:execute).and_call_original
       expect(Delayed::Job.find(j.id)).to eq j
+    ensure
+      allow(Delayed::Job.connection).to receive(:execute).and_call_original
     end
 
     it "creates a non-stranded job in a single statement" do

@@ -20,6 +20,7 @@ module Delayed
 
   class Worker
     include Delayed::Logging
+
     SIGNALS = %i[INT TERM QUIT].freeze
 
     attr_reader :config, :queue_name, :min_priority, :max_priority, :work_queue
@@ -223,7 +224,7 @@ module Delayed
             end
             job.destroy
           end
-          logger.info("Completed #{log_job(job, :short)} #{format("%.0fms", (runtime * 1000))}")
+          logger.info("Completed #{log_job(job, :short)} #{format("%.0fms", runtime * 1000)}")
         end
       rescue ::Delayed::RetriableError => e
         can_retry = job.attempts + 1 < job.inferred_max_attempts

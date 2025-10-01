@@ -5,11 +5,11 @@ module Delayed
     class NullHealthCheck < HealthCheck
       self.type_name = :none
 
-      def start
+      def start # rubocop:disable Naming/PredicateMethod
         true
       end
 
-      def stop
+      def stop # rubocop:disable Naming/PredicateMethod
         true
       end
 
