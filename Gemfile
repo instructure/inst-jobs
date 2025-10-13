@@ -39,8 +39,8 @@ group :development, :test do
   gem "rubocop-rails", "~> 2.11"
   gem "rubocop-rake", "~> 0.6"
   gem "rubocop-rspec", "~> 3.0"
-  gem "sinatra"
-  gem "sinatra-contrib", "~> 3.1"
+  gem "sinatra", ">= 4.2.0"
+  gem "sinatra-contrib", "~> 4.2", ">= 4.2.0"
   gem "timecop", "~> 0.9"
   gem "webmock"
 end
