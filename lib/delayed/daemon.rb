@@ -12,8 +12,8 @@ module Delayed
     end
 
     def status(print: true, pid: self.pid)
-      alive = pid && Process.kill(0, pid) rescue false && :running
-      alive ||= :draining if pid && Process.kill(0, -pid) rescue false
+      alive = pid && Delayed::Util.process_running?(pid) && :running
+      alive ||= :draining if pid && Delayed::Util.process_running?(-pid)
       if alive
         puts "Delayed jobs #{alive}, pool PID: #{pid}" if print
       elsif print && print != :alive

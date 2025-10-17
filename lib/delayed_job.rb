@@ -40,6 +40,7 @@ require "delayed/periodic"
 require "delayed/plugin"
 require "delayed/pool"
 require "delayed/worker"
+require "delayed/util"
 
 require "delayed/worker/health_check"
 require "delayed/worker/consul_health_check"
