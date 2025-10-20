@@ -210,7 +210,7 @@ module Delayed
 
               unless pid
                 job_pid = $1.to_i
-                running = Process.kill(0, job_pid) rescue false
+                running = Delayed::Util.process_running?(job_pid)
               end
 
               if running
