@@ -1,16 +1,18 @@
 # frozen_string_literal: true
 
 class TestingWorker
-  cattr_accessor :runs
+  cattr_accessor :runs, :job_ids
 
   def self.run
     self.runs += 1
+    job_ids << Delayed::Worker.current_job&.id
   end
 end
 
 shared_examples_for "Delayed::Testing" do
   before do
     TestingWorker.runs = 0
+    TestingWorker.job_ids = Set.new
   end
 
   describe ".run_job" do
@@ -18,6 +20,12 @@ shared_examples_for "Delayed::Testing" do
       job = TestingWorker.delay(ignore_transaction: true).run
       Delayed::Testing.run_job(job)
       expect(TestingWorker.runs).to eq 1
+    end
+
+    it "sets Delayed::Worker.current_job" do
+      job = TestingWorker.delay(ignore_transaction: true).run
+      Delayed::Testing.run_job(job)
+      expect(TestingWorker.job_ids).to include(job.id)
     end
   end
 

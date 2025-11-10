@@ -3,7 +3,9 @@
 module Delayed
   module Testing
     def self.run_job(job)
-      Delayed::Worker.new.perform(job)
+      Delayed::Worker.running_job(job) do
+        Delayed::Worker.new.perform(job)
+      end
     end
 
     def self.drain
