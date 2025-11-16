@@ -36,7 +36,7 @@ group :development, :test do
   gem "rake"
   gem "rspec", "~> 3.10"
   gem "rubocop-inst", "~> 1"
-  gem "rubocop-rails", "~> 2.11"
+  gem "rubocop-rails", "~> 2.34", ">= 2.34.0"
   gem "rubocop-rake", "~> 0.6"
   gem "rubocop-rspec", "~> 3.0"
   gem "sinatra"
