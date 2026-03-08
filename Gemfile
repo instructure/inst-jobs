@@ -29,7 +29,7 @@ group :development, :test do
   gem "database_cleaner", "~> 2.0"
   gem "database_cleaner-active_record", "~> 2.0"
   gem "debug"
-  gem "diplomat", "~> 2.6.3"
+  gem "diplomat", "~> 2.6.6"
   gem "mutex_m"
   gem "pg"
   gem "rack-test"
