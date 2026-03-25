@@ -10,18 +10,18 @@ Plugin.send(:load_plugin, "bundler-multilock")
 gemspec
 
 lockfile "activerecord-7.1" do
-  gem "activerecord", "~> 7.1.0"
-  gem "railties", "~> 7.1.0"
+  gem "activerecord", "~> 8.0.4", ">= 8.0.4.1"
+  gem "railties", "~> 8.1.2", ">= 8.1.2.1"
 end
 
 lockfile "activerecord-7.2" do
-  gem "activerecord", "~> 7.2.0"
-  gem "railties", "~> 7.2.0"
+  gem "activerecord", "~> 8.0.4", ">= 8.0.4.1"
+  gem "railties", "~> 8.1.2", ">= 8.1.2.1"
 end
 
 lockfile do
-  gem "activerecord", "~> 8.0.0"
-  gem "railties", "~> 8.0.0"
+  gem "activerecord", "~> 8.0.4", ">= 8.0.4.1"
+  gem "railties", "~> 8.1.2", ">= 8.1.2.1"
 end
 
 group :development, :test do
@@ -36,7 +36,7 @@ group :development, :test do
   gem "rake"
   gem "rspec", "~> 3.10"
   gem "rubocop-inst", "~> 1"
-  gem "rubocop-rails", "~> 2.11"
+  gem "rubocop-rails", "~> 2.34", ">= 2.34.0"
   gem "rubocop-rake", "~> 0.6"
   gem "rubocop-rspec", "~> 3.0"
   gem "sinatra"
