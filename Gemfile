@@ -42,5 +42,5 @@ group :development, :test do
   gem "sinatra"
   gem "sinatra-contrib", "~> 3.1"
   gem "timecop", "~> 0.9"
-  gem "webmock"
+  gem "webmock", ">= 3.25.2"
 end
