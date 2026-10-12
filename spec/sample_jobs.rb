@@ -59,6 +59,24 @@ class LongRunningJob
   end
 end
 
+class BlockingJob
+  class << self
+    attr_accessor :started, :finished
+  end
+
+  def perform
+    self.class.started&.push(true)
+    sleep 30
+    self.class.finished = true
+  end
+end
+
+class CancellingJob
+  def perform
+    raise Delayed::CancelledError, "job cancelled at some point"
+  end
+end
+
 module M
   class ModuleJob
     class << self
