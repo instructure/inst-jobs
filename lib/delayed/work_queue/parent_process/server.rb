@@ -281,8 +281,6 @@ module Delayed
             rescue Errno::ESRCH
               # ignore exited process
             end
-            # Ensure we don't try to kill the job multiple times
-            client.active_job_id = nil
           end
         end
 

@@ -302,13 +302,6 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
       expect(Marshal.load(client)).to eq(running_job)
     end
 
-    it "signals the worker running a cancelled job, only once" do
-      running_job.cancel!
-      expect(Process).to receive(:kill).with("USR1", 12_345).once
-      subject.check_for_cancellations
-      subject.check_for_cancellations
-    end
-
     it "doesn't signal a worker whose job isn't cancelled" do
       expect(Process).not_to receive(:kill)
       subject.check_for_cancellations

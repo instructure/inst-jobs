@@ -335,11 +335,13 @@ module Delayed
     # A cancellation that arrives after a job finishes is deferred by handle_interrupt,
     # and would otherwise be raised as soon as the next job starts.
     def discard_pending_cancellation
-      return unless Thread.pending_interrupt?(CancelledError)
-
-      Thread.handle_interrupt(CancelledError => :immediate) { nil }
-    rescue CancelledError => e
-      logger.debug "Discarding cancellation for a job that already finished: #{e.message}"
+      while Thread.pending_interrupt?(CancelledError)
+        begin
+          Thread.handle_interrupt(CancelledError => :immediate) { nil }
+        rescue CancelledError => e
+          logger.debug "Discarding cancellation for a job that already finished: #{e.message}"
+        end
+      end
     end
 
     def handle_failed_job(job, error)
