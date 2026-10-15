@@ -622,8 +622,7 @@ module Delayed
         # Delete unlocked jobs; if the job is locked mark it for the job worker
         # to cancel within a reasonable amount of time
         def cancel!
-          if self.class.where(id:, locked_at: nil).delete_all == 1 ||
-             self.class.where(id:, locked_by: ON_HOLD_LOCKED_BY).delete_all == 1
+          if self.class.where(id:).where("locked_by IS NULL OR locked_by=?", ON_HOLD_LOCKED_BY).delete_all == 1
             @destroyed = true
             return true
           end
