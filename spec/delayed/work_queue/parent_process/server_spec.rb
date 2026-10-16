@@ -282,4 +282,79 @@ RSpec.describe Delayed::WorkQueue::ParentProcess::Server do
     subject.run_once
     expect(waiting_clients.first.last).to be_empty
   end
+
+  context "cancellation" do
+    let(:worker_name) { "host:12345" }
+    let(:running_job) { Delayed::Job.new(tag: "running").tap { |j| j.create_and_lock!(worker_name) } }
+    let(:prefetched_jobs) { subject.instance_variable_get(:@prefetched_jobs) }
+
+    def prefetch_job
+      Delayed::Job.new(tag: "prefetched").tap { |j| j.create_and_lock!(subject.prefetch_owner) }
+    end
+
+    before do
+      client = Socket.unix(subject.listen_socket.local_address.unix_path)
+      subject.run_once
+
+      allow(Delayed::Job).to receive(:get_and_lock_next_available).and_return(worker_name => running_job)
+      Marshal.dump([worker_name, worker_config], client)
+      subject.run_once
+      expect(Marshal.load(client)).to eq(running_job)
+    end
+
+    it "doesn't signal a worker whose job isn't cancelled" do
+      expect(Process).not_to receive(:kill)
+      subject.check_for_cancellations
+    end
+
+    it "doesn't signal a worker whose job is cancelled in the future" do
+      running_job.update!(cancelled_at: Delayed::Job.db_time_now + 1.hour)
+      expect(Process).not_to receive(:kill)
+      subject.check_for_cancellations
+    end
+
+    it "ignores a worker that has already exited" do
+      running_job.cancel!
+      expect(Process).to receive(:kill).and_raise(Errno::ESRCH)
+      expect { subject.check_for_cancellations }.not_to raise_error
+    end
+
+    it "deletes cancelled prefetched jobs" do
+      cancelled = prefetch_job
+      kept = prefetch_job
+      prefetched_jobs[worker_config] = [cancelled, kept]
+      cancelled.cancel!
+
+      subject.check_for_cancellations
+
+      expect(prefetched_jobs[worker_config]).to eq [kept]
+      expect(Delayed::Job.find_by(id: cancelled.id)).to be_nil
+      expect(kept.reload).not_to be_cancelled
+    end
+
+    it "doesn't delete a cancelled prefetched job it no longer holds" do
+      transferred = prefetch_job
+      prefetched_jobs[worker_config] = [transferred]
+      transferred.cancel!
+      Delayed::Job.where(id: transferred.id).update_all(locked_by: "host:67890")
+
+      subject.check_for_cancellations
+
+      expect(prefetched_jobs[worker_config]).to be_empty
+      expect(Delayed::Job.find_by(id: transferred.id)).not_to be_nil
+    end
+
+    it "only checks for cancellations once per interval" do
+      allow(Delayed::Settings).to receive_messages(sleep_delay: 0, sleep_delay_stagger: 0)
+      expect(subject).not_to receive(:check_for_cancellations)
+      subject.run_once
+
+      RSpec::Mocks.space.proxy_for(subject).reset
+      Timecop.travel(Delayed::Settings.cancellation_check_interval.seconds.from_now + 1) do
+        expect(subject).to receive(:check_for_cancellations).once
+        subject.run_once
+        subject.run_once
+      end
+    end
+  end
 end

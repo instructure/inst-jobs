@@ -215,6 +215,12 @@ module Delayed
           where(locked_by: worker_name).update_all(locked_by: nil, locked_at: nil)
         end
 
+        def self.cancel!
+          deleted = where("locked_by IS NULL OR locked_by=?", ON_HOLD_LOCKED_BY).delete_all
+          marked = update_all(cancelled_at: db_time_now)
+          [deleted, marked]
+        end
+
         def self.strand_size(strand)
           where(strand:).count
         end
@@ -613,6 +619,18 @@ module Delayed
           single_step_create
         end
 
+        # Delete unlocked jobs; if the job is locked mark it for the job worker
+        # to cancel within a reasonable amount of time
+        def cancel!
+          if self.class.where(id:).where("locked_by IS NULL OR locked_by=?", ON_HOLD_LOCKED_BY).delete_all == 1
+            @destroyed = true
+            return true
+          end
+
+          update!(cancelled_at: self.class.db_time_now)
+          false
+        end
+
         def fail!
           attrs = attributes
           attrs["original_job_id"] = attrs.delete("id") if Failed.columns_hash.key?("original_job_id")
@@ -646,6 +664,7 @@ module Delayed
                                       "last_error",
                                       "locked_at",
                                       "failed_at",
+                                      "cancelled_at",
                                       "locked_by",
                                       "original_job_id",
                                       "requeued_job_id")

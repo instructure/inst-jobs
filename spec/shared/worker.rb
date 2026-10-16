@@ -369,6 +369,152 @@ shared_examples_for "Delayed::Worker" do
     end
   end
 
+  describe "cancellation" do
+    def cancel_at(job, time)
+      Delayed::Job.where(id: job.id).update_all(cancelled_at: time)
+    end
+
+    def failed_job_for(job)
+      Delayed::Job::Failed.find_by(original_job_id: job.id)
+    end
+
+    before do
+      Delayed::Worker.on_max_failures = proc { false }
+    end
+
+    it "does not run a job that was cancelled before it started, even with attempts left" do
+      job = job_create(max_attempts: 5)
+      cancel_at(job, Delayed::Job.db_time_now - 1.minute)
+
+      expect { @worker.run }.not_to change(SimpleJob, :runs)
+      expect(Delayed::Job.find_by(id: job.id)).to be_nil
+      expect(failed_job_for(job).last_error).to match(/cancelled at/)
+    end
+
+    it "runs a job whose cancellation is still in the future" do
+      job = job_create
+      cancel_at(job, Delayed::Job.db_time_now + 1.hour)
+
+      expect { @worker.run }.to change(SimpleJob, :runs).by(1)
+      expect(Delayed::Job.find_by(id: job.id)).to be_nil
+      expect(failed_job_for(job)).to be_nil
+    end
+
+    it "treats cancellation as a permanent failure without calling on_failure" do
+      ErrorJob.failure_runs = 0
+      ErrorJob.permanent_failure_runs = 0
+      job = Delayed::Job.enqueue(ErrorJob.new, max_attempts: 5)
+      cancel_at(job, Delayed::Job.db_time_now - 1.minute)
+
+      error = nil
+      Delayed::Worker.lifecycle.before(:error) { |_worker, _job, e| error = e }
+      @worker.run
+
+      expect(ErrorJob.failure_runs).to eq 0
+      expect(ErrorJob.permanent_failure_runs).to eq 1
+      expect(ErrorJob.last_error).to be_a Delayed::CancelledError
+      expect(error).to be_a Delayed::CancelledError
+    ensure
+      Delayed::Worker.lifecycle.reset!
+    end
+
+    it "stops a serial batch when one of its jobs is cancelled" do
+      batch = Delayed::Batch::PerformableBatch.new(:serial, [
+                                                     { payload_object: SimpleJob.new },
+                                                     { payload_object: CancellingJob.new },
+                                                     { payload_object: SimpleJob.new }
+                                                   ])
+      batch_job = Delayed::Job.create payload_object: batch
+
+      @worker.perform(batch_job)
+
+      expect(SimpleJob.runs).to eq 1
+      expect(Delayed::Job.count).to eq 0
+      # the cancelled job in the batch, and the batch itself
+      expect(Delayed::Job::Failed.count).to eq 2
+      expect(failed_job_for(batch_job).last_error).to match(/cancelled at/)
+    end
+
+    it "discards a cancellation that arrives after the job finished" do
+      job_create
+      job_create
+      allow(@worker).to receive(:perform).and_wrap_original do |m, *args, **kwargs|
+        result = m.call(*args, **kwargs)
+        # simulate the cancellation landing just after the job completed
+        target = Thread.current
+        Thread.new { target.raise(Delayed::CancelledError, "late") }.join
+        result
+      end
+
+      # the worker runs jobs with cancellation deferred outside of the job itself
+      Thread.handle_interrupt(Delayed::CancelledError => :never) do
+        2.times { @worker.run }
+        expect(Thread.pending_interrupt?(Delayed::CancelledError)).to be false
+      end
+      expect(SimpleJob.runs).to eq 2
+      expect(Delayed::Job::Failed.count).to eq 0
+    end
+
+    it "does nothing if there is no active job" do
+      expect(Delayed::Job).not_to receive(:where)
+      @worker.send(:cancel_active_job_if_cancelled, Thread.current)
+    end
+
+    it "does not raise if checking for cancellation fails" do
+      @worker.instance_variable_set(:@active_root_job, job_create)
+      allow(Delayed::Job).to receive(:where).and_raise(ActiveRecord::ConnectionNotEstablished)
+      expect { @worker.send(:cancel_active_job_if_cancelled, Thread.current) }.not_to raise_error
+    end
+
+    context "while the job is running", :non_transactional do
+      around do |example|
+        change_setting(Delayed::Settings, :cancellation_check_interval, 0.1) { example.run }
+      end
+
+      before do
+        # exit after the one job, however it ends
+        @worker = worker_create(worker_max_job_count: 1)
+        BlockingJob.started = Queue.new
+        BlockingJob.finished = false
+      end
+
+      def start_worker
+        work_thread = Thread.new { @worker.start }
+        expect(BlockingJob.started.pop(timeout: 5)).to be true
+        work_thread
+      end
+
+      it "terminates and fails the job once it is cancelled" do
+        job = Delayed::Job.enqueue(BlockingJob.new, max_attempts: 5)
+        work_thread = start_worker
+
+        # several check intervals pass without the job being interrupted
+        expect(work_thread.join(0.5)).to be_nil
+
+        job.cancel!
+        expect(work_thread.join(5)).to be_truthy
+        expect(BlockingJob.finished).to be false
+        expect(Delayed::Job.find_by(id: job.id)).to be_nil
+        expect(failed_job_for(job).last_error).to match(/cancelled at/)
+      ensure
+        work_thread&.kill
+      end
+
+      it "terminates the job once a future cancellation time passes" do
+        job = Delayed::Job.enqueue(BlockingJob.new)
+        cancel_at(job, Delayed::Job.db_time_now + 1.second)
+        work_thread = start_worker
+
+        expect(work_thread.join(0.5)).to be_nil
+        expect(work_thread.join(5)).to be_truthy
+        expect(BlockingJob.finished).to be false
+        expect(failed_job_for(job)).not_to be_nil
+      ensure
+        work_thread&.kill
+      end
+    end
+  end
+
   describe "delay failure callbacks" do
     it "calls the on_failure callback" do
       ErrorJob.last_error = nil

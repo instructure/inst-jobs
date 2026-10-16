@@ -3,6 +3,11 @@
 module Delayed
   class TimeoutError < RuntimeError; end
 
+  # Use Exception so that user code that rescues regular errors won't accidentally catch this
+  # rubocop:disable Lint/InheritException
+  class CancelledError < Exception; end
+  # rubocop:enable Lint/InheritException
+
   class RetriableError < RuntimeError
     # this error is a special case.  You _should_ raise
     # it from inside the rescue block for another error,
@@ -21,7 +26,7 @@ module Delayed
   class Worker
     include Delayed::Logging
 
-    SIGNALS = %i[INT TERM QUIT].freeze
+    SIGNALS = %i[INT TERM QUIT USR1].freeze
 
     attr_reader :config, :queue_name, :min_priority, :max_priority, :work_queue
 
@@ -69,6 +74,7 @@ module Delayed
       @health_check_config = Settings.worker_health_check_config
       @config = options
       @job_count = 0
+      @active_job_mutex = Mutex.new
 
       @signal_queue = []
 
@@ -129,14 +135,29 @@ module Delayed
             break
           when :QUIT
             @exit = true
+          when :USR1
+            # Use the explicit check in case the job changed since the signal was sent
+            # Use dedicated thread to avoid blocking the signal handler while making DB queries
+            Thread.new { cancel_active_job_if_cancelled(work_thread) }
           else
             logger.error "Unknown signal '#{sig}' received"
           end
         end
       end
 
-      self.class.lifecycle.run_callbacks(:execute, self) do
-        run until exit?
+      if work_queue.is_a?(WorkQueue::InProcess)
+        cancellation_checker = Thread.new do
+          loop do
+            sleep(Settings.cancellation_check_interval)
+            cancel_active_job_if_cancelled(work_thread)
+          end
+        end
+      end
+
+      Thread.handle_interrupt(CancelledError => :never) do
+        self.class.lifecycle.run_callbacks(:execute, self) do
+          run until exit?
+        end
       end
 
       logger.info "Stopping worker"
@@ -149,6 +170,11 @@ module Delayed
       if signal_processor
         signal_processor.kill
         signal_processor.join
+      end
+
+      if cancellation_checker
+        cancellation_checker.kill
+        cancellation_checker.join
       end
 
       @self_pipe&.each(&:close)
@@ -180,8 +206,11 @@ module Delayed
         end
 
         if job
+          @active_job_mutex.synchronize { @active_root_job = job }
           configure_for_job(job) do
             @job_count += perform(job)
+            @active_job_mutex.synchronize { @active_root_job = nil }
+            discard_pending_cancellation
 
             if @max_job_count.positive? && @job_count >= @max_job_count
               logger.debug "Max job count of #{@max_job_count} exceeded, dying"
@@ -206,21 +235,26 @@ module Delayed
       end
     end
 
-    def perform(job)
+    def perform(job, in_batch: false)
       begin
         count = 1
         raise Delayed::Backend::JobExpired, "job expired at #{job.expires_at}" if job.expired?
+        raise CancelledError, "job #{job.id} cancelled at #{job.cancelled_at}" if job.cancelled?
 
         self.class.lifecycle.run_callbacks(:perform, self, job) do
           self.process_name = "run:#{Settings.worker_procname_prefix}#{job.id}:#{job.name}"
           logger.info("Processing #{log_job(job, :long)}")
           runtime = Benchmark.realtime do
-            if job.batch?
-              # each job in the batch will have perform called on it, so we don't
-              # need a timeout around this
-              count = perform_batch(job)
-            else
-              job.invoke_job
+            # cancellation is only delivered while the job's own code is running, so it can't
+            # interrupt our bookkeeping (destroying the job, or failing it in a rescue below)
+            Thread.handle_interrupt(CancelledError => :immediate) do
+              if job.batch?
+                # each job in the batch will have perform called on it, so we don't
+                # need a timeout around this
+                count = perform_batch(job)
+              else
+                job.invoke_job
+              end
             end
             job.destroy
           end
@@ -236,6 +270,16 @@ module Delayed
         # There wasn't really a failure here so no callbacks and whatnot needed,
         # still reschedule the job though.
         job.reschedule(e)
+      rescue CancelledError => e
+        logger.debug "Job #{job.id} was cancelled"
+        self.class.lifecycle.run_callbacks(:error, self, job, e) do
+          job.last_error = e.message
+          # Do not call on_failure, as a cancelled job must not be simply unlocked
+          # and thus the behavior switching that method supports must be ignored
+          job.permanent_failure(e)
+        end
+        # cancellation applies to the whole batch, so don't move on to the next job in it
+        raise if in_batch
       rescue Exception => e # rubocop:disable Lint/RescueException
         if e.is_a?(NoMemoryError)
           GC.start # try and free up some memory before reporting the error
@@ -257,10 +301,47 @@ module Delayed
         job.source = parent_job.source
         job.create_and_lock!(name)
         configure_for_job(job) do
-          perform(job)
+          # we're inside the batch's :immediate block; mask again so the sub-job's own bookkeeping
+          # is protected. a cancellation that arrives during it is raised once this block exits,
+          # which cancels the rest of the batch
+          Thread.handle_interrupt(CancelledError => :never) do
+            perform(job, in_batch: true)
+          end
         end
       end
       batch.items.size
+    end
+
+    def cancel_active_job_if_cancelled(work_thread)
+      job = @active_root_job
+      return unless job
+
+      # this runs on a background thread; don't hold a connection from the pool between checks
+      cancelled_at = Delayed::Job.connection_pool.with_connection do
+        Delayed::Job.where(id: job.id).pick(:cancelled_at)
+      end
+      return unless cancelled_at && cancelled_at <= Delayed::Job.db_time_now
+
+      @active_job_mutex.synchronize do
+        return unless @active_root_job.equal?(job)
+
+        logger.debug "Active job #{job.id} has been cancelled"
+        work_thread.raise(CancelledError, "job #{job.id} cancelled at #{cancelled_at}")
+      end
+    rescue => e
+      logger.error("Error while checking for job cancellation: #{e.inspect}")
+    end
+
+    # A cancellation that arrives after a job finishes is deferred by handle_interrupt,
+    # and would otherwise be raised as soon as the next job starts.
+    def discard_pending_cancellation
+      while Thread.pending_interrupt?(CancelledError)
+        begin
+          Thread.handle_interrupt(CancelledError => :immediate) { nil }
+        rescue CancelledError => e
+          logger.debug "Discarding cancellation for a job that already finished: #{e.message}"
+        end
+      end
     end
 
     def handle_failed_job(job, error)

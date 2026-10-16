@@ -234,6 +234,10 @@ module Delayed
         expires_at && (self.class.db_time_now >= expires_at)
       end
 
+      def cancelled?
+        cancelled_at && (self.class.db_time_now >= cancelled_at)
+      end
+
       def inferred_max_attempts
         max_attempts || Delayed::Settings.max_attempts
       end

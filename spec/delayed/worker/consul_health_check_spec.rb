@@ -39,8 +39,16 @@ RSpec.describe Delayed::Worker::ConsulHealthCheck do
     end
 
     it "must include the docker container id when the docker option is set to true" do
+      container_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      allow(File).to receive(:read).and_call_original
+      allow(File).to receive(:read).with("/proc/1/cgroup").and_return(<<~TEXT)
+        12:pids:/docker/#{container_id}
+        11:memory:/docker/#{container_id}
+        1:name=systemd:/docker/#{container_id}
+      TEXT
+
       stub = stub_request(:put, "localhost:8500/v1/agent/service/register")
-             .with(body: hash_including({ check:  WebMock::API.hash_including({ docker_container_id: anything }) }))
+             .with(body: hash_including({ check:  WebMock::API.hash_including({ docker_container_id: container_id }) }))
 
       local_health_check = described_class.new(
         worker_name: "foobar",

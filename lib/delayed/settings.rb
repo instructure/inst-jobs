@@ -25,6 +25,7 @@ module Delayed
       :silence_periodic_log,
       :sleep_delay,
       :sleep_delay_stagger,
+      :cancellation_check_interval,
       :slow_exit_timeout,
       :stranded_run_at_grace_period,
       :worker_health_check_type,
@@ -130,6 +131,7 @@ module Delayed
     self.max_attempts = 1
     self.sleep_delay = 2.0
     self.sleep_delay_stagger = 2.0
+    self.cancellation_check_interval = 10.0
     self.fetch_batch_size = 5
     self.select_random_from_batch = false
     self.silence_periodic_log = false

@@ -24,6 +24,7 @@ module Delayed
 
           @exit = false
           @self_pipe = IO.pipe
+          @last_cancellation_check = Delayed::Job.db_time_now
         end
 
         def connected_clients
@@ -79,6 +80,11 @@ module Delayed
             check_for_work(forced_latency:)
           end
           unlock_timed_out_prefetched_jobs
+
+          return if @last_cancellation_check + Settings.cancellation_check_interval > Delayed::Job.db_time_now
+
+          @last_cancellation_check = Delayed::Job.db_time_now
+          check_for_cancellations
         end
 
         def handle_read(socket)
@@ -97,7 +103,7 @@ module Delayed
         # and terminate the work queue process, to be restarted by the parent daemon.
         def handle_accept
           socket, _addr = @listen_socket.accept_nonblock
-          @clients[socket] = ClientState.new(false, socket) if socket
+          @clients[socket] = ClientState.new(false, nil, socket) if socket
         rescue IO::WaitReadable
           logger.error("Server attempted to read listen_socket but failed with IO::WaitReadable")
           # ignore and just try accepting again next time through the loop
@@ -116,6 +122,7 @@ module Delayed
           worker_name, worker_config = Marshal.load(socket)
           client.name = worker_name
           client.working = false
+          client.active_job_id = nil
           (@waiting_clients[worker_config] ||= []) << client
         rescue SystemCallError, IOError => e
           logger.error("Receiving message from client (#{socket}) failed: #{e.inspect}")
@@ -136,6 +143,7 @@ module Delayed
                 next
               end
               client.working = true
+              client.active_job_id = job.id
               begin
                 logger.debug("Sending prefetched job #{job.id} to #{client.name}")
                 client_timeout { Marshal.dump(job, client.socket) }
@@ -177,6 +185,7 @@ module Delayed
                 end
                 client = workers.find { |worker| worker.name == worker_name }
                 client.working = true
+                client.active_job_id = locked_jobs.id
                 jobs_to_send << [client, locked_jobs]
               end
             end
@@ -245,6 +254,36 @@ module Delayed
           end
         end
 
+        def check_for_cancellations
+          job_map = @clients.values.select(&:active_job_id).index_by(&:active_job_id)
+          prefetched_ids = @prefetched_jobs.values.flatten.map(&:id)
+          return if job_map.empty? && prefetched_ids.empty?
+
+          canceled_jobs = Delayed::Job.where(id: job_map.keys + prefetched_ids)
+                                      .where(cancelled_at: ..Delayed::Job.db_time_now)
+                                      .pluck(:id)
+          return if canceled_jobs.empty?
+
+          canceled_prefetched = canceled_jobs & prefetched_ids
+          unless canceled_prefetched.empty?
+            logger.debug("Deleting cancelled prefetched jobs #{canceled_prefetched.join(", ")}")
+            Delayed::Job.where(id: canceled_prefetched, locked_by: prefetch_owner).delete_all
+            @prefetched_jobs.each_value { |jobs| jobs.reject! { |job| canceled_prefetched.include?(job.id) } }
+          end
+
+          (canceled_jobs & job_map.keys).each do |job_id|
+            client = job_map[job_id]
+            pid = client.name.split(":").last.to_i
+            next unless pid.positive?
+
+            begin
+              Process.kill("USR1", pid)
+            rescue Errno::ESRCH
+              # ignore exited process
+            end
+          end
+        end
+
         def drop_socket(socket)
           # this socket went away
           begin
@@ -275,7 +314,7 @@ module Delayed
           Timeout.timeout(@client_timeout, &)
         end
 
-        ClientState = Struct.new(:working, :socket, :name)
+        ClientState = Struct.new(:working, :active_job_id, :socket, :name)
       end
     end
   end

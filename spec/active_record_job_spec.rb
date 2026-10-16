@@ -471,5 +471,70 @@ describe "Delayed::Backed::ActiveRecord::Job" do
       # (so it will not be retried after being manually requeued)
       expect { run_job(j2) }.to change(SimpleJob, :runs).by(1)
     end
+
+    it "does not carry over cancelled_at" do
+      j = create_job
+      j.send(:lock_exclusively!, "worker")
+      j.cancel!
+      fj = j.fail!
+      expect(fj.cancelled_at).not_to be_nil
+
+      j2 = fj.requeue!
+      expect(j2.cancelled_at).to be_nil
+      expect { run_job(j2) }.to change(SimpleJob, :runs).by(1)
+    end
+  end
+
+  describe "#cancel!" do
+    it "deletes a job that isn't locked" do
+      job = create_job
+      expect(job.cancel!).to be true
+      expect(job).to be_destroyed
+      expect(Delayed::Job.find_by(id: job.id)).to be_nil
+    end
+
+    it "marks a locked job as cancelled" do
+      job = create_job
+      job.send(:lock_exclusively!, "worker")
+      expect(job.cancel!).to be false
+      expect(job.reload.cancelled_at).to be_within(1.second).of(Delayed::Job.db_time_now)
+      expect(job).to be_cancelled
+    end
+
+    it "marks a prefetched job as cancelled" do
+      job = create_job
+      job.send(:lock_exclusively!, "prefetch:host")
+      expect(job.cancel!).to be false
+      expect(job.reload).to be_cancelled
+    end
+  end
+
+  describe ".cancel!" do
+    it "deletes unlocked jobs and marks locked jobs in the scope" do
+      unlocked = create_job(queue: "cancel_me")
+      locked = create_job(queue: "cancel_me")
+      locked.send(:lock_exclusively!, "worker")
+      other = create_job(queue: "leave_me")
+
+      expect(Delayed::Job.where(queue: "cancel_me").cancel!).to eq [1, 1]
+
+      expect(Delayed::Job.find_by(id: unlocked.id)).to be_nil
+      expect(locked.reload).to be_cancelled
+      expect(other.reload.cancelled_at).to be_nil
+    end
+  end
+
+  describe "#cancelled?" do
+    it "is false without cancelled_at" do
+      expect(Delayed::Job.new(cancelled_at: nil)).not_to be_cancelled
+    end
+
+    it "is true once cancelled_at has passed" do
+      expect(Delayed::Job.new(cancelled_at: Delayed::Job.db_time_now - 1.minute)).to be_cancelled
+    end
+
+    it "is false while cancelled_at is in the future" do
+      expect(Delayed::Job.new(cancelled_at: Delayed::Job.db_time_now + 1.minute)).not_to be_cancelled
+    end
   end
 end
