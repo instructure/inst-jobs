@@ -7,11 +7,13 @@ require "socket"
 module Delayed
   class Worker
     class ConsulHealthCheck < HealthCheck
+      include Delayed::Logging
+
       self.type_name = :consul
 
       CONSUL_CONFIG_KEYS = %w[url acl_token].map(&:freeze).freeze
       DEFAULT_SERVICE_NAME = "inst-jobs_worker"
-      attr_reader :service_client, :health_client
+      attr_reader :service_client, :health_client, :check_client
 
       def initialize(*, **)
         super
@@ -27,21 +29,23 @@ module Delayed
           end
           @service_client = Diplomat::Service.new(configuration: consul_config)
           @health_client = Diplomat::Health.new(configuration: consul_config)
+          @check_client = Diplomat::Check.new(configuration: consul_config)
         else
           @service_client = Diplomat::Service.new
           @health_client = Diplomat::Health.new
+          @check_client = Diplomat::Check.new
         end
       end
 
       def start
-        @service_client.register({
-                                   id: worker_name,
-                                   name: service_name,
-                                   check: check_attributes
-                                 })
+        registered = register
+        start_heartbeat if registered && ttl_check?
+        registered
       end
 
       def stop
+        @heartbeat_thread&.kill
+        @heartbeat_thread = nil
         @service_client.deregister(worker_name)
       end
 
@@ -56,13 +60,56 @@ module Delayed
 
       private
 
+      def register
+        @service_client.register({
+                                   id: worker_name,
+                                   name: service_name,
+                                   check: check_attributes
+                                 })
+      end
+
+      def ttl_check?
+        @config.fetch(:check_type, "script").to_s == "ttl"
+      end
+
+      def check_id
+        "service:#{worker_name}"
+      end
+
+      # in seconds
+      def ttl
+        Integer(@config.fetch(:ttl, 60))
+      end
+
+      def start_heartbeat
+        @heartbeat_thread = Thread.new do
+          loop do
+            sleep(ttl / 3.0)
+            heartbeat
+          rescue => e
+            logger.warn("Consul TTL update failed for #{worker_name}: #{e.class}: #{e.message}")
+          end
+        end
+      end
+
+      def heartbeat
+        @check_client.pass(check_id)
+      rescue Faraday::ResourceNotFound
+        logger.warn("Consul forgot #{worker_name}, re-registering")
+        register
+      end
+
       def check_attributes
-        {
-          args: ["bash", "-c", check_script],
+        base = {
           status: "passing",
-          interval: @config.fetch(:check_interval, "5m"),
           deregister_critical_service_after: @config.fetch(:deregister_service_delay, "10m")
-        }.tap do |h|
+        }
+        return base.merge(ttl: "#{ttl}s") if ttl_check?
+
+        base.merge(
+          args: ["bash", "-c", check_script],
+          interval: @config.fetch(:check_interval, "5m")
+        ).tap do |h|
           h[:docker_container_id] = docker_container_id if @config["docker"]
         end
       end

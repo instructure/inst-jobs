@@ -408,6 +408,21 @@ Delayed::Settings.worker_health_check_config = {
 Delayed::Settings.disable_abandoned_job_cleanup = false
 ```
 
+By default each worker registers a script check, which the consul agent runs to
+see whether the worker's process still exists. That only works when the agent
+runs on the same host as the workers. When it can't see the workers' processes,
+for example when workers run in containers and talk to a shared agent, use a TTL
+check instead. Each worker then reports in to the agent from a background
+thread, and consul marks the worker critical if it stops reporting in.
+
+```ruby
+Delayed::Settings.worker_health_check_config = {
+  url: 'http://consul.example.com:8500', # the agent to register with
+  check_type: 'ttl', # Optional, defaults to 'script'
+  ttl: 60, # Optional, in seconds, defaults to 60
+}
+```
+
 ## Testing
 
 To write tests that interact with inst-jobs, you'll need to configure
