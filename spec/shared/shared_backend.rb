@@ -1232,6 +1232,121 @@ shared_examples_for "a backend" do
     end
   end
 
+  describe "manage_tag!" do
+    let(:tag) { "String#to_i" }
+
+    def tagged_job(**)
+      "test".delay(ignore_transaction: true, **).to_i
+    end
+
+    def running_job(**)
+      Delayed::Job.new(tag:, **).tap { |job| job.create_and_lock!("worker") }
+    end
+
+    it "changes only the priority of jobs with the tag that are not running" do
+      queued = tagged_job(priority: 10)
+      held = tagged_job(priority: 10).tap(&:hold!)
+      running = running_job(priority: 10)
+      other = create_job(priority: 10)
+
+      expect(Delayed::Job.manage_tag!(tag, priority: 5)).to eq 2
+
+      expect(queued.reload.priority).to eq 5
+      expect(held.reload.priority).to eq 5
+      expect(held).to be_on_hold
+      expect(running.reload.priority).to eq 10
+      expect(other.reload.priority).to eq 10
+    end
+
+    it "changes max_concurrent only on stranded jobs that are not running" do
+      stranded = tagged_job(strand: "s1")
+      unstranded = tagged_job
+      running = running_job(strand: "s2")
+
+      expect(Delayed::Job.manage_tag!(tag, max_concurrent: 3)).to eq 1
+
+      expect(stranded.reload.max_concurrent).to eq 3
+      expect(unstranded.reload.max_concurrent).to eq 1
+      expect(running.reload.max_concurrent).to eq 1
+    end
+
+    it "holds jobs that are not running" do
+      queued = tagged_job
+      held = tagged_job.tap(&:hold!)
+      running = running_job
+
+      expect(Delayed::Job.manage_tag!(tag, hold: true)).to eq 1
+
+      expect(queued.reload).to be_on_hold
+      expect(held.reload).to be_on_hold
+      expect(running.reload.locked_by).to eq "worker"
+    end
+
+    it "releases held jobs" do
+      queued = tagged_job
+      held = Timecop.freeze(1.hour.ago) { tagged_job.tap(&:hold!) }
+      running = running_job
+
+      expect(Delayed::Job.manage_tag!(tag, hold: false)).to eq 1
+
+      held.reload
+      expect(held.locked_by).to be_nil
+      expect(held.attempts).to eq 0
+      expect(held.run_at).to be >= 1.minute.ago
+      expect(queued.reload.locked_by).to be_nil
+      expect(running.reload.locked_by).to eq "worker"
+    end
+
+    it "applies every change in one call" do
+      stranded = tagged_job(strand: "s1", priority: 10)
+      unstranded = tagged_job(priority: 10)
+      running = running_job(strand: "s2", priority: 10)
+
+      expect(Delayed::Job.manage_tag!(tag, priority: 5, max_concurrent: 3, hold: true)).to eq 2
+
+      stranded.reload
+      expect([stranded.priority, stranded.max_concurrent, stranded.on_hold?]).to eq [5, 3, true]
+      unstranded.reload
+      expect([unstranded.priority, unstranded.max_concurrent, unstranded.on_hold?]).to eq [5, 1, true]
+      running.reload
+      expect([running.priority, running.max_concurrent, running.locked_by]).to eq [10, 1, "worker"]
+    end
+
+    it "updates every job across batches" do
+      jobs = Array.new(5) { tagged_job(priority: 10) }
+
+      expect(Delayed::Job.manage_tag!(tag, priority: 5, batch_size: 2)).to eq 5
+
+      expect(Delayed::Job.where(id: jobs.map(&:id)).pluck(:priority)).to all(eq 5)
+    end
+
+    it "rejects invalid arguments" do
+      expect { Delayed::Job.manage_tag!("", priority: 5) }.to raise_error(ArgumentError, "missing tag")
+      expect { Delayed::Job.manage_tag!(tag) }.to raise_error(ArgumentError, /missing priority/)
+      expect { Delayed::Job.manage_tag!(tag, priority: -1) }.to raise_error(ArgumentError, "invalid priority")
+      expect { Delayed::Job.manage_tag!(tag, priority: "5") }.to raise_error(ArgumentError, "invalid priority")
+      expect { Delayed::Job.manage_tag!(tag, max_concurrent: 0) }
+        .to raise_error(ArgumentError, "invalid max_concurrent")
+      expect { Delayed::Job.manage_tag!(tag, hold: "true") }.to raise_error(ArgumentError, "invalid hold")
+    end
+  end
+
+  describe "manage_tag_counts" do
+    it "counts the jobs, strands and held jobs of the tag that are not running" do
+      2.times { "test".delay(strand: "s1", ignore_transaction: true).to_i }
+      "test".delay(strand: "s2", ignore_transaction: true).to_i
+      "test".delay(ignore_transaction: true).to_i.hold!
+      Delayed::Job.new(tag: "String#to_i", strand: "s4").create_and_lock!("worker")
+      create_job(strand: "s3")
+
+      expect(Delayed::Job.manage_tag_counts("String#to_i")).to eq(matched_jobs: 4, matched_strands: 2, held_jobs: 1)
+    end
+
+    it "rejects a missing tag" do
+      expect { Delayed::Job.manage_tag_counts(nil) }.to raise_error(ArgumentError, "missing tag")
+    end
+  end
+
   describe "tag_counts" do
     before do
       @cur = []
