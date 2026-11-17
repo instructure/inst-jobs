@@ -350,6 +350,83 @@ module Delayed
           [job_count, new_strand]
         end
 
+        # change priority, max_concurrent and hold state of every job with the tag
+        # that is not running, held ones included. Running jobs keep their settings.
+        # max_concurrent applies only to stranded jobs, and a strand ramps up to it
+        # gradually as its jobs finish. hold: true holds, hold: false releases.
+        # returns the number of jobs that at least one of the changes applies to
+        # (this is designed for use in a Rails console or the Canvas Jobs interface)
+        def self.manage_tag!(tag, priority: nil, max_concurrent: nil, hold: nil, batch_size: 1_000)
+          raise ArgumentError, "missing tag" if tag.blank?
+          if priority.nil? && max_concurrent.nil? && hold.nil?
+            raise ArgumentError, "missing priority, max_concurrent or hold"
+          end
+          unless priority.nil? || (priority.is_a?(Integer) && priority.between?(Delayed::MIN_PRIORITY, Delayed::MAX_PRIORITY))
+            raise ArgumentError, "invalid priority"
+          end
+          unless max_concurrent.nil? || (max_concurrent.is_a?(Integer) && max_concurrent >= 1)
+            raise ArgumentError, "invalid max_concurrent"
+          end
+          raise ArgumentError, "invalid hold" unless [nil, true, false].include?(hold)
+
+          assignments, affected = manage_tag_changes(priority:, max_concurrent:, hold:)
+          scope = manageable_tag_jobs(tag)
+          scope = scope.where(affected) if affected
+          scope.in_batches(of: batch_size).update_all(assignments)
+        end
+
+        # returns { matched_jobs:, matched_strands:, held_jobs: } for the jobs manage_tag! changes
+        def self.manage_tag_counts(tag)
+          scope = manageable_tag_jobs(tag)
+          {
+            matched_jobs: scope.count,
+            matched_strands: scope.where.not(strand: nil).distinct.count(:strand),
+            held_jobs: scope.where(locked_by: ON_HOLD_LOCKED_BY).count
+          }
+        end
+
+        # Each CASE reads the row as it was before the update, so the order of the
+        # assignments, locked_by last included, doesn't matter.
+        def self.manage_tag_changes(priority:, max_concurrent:, hold:)
+          now = db_time_now
+          assignments = []
+          affected = []
+          sql = ->(*fragment) { sanitize_sql_array(fragment) }
+
+          assignments << sql.call("priority = ?", priority) if priority
+          if max_concurrent
+            assignments << sql.call("max_concurrent = CASE WHEN strand IS NULL THEN max_concurrent ELSE ? END",
+                                    max_concurrent)
+            affected << "strand IS NOT NULL"
+          end
+          if hold == true
+            assignments << sql.call("locked_at = CASE WHEN locked_by IS NULL THEN ? ELSE locked_at END", now)
+            assignments << sql.call("attempts = CASE WHEN locked_by IS NULL THEN ? ELSE attempts END", ON_HOLD_COUNT)
+            assignments << sql.call("locked_by = CASE WHEN locked_by IS NULL THEN ? ELSE locked_by END",
+                                    ON_HOLD_LOCKED_BY)
+            affected << "locked_by IS NULL"
+          elsif hold == false
+            held = sql.call("locked_by = ?", ON_HOLD_LOCKED_BY)
+            assignments << "locked_at = CASE WHEN #{held} THEN NULL ELSE locked_at END"
+            assignments << "attempts = CASE WHEN #{held} THEN 0 ELSE attempts END"
+            assignments << sql.call("run_at = CASE WHEN #{held} AND run_at < ? THEN ? ELSE run_at END", now, now)
+            assignments << "failed_at = CASE WHEN #{held} THEN NULL ELSE failed_at END"
+            assignments << "locked_by = CASE WHEN #{held} THEN NULL ELSE locked_by END"
+            affected << held
+          end
+
+          affected_condition = affected.map { |condition| "(#{condition})" }.join(" OR ") unless priority
+          [assignments.join(", "), affected_condition]
+        end
+        private_class_method :manage_tag_changes
+
+        def self.manageable_tag_jobs(tag)
+          raise ArgumentError, "missing tag" if tag.blank?
+
+          where(tag:).where("locked_by IS NULL OR locked_by = ?", ON_HOLD_LOCKED_BY)
+        end
+        private_class_method :manageable_tag_jobs
+
         def self.maybe_silence_periodic_log(&)
           if Settings.silence_periodic_log
             ::ActiveRecord::Base.logger.silence(&)
