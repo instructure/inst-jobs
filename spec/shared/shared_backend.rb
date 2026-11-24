@@ -1232,7 +1232,7 @@ shared_examples_for "a backend" do
     end
   end
 
-  describe "manage_tag!" do
+  describe "manage_tag" do
     let(:tag) { "String#to_i" }
 
     def tagged_job(**)
@@ -1249,7 +1249,7 @@ shared_examples_for "a backend" do
       running = running_job(priority: 10)
       other = create_job(priority: 10)
 
-      expect(Delayed::Job.manage_tag!(tag, priority: 5)).to eq 2
+      expect(Delayed::Job.manage_tag(tag, priority: 5)).to eq 2
 
       expect(queued.reload.priority).to eq 5
       expect(held.reload.priority).to eq 5
@@ -1263,7 +1263,7 @@ shared_examples_for "a backend" do
       unstranded = tagged_job
       running = running_job(strand: "s2")
 
-      expect(Delayed::Job.manage_tag!(tag, max_concurrent: 3)).to eq 1
+      expect(Delayed::Job.manage_tag(tag, max_concurrent: 3)).to eq 1
 
       expect(stranded.reload.max_concurrent).to eq 3
       expect(unstranded.reload.max_concurrent).to eq 1
@@ -1275,7 +1275,7 @@ shared_examples_for "a backend" do
       held = tagged_job.tap(&:hold!)
       running = running_job
 
-      expect(Delayed::Job.manage_tag!(tag, hold: true)).to eq 1
+      expect(Delayed::Job.manage_tag(tag, hold: true)).to eq 1
 
       expect(queued.reload).to be_on_hold
       expect(held.reload).to be_on_hold
@@ -1287,7 +1287,7 @@ shared_examples_for "a backend" do
       held = Timecop.freeze(1.hour.ago) { tagged_job.tap(&:hold!) }
       running = running_job
 
-      expect(Delayed::Job.manage_tag!(tag, hold: false)).to eq 1
+      expect(Delayed::Job.manage_tag(tag, hold: false)).to eq 1
 
       held.reload
       expect(held.locked_by).to be_nil
@@ -1302,7 +1302,7 @@ shared_examples_for "a backend" do
       unstranded = tagged_job(priority: 10)
       running = running_job(strand: "s2", priority: 10)
 
-      expect(Delayed::Job.manage_tag!(tag, priority: 5, max_concurrent: 3, hold: true)).to eq 2
+      expect(Delayed::Job.manage_tag(tag, priority: 5, max_concurrent: 3, hold: true)).to eq 2
 
       stranded.reload
       expect([stranded.priority, stranded.max_concurrent, stranded.on_hold?]).to eq [5, 3, true]
@@ -1315,19 +1315,19 @@ shared_examples_for "a backend" do
     it "updates every job across batches" do
       jobs = Array.new(5) { tagged_job(priority: 10) }
 
-      expect(Delayed::Job.manage_tag!(tag, priority: 5, batch_size: 2)).to eq 5
+      expect(Delayed::Job.manage_tag(tag, priority: 5, batch_size: 2)).to eq 5
 
       expect(Delayed::Job.where(id: jobs.map(&:id)).pluck(:priority)).to all(eq 5)
     end
 
     it "rejects invalid arguments" do
-      expect { Delayed::Job.manage_tag!("", priority: 5) }.to raise_error(ArgumentError, "missing tag")
-      expect { Delayed::Job.manage_tag!(tag) }.to raise_error(ArgumentError, /missing priority/)
-      expect { Delayed::Job.manage_tag!(tag, priority: -1) }.to raise_error(ArgumentError, "invalid priority")
-      expect { Delayed::Job.manage_tag!(tag, priority: "5") }.to raise_error(ArgumentError, "invalid priority")
-      expect { Delayed::Job.manage_tag!(tag, max_concurrent: 0) }
+      expect { Delayed::Job.manage_tag("", priority: 5) }.to raise_error(ArgumentError, "missing tag")
+      expect { Delayed::Job.manage_tag(tag) }.to raise_error(ArgumentError, /missing priority/)
+      expect { Delayed::Job.manage_tag(tag, priority: -1) }.to raise_error(ArgumentError, "invalid priority")
+      expect { Delayed::Job.manage_tag(tag, priority: "5") }.to raise_error(ArgumentError, "invalid priority")
+      expect { Delayed::Job.manage_tag(tag, max_concurrent: 0) }
         .to raise_error(ArgumentError, "invalid max_concurrent")
-      expect { Delayed::Job.manage_tag!(tag, hold: "true") }.to raise_error(ArgumentError, "invalid hold")
+      expect { Delayed::Job.manage_tag(tag, hold: "true") }.to raise_error(ArgumentError, "invalid hold")
     end
   end
 
