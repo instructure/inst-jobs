@@ -26,6 +26,7 @@ Gem::Specification.new do |s|
   s.add_dependency "activerecord-pg-extensions", "~> 0.4"
   s.add_dependency "activesupport",              ">= 7.1"
   s.add_dependency "after_transaction_commit",   ">= 1.0", "<3"
+  s.add_dependency "benchmark"
   s.add_dependency "debug_inspector",            "~> 1.0"
   s.add_dependency "fugit",                      "~> 1.3"
   s.add_dependency "railties",                   ">= 6.0"
